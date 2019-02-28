@@ -122,6 +122,8 @@ protected:
   long int num_events_to_use;
    //! Reconstruct based on time frames
    bool do_time_frame;
+
+   long int num_events_in_data;
  
   //! sets any default values
   /*! Has to be called by set_defaults in the leaf-class */
