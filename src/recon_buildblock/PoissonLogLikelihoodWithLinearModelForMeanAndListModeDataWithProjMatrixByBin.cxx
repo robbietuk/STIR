@@ -220,11 +220,31 @@ set_up_before_sensitivity(shared_ptr <TargetT > const& target_sptr)
     }
 
     if (this->current_frame_num > this->frame_defs.get_num_frames())
-        {
-            warning("frame_num is %d, but should be less than the number of frames %d.",
-                    this->current_frame_num, this->frame_defs.get_num_frames());
-            return Succeeded::no;
+    {
+        warning("frame_num is %d, but should be less than the number of frames %d.",
+                this->current_frame_num, this->frame_defs.get_num_frames());
+        return Succeeded::no;
+    }
+
+
+
+    //Introduced by Robbie to count the number of events in the listmode data
+    info( boost::format("Counting the number of events in the data"));
+
+    shared_ptr<CListRecord> record_sptr = this->list_mode_data_sptr->get_empty_record_sptr();
+    CListRecord& record = *record_sptr;
+
+    long int num_events_in_data;
+    while (true)
+    {
+        this->num_events_in_data += 1;
+        if (this->list_mode_data_sptr->get_next_record(record) == Succeeded::no) {
+            info( boost::format("The number of events in the data: %1%") % this->num_events_in_data);
+            break; //get out of while loop
         }
+    }
+    this->list_mode_data_sptr->reset();
+
 
     return Succeeded::yes;
 } 
@@ -448,47 +468,18 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
     long int more_events =
             this->do_time_frame? 1 : this->num_events_to_use;
 
-    // Count the number of events in the data on the first run
-    if (this->num_events_in_data == 0)
-    {
-        info( boost::format("Counting this->num_events_in_data"));
-        while (more_events)
-        {
-            this->num_events_in_data += 1;
-            if (this->list_mode_data_sptr->get_next_record(record) == Succeeded::no) {
-                info( boost::format("The number of events in the data: %1%") % this->num_events_in_data);
-                break; //get out of while loop
-            }
-        }
-        //go to the beginning of this frame
-        //  list_mode_data_sptr->set_get_position(start_time);
-        // TODO implement function that will do this for a random time
-        this->list_mode_data_sptr->reset();
-    }
 
     long int num_events_per_subset = this->num_events_in_data/this->num_subsets;
     long int subset_event_min = num_events_per_subset *  subset_num;
     long int subset_event_max = num_events_per_subset *  (subset_num + 1);
 
-    //this->list_mode_data_sptr->set_get_position(frame_start_positions[subset_event_min])
-
+    // Begin iterating over all data
     while (more_events)//this->list_mode_data_sptr->get_next_record(record) == Succeeded::yes)
     {
         if (this->list_mode_data_sptr->get_next_record(record) == Succeeded::no)
         {
             break; //END OF FILE - get out of while loop
         }
-
-        /* //Comment out
-        if(record.is_time() && end_time > 0.01)
-        {
-            current_time = record.time().get_time_in_secs();
-            if (this->do_time_frame && current_time >= end_time)
-                break; // get out of while loop
-            if (current_time < start_time)
-                continue;
-        }
-         */
 
         if (record.is_event() && record.event().is_prompt())
         {
@@ -512,7 +503,6 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
 
             //Do i need this????
             //I believe this is a small (but maybe useless now) check to ensure the measured data is in the scanner FOV
-
              if (measured_bin.get_bin_value() != 1.0f
                     || measured_bin.segment_num() < proj_data_info_sptr->get_min_segment_num()
                     || measured_bin.segment_num()  > proj_data_info_sptr->get_max_segment_num()
@@ -524,20 +514,6 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
                 continue;
             }
 
-
-
-            /*OLD SUBSET CODE
-            // If more than 1 subsets, check if the current bin belongs to the current subset
-            if (this->num_subsets > 1)
-            {
-                Bin basic_bin = measured_bin;
-                if (!this->PM_sptr->get_symmetries_ptr()->find_basic_bin(basic_bin) ||
-                        subset_num != static_cast<int>(basic_bin.view_num() % this->num_subsets))
-                    continue;
-            }
-             */
-
-            //
             this->PM_sptr->get_proj_matrix_elems_for_one_bin(proj_matrix_row, measured_bin);
             //in_the_range++;
             Bin fwd_bin;
