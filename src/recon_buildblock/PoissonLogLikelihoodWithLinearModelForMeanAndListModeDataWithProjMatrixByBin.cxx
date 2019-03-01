@@ -234,17 +234,8 @@ set_up_before_sensitivity(shared_ptr <TargetT > const& target_sptr)
     shared_ptr<CListRecord> record_sptr = this->list_mode_data_sptr->get_empty_record_sptr();
     CListRecord& record = *record_sptr;
 
-    long int num_events_in_data;
-    while (true)
-    {
-        this->num_events_in_data += 1;
-        if (this->list_mode_data_sptr->get_next_record(record) == Succeeded::no) {
-            info( boost::format("The number of events in the data: %1%") % this->num_events_in_data);
-            break; //get out of while loop
-        }
-    }
-    this->list_mode_data_sptr->reset();
 
+    this->num_events_in_data = this->list_mode_data_sptr->get_total_number_of_events();
 
     return Succeeded::yes;
 } 
