@@ -227,15 +227,10 @@ set_up_before_sensitivity(shared_ptr <TargetT > const& target_sptr)
     }
 
 
-
     //Introduced by Robbie to count the number of events in the listmode data
     info( boost::format("Counting the number of events in the data"));
-
-    shared_ptr<CListRecord> record_sptr = this->list_mode_data_sptr->get_empty_record_sptr();
-    CListRecord& record = *record_sptr;
-
-
     this->num_events_in_data = this->list_mode_data_sptr->get_total_number_of_events();
+    info( boost::format("The number of events in the data : %1%") % this->num_events_in_data);
 
     return Succeeded::yes;
 } 
