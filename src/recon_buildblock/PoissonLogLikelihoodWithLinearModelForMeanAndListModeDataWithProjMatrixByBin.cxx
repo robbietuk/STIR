@@ -86,6 +86,7 @@ set_defaults()
 
   this->normalisation_sptr.reset(new TrivialBinNormalisation);
   this->do_time_frame = false;
+
   this->num_events_in_data = 0;
 } 
  
@@ -455,29 +456,30 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
         {
             this->num_events_in_data += 1;
             if (this->list_mode_data_sptr->get_next_record(record) == Succeeded::no) {
-                info( boost::format("num_events_recorded: %1%") % this->num_events_in_data);
+                info( boost::format("The number of events in the data: %1%") % this->num_events_in_data);
                 break; //get out of while loop
             }
         }
-        //Reset record
-        shared_ptr<CListRecord> record_sptr = this->list_mode_data_sptr->get_empty_record_sptr();
-        CListRecord& record = *record_sptr;
+        //go to the beginning of this frame
+        //  list_mode_data_sptr->set_get_position(start_time);
+        // TODO implement function that will do this for a random time
+        this->list_mode_data_sptr->reset();
     }
 
     long int num_events_per_subset = this->num_events_in_data/this->num_subsets;
     long int subset_event_min = num_events_per_subset *  subset_num;
     long int subset_event_max = num_events_per_subset *  (subset_num + 1);
 
-
+    //this->list_mode_data_sptr->set_get_position(frame_start_positions[subset_event_min])
 
     while (more_events)//this->list_mode_data_sptr->get_next_record(record) == Succeeded::yes)
     {
-
         if (this->list_mode_data_sptr->get_next_record(record) == Succeeded::no)
         {
             break; //END OF FILE - get out of while loop
         }
 
+        /* //Comment out
         if(record.is_time() && end_time > 0.01)
         {
             current_time = record.time().get_time_in_secs();
@@ -486,15 +488,32 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
             if (current_time < start_time)
                 continue;
         }
+         */
 
         if (record.is_event() && record.event().is_prompt())
         {
-            Bin measured_bin;
+            // Pass if we are within the subset for the data
+            num_events_investigated +=1;
+            if (this->num_subsets > 1)
+            {
+                if (num_events_investigated <= subset_event_min) {
+                    //Go to next event
+                    continue;
+                } else if (num_events_investigated >= subset_event_max) {
+                    //Passed the max event number for the subset - There will be no other events in the subset
+                    break;
+                }
+            }
+
+            Bin measured_bin; //Create a bin object
             measured_bin.set_bin_value(1.0f);
-            record.event().get_bin(measured_bin, *proj_data_info_sptr);
+            record.event().get_bin(measured_bin, *proj_data_info_sptr); //set measured bin info to the info of the LOR
 
 
-            if (measured_bin.get_bin_value() != 1.0f
+            //Do i need this????
+            //I believe this is a small (but maybe useless now) check to ensure the measured data is in the scanner FOV
+
+             if (measured_bin.get_bin_value() != 1.0f
                     || measured_bin.segment_num() < proj_data_info_sptr->get_min_segment_num()
                     || measured_bin.segment_num()  > proj_data_info_sptr->get_max_segment_num()
                     || measured_bin.tangential_pos_num() < proj_data_info_sptr->get_min_tangential_pos_num()
@@ -505,10 +524,9 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
                 continue;
             }
 
-            measured_bin.set_bin_value(1.0f);
 
 
-            /*
+            /*OLD SUBSET CODE
             // If more than 1 subsets, check if the current bin belongs to the current subset
             if (this->num_subsets > 1)
             {
@@ -519,25 +537,7 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
             }
              */
 
-            // This block check if the event in within the subset for events
-            num_events_investigated +=1;
-            if (this->num_subsets > 1)
-            {
-                if ( num_events_investigated <= subset_event_min )
-                {
-                    //Go to next event
-                    continue;
-                }
-                else if ( num_events_investigated >= subset_event_max )
-                {
-                    //Passed the max subset number so we can break here
-                    break;
-                }
-            }
-            //Can remove
-            // info( boost::format("Projecting event: %1% ") % num_events_investigated);
-
-
+            //
             this->PM_sptr->get_proj_matrix_elems_for_one_bin(proj_matrix_row, measured_bin);
             //in_the_range++;
             Bin fwd_bin;
@@ -559,12 +559,12 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
 
             if (num_used_events%200000L==0)
                 info( boost::format("Stored Events: %1% ") % num_used_events);
-
+//info(boost::format("fwd %1%") % fwd_bin.get_bin_value());
             if ( measured_bin.get_bin_value() <= max_quotient *fwd_bin.get_bin_value())
                 measured_div_fwd = 1.0f /fwd_bin.get_bin_value();
             else
                 continue;
-
+            //info(boost::format("div %1%") % measured_div_fwd);
             measured_bin.set_bin_value(measured_div_fwd);
             proj_matrix_row.back_project(gradient, measured_bin);
 
