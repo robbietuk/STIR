@@ -236,7 +236,7 @@ set_up_before_sensitivity(shared_ptr <TargetT > const& target_sptr)
     this->num_events_in_data = this->list_mode_data_sptr->get_total_number_of_events();
     info( boost::format("The number of events in the data : %1%") % this->num_events_in_data);
     // Debugging the parser
-    info( boost::format("this->subset_sampling_method : %1%") % this->subset_sampling_method);
+    info( boost::format("Subset Sampling Method is set to : %1%") % this->subset_sampling_method);
 
 
 
