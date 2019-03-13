@@ -229,16 +229,30 @@ set_up_before_sensitivity(shared_ptr <TargetT > const& target_sptr)
                 this->current_frame_num, this->frame_defs.get_num_frames());
         return Succeeded::no;
     }
-
-
     //Robbie: Introduced to count the number of events in the listmode data
     info( boost::format("Counting the number of events in the data"));
     this->num_events_in_data = this->list_mode_data_sptr->get_total_number_of_events();
+
     info( boost::format("The number of events in the data : %1%") % this->num_events_in_data);
     // Debugging the parser
     info( boost::format("Subset Sampling Method is set to : %1%") % this->subset_sampling_method);
 
-
+    this->list_mode_data_sptr->reset();
+    shared_ptr<CListRecord> record_sptr = this->list_mode_data_sptr->get_empty_record_sptr();
+    CListRecord& record = *record_sptr;
+    long int num_events_in_data = 0 ;
+    while (true)
+    {
+        if (this->list_mode_data_sptr->get_next_record(record) == Succeeded::no) {
+            info( boost::format("The number of events in the data: %1%") % this->num_events_in_data);
+            break;
+        }
+        else if (num_events_in_data % (this->list_mode_data_sptr->get_total_number_of_events()/this->num_subsets) == 0 ) {
+            this->list_mode_data_sptr->save_get_position();
+        }
+        num_events_in_data ++;
+    }
+    //this->list_mode_data_sptr->reset();
 
     return Succeeded::yes;
 } 
@@ -453,6 +467,7 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
     double current_time = 0.;
     ProjMatrixElemsForOneBin proj_matrix_row;
 
+    this->list_mode_data_sptr->set_get_position(subset_num);
     shared_ptr<CListRecord> record_sptr = this->list_mode_data_sptr->get_empty_record_sptr();
     CListRecord& record = *record_sptr;
 
@@ -462,120 +477,103 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
     long int more_events =
             this->do_time_frame? 1 : this->num_events_to_use;
 
-
     long int num_events_per_subset = this->num_events_in_data/this->num_subsets;
-    long int subset_event_min = num_events_per_subset *  subset_num;
-    long int subset_event_max = num_events_per_subset *  (subset_num + 1);
 
-    // Check the
-    if (this->subset_sampling_method !="0") {
-
-        // Begin iterating over all data
-        while (more_events)//this->list_mode_data_sptr->get_next_record(record) == Succeeded::yes)
+    // Begin iterating over all data
+    while (more_events)//this->list_mode_data_sptr->get_next_record(record) == Succeeded::yes)
+    {
+        if (this->list_mode_data_sptr->get_next_record(record) == Succeeded::no) {
+            break; //END OF FILE - get out of while loop
+        }
+        if (record.is_event() && record.event().is_prompt())
         {
-            if (this->list_mode_data_sptr->get_next_record(record) == Succeeded::no) {
-                break; //END OF FILE - get out of while loop
-            }
+            if (this->num_subsets > 1)
+            {
+                // Robbie: This section is what chooses whether the current "record" is within the subset.
 
-            if (record.is_event() && record.event().is_prompt()) {
-                // Pass if we are within the subset for the data
-                num_events_investigated += 1;
-
-                if (this->num_subsets > 1) {
-                    // Robbie: This section is what chooses whether the current "record" is within the subset.
-
-                    // This is a block iteration method. The records file is split into groupings of events,
-                    // iteration through records terminates after the subset has been exhausted. This is the simplest,
-                    // method for subset sampling.
-                    if (this->subset_sampling_method == "Blocks" || this->subset_sampling_method == "blocks")
-                    {
-                        if (num_events_investigated <= subset_event_min)
-                        {
-                            //Go to next event
-                            continue;
-                        } else if (num_events_investigated >= subset_event_max) {
-                            //Passed the max event number for the subset - There will be no other events in the subset
-                            break;
-                        }
-                    }
-
-                    // This is a Nth subset sampling method. Every Nth event is used in the subset, where N corresponds
-                    // to the number of subsets. This is a slower algoithm than BLOCKS but is better for kenetic data.
-                    else if (this->subset_sampling_method == "Nth" || this->subset_sampling_method == "nth")
-                    {
-                        if (num_events_investigated % this->num_subsets != subset_num)
-                        {
-                            //Go to next event
-                            continue;
-                        }
-                    }
-
-                    // Un-recognised subset sampling method
-                    else
-                    {
-                        warning("UNRECOGNISED SUBSET_SAMPLING_METHOD. Define a valid subset sampling method in parameter file");
+                // This is a block iteration method. The records file is split into groupings of events,
+                // iteration through records terminates after the subset has been exhausted. This is the simplest,
+                // method for subset sampling.
+                if (this->subset_sampling_method == "Blocks" || this->subset_sampling_method == "blocks")
+                {
+                    if (num_events_investigated >= num_events_per_subset) {
+                        //Passed the max event number for the subset - There will be no other events in the subset
                         break;
                     }
-
+                }
+                    // This is a Nth subset sampling method. Every Nth event is used in the subset, where N corresponds
+                    // to the number of subsets. This is a slower algoithm than BLOCKS but is better for kenetic data.
+                else if (this->subset_sampling_method == "Nth" || this->subset_sampling_method == "nth")
+                {
+                    if (num_events_investigated % this->num_subsets != subset_num) {
+                        //Go to next event
+                        continue;
+                    }
                 }
 
-                Bin measured_bin; //Create a bin object
-                measured_bin.set_bin_value(1.0f);
-                record.event().get_bin(measured_bin,
-                                       *proj_data_info_sptr); //set measured bin info to the info of the LOR
-
-
-                //Do i need this????
-                //I believe this is a small (but maybe useless now) check to ensure the measured data is in the scanner FOV
-                if (measured_bin.get_bin_value() != 1.0f
-                    || measured_bin.segment_num() < proj_data_info_sptr->get_min_segment_num()
-                    || measured_bin.segment_num() > proj_data_info_sptr->get_max_segment_num()
-                    || measured_bin.tangential_pos_num() < proj_data_info_sptr->get_min_tangential_pos_num()
-                    || measured_bin.tangential_pos_num() > proj_data_info_sptr->get_max_tangential_pos_num()
-                    || measured_bin.axial_pos_num() <
-                       proj_data_info_sptr->get_min_axial_pos_num(measured_bin.segment_num())
-                    || measured_bin.axial_pos_num() >
-                       proj_data_info_sptr->get_max_axial_pos_num(measured_bin.segment_num())) {
-                    continue;
+                    // Un-recognised subset sampling method
+                else {
+                    warning("UNRECOGNISED SUBSET_SAMPLING_METHOD. Define a valid subset sampling method in parameter file");
+                    break;
                 }
-
-                this->PM_sptr->get_proj_matrix_elems_for_one_bin(proj_matrix_row, measured_bin);
-                //in_the_range++;
-                Bin fwd_bin;
-                fwd_bin.set_bin_value(0.0f);
-                proj_matrix_row.forward_project(fwd_bin, current_estimate);
-                // additive sinogram
-                if (!is_null_ptr(this->additive_proj_data_sptr)) {
-                    float add_value = this->additive_proj_data_sptr->get_bin_value(measured_bin);
-                    float value = fwd_bin.get_bin_value() + add_value;
-                    fwd_bin.set_bin_value(value);
-                }
-                float measured_div_fwd = 0.0f;
-
-                if (!this->do_time_frame)
-                    more_events -= 1;
-
-                num_used_events += 1;
-
-                if (num_used_events % 200000L == 0)
-                    info(boost::format("Stored Events: %1% ") % num_used_events);
-                //info(boost::format("fwd %1%") % fwd_bin.get_bin_value());
-                if (measured_bin.get_bin_value() <= max_quotient * fwd_bin.get_bin_value())
-                    measured_div_fwd = 1.0f / fwd_bin.get_bin_value();
-                else
-                    continue;
-                //info(boost::format("div %1%") % measured_div_fwd);
-                measured_bin.set_bin_value(measured_div_fwd);
-                proj_matrix_row.back_project(gradient, measured_bin);
 
             }
+
+            Bin measured_bin; //Create a bin object
+            measured_bin.set_bin_value(1.0f);
+            record.event().get_bin(measured_bin,
+                                   *proj_data_info_sptr); //set measured bin info to the info of the LOR
+
+
+            //Do i need this????
+            //I believe this is a small (but maybe useless now) check to ensure the measured data is in the scanner FOV
+            if (measured_bin.get_bin_value() != 1.0f
+                || measured_bin.segment_num() < proj_data_info_sptr->get_min_segment_num()
+                || measured_bin.segment_num() > proj_data_info_sptr->get_max_segment_num()
+                || measured_bin.tangential_pos_num() < proj_data_info_sptr->get_min_tangential_pos_num()
+                || measured_bin.tangential_pos_num() > proj_data_info_sptr->get_max_tangential_pos_num()
+                || measured_bin.axial_pos_num() <
+                   proj_data_info_sptr->get_min_axial_pos_num(measured_bin.segment_num())
+                || measured_bin.axial_pos_num() >
+                   proj_data_info_sptr->get_max_axial_pos_num(measured_bin.segment_num())) {
+                continue;
+            }
+
+            this->PM_sptr->get_proj_matrix_elems_for_one_bin(proj_matrix_row, measured_bin);
+            //in_the_range++;
+            Bin fwd_bin;
+            fwd_bin.set_bin_value(0.0f);
+            proj_matrix_row.forward_project(fwd_bin, current_estimate);
+            // additive sinogram
+            if (!is_null_ptr(this->additive_proj_data_sptr)) {
+                float add_value = this->additive_proj_data_sptr->get_bin_value(measured_bin);
+                float value = fwd_bin.get_bin_value() + add_value;
+                fwd_bin.set_bin_value(value);
+            }
+            float measured_div_fwd = 0.0f;
+
+            if (!this->do_time_frame)
+                more_events -= 1;
+
+            num_used_events += 1;
+
+            if (num_used_events % 200000L == 0)
+                info(boost::format("Stored Events: %1% ") % num_used_events);
+            //info(boost::format("fwd %1%") % fwd_bin.get_bin_value());
+            if (measured_bin.get_bin_value() <= max_quotient * fwd_bin.get_bin_value())
+                measured_div_fwd = 1.0f / fwd_bin.get_bin_value();
+            else
+                continue;
+            //info(boost::format("div %1%") % measured_div_fwd);
+            measured_bin.set_bin_value(measured_div_fwd);
+            proj_matrix_row.back_project(gradient, measured_bin);
+
         }
+        num_events_investigated += 1;
     }
-    else
-    {
-        warning("UNDEFINED SUBSET SAMPLING METHOD. Define subset sampling method in parameterr file");
-    }
+    info(boost::format("Number of events used in this subiteration: %1%") % num_used_events);
 }
+
 
 #  ifdef _MSC_VER
 // prevent warning message on instantiation of abstract class 
