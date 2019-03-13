@@ -231,9 +231,9 @@ set_up_before_sensitivity(shared_ptr <TargetT > const& target_sptr)
     }
     //Robbie: Introduced to count the number of events in the listmode data
     info( boost::format("Counting the number of events in the data"));
-    this->num_events_in_data = this->list_mode_data_sptr->get_total_number_of_events();
+    this->num_events_in_data = 0;
 
-    info( boost::format("The number of events in the data : %1%") % this->num_events_in_data);
+    info( boost::format("The number of events in the data : %1%") % this->list_mode_data_sptr->get_total_number_of_events());
     // Debugging the parser
     info( boost::format("Subset Sampling Method is set to : %1%") % this->subset_sampling_method);
 
@@ -247,14 +247,17 @@ set_up_before_sensitivity(shared_ptr <TargetT > const& target_sptr)
             info( boost::format("The number of events in the data: %1%") % this->num_events_in_data);
             break;
         }
-        else if (num_events_in_data % (this->list_mode_data_sptr->get_total_number_of_events()/this->num_subsets) == 0 ) {
+        else if (this->num_events_in_data % (this->list_mode_data_sptr->get_total_number_of_events()/this->num_subsets) == 0 ) {
             this->list_mode_data_sptr->save_get_position();
         }
-        num_events_in_data ++;
+        this->num_events_in_data ++;
     }
-    //this->list_mode_data_sptr->reset();
+
+    std::cout << "this->num_events_in_data : " << this->num_events_in_data << "\n";
+    std::cout << "this->list_mode_data_sptr->get_total_number_of_events() : " << this->list_mode_data_sptr->get_total_number_of_events() << "\n";
 
     return Succeeded::yes;
+
 } 
  
  
