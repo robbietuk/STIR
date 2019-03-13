@@ -87,7 +87,7 @@ set_defaults()
   this->normalisation_sptr.reset(new TrivialBinNormalisation);
   this->do_time_frame = false;
 
-  this->num_events_in_data = 0;
+  this->total_num_prompts_in_data = 0;
   this->subset_sampling_method = "0";
 } 
  
@@ -122,6 +122,7 @@ bool
 PoissonLogLikelihoodWithLinearModelForMeanAndListModeDataWithProjMatrixByBin<TargetT>::
 actual_subsets_are_approximately_balanced(std::string& warning_message) const
 {
+    if (this->subset_sampling_method == "Geometric" || this->subset_sampling_method == "geometric" ){
     assert(this->num_subsets>0);
         const DataSymmetriesForBins& symmetries =
                 *this->PM_sptr->get_symmetries_ptr();
@@ -187,7 +188,8 @@ actual_subsets_are_approximately_balanced(std::string& warning_message) const
                 return false;
             }
         }
-        return true;
+    }
+    return true;
 }
 
 template <typename TargetT>  
@@ -229,35 +231,43 @@ set_up_before_sensitivity(shared_ptr <TargetT > const& target_sptr)
                 this->current_frame_num, this->frame_defs.get_num_frames());
         return Succeeded::no;
     }
-    //Robbie: Introduced to count the number of events in the listmode data
-    info( boost::format("Counting the number of events in the data"));
-    this->num_events_in_data = 0;
 
-    info( boost::format("The number of events in the data : %1%") % this->list_mode_data_sptr->get_total_number_of_events());
+    //Robbie: Introduced to count the number of events in the listmode data
+
     // Debugging the parser
     info( boost::format("Subset Sampling Method is set to : %1%") % this->subset_sampling_method);
 
-    this->list_mode_data_sptr->reset();
+    this->list_mode_data_sptr->reset(); //Reset to possition 0 in listmode data
     shared_ptr<CListRecord> record_sptr = this->list_mode_data_sptr->get_empty_record_sptr();
     CListRecord& record = *record_sptr;
-    long int num_events_in_data = 0 ;
+
+    info( boost::format("Counting the number of prompts in the Listmode file"));
+    this->total_num_prompts_in_data = 0;
     while (true)
     {
-        if (this->list_mode_data_sptr->get_next_record(record) == Succeeded::no) {
-            info( boost::format("The number of events in the data: %1%") % this->num_events_in_data);
+        if (this->list_mode_data_sptr->get_next_record(record) == Succeeded::no)
+        {
+            info( boost::format("The number of prompts in the data: %1%") % this->total_num_prompts_in_data);
             break;
         }
-        else if (this->num_events_in_data % (this->list_mode_data_sptr->get_total_number_of_events()/this->num_subsets) == 0 ) {
-            this->list_mode_data_sptr->save_get_position();
-        }
-        this->num_events_in_data ++;
+        if (record.is_event() && record.event().is_prompt())
+            this->total_num_prompts_in_data ++;
     }
 
-    std::cout << "this->num_events_in_data : " << this->num_events_in_data << "\n";
-    std::cout << "this->list_mode_data_sptr->get_total_number_of_events() : " << this->list_mode_data_sptr->get_total_number_of_events() << "\n";
+    this->list_mode_data_sptr->reset(); //Reset to possition 0 in listmode data
+    info( boost::format("Placing subset flags in Listmode Data"));
+    long prompt_counter = 0;
+    while (true)
+    {
+        if (this->list_mode_data_sptr->get_next_record(record) == Succeeded::no)
+            break;
+
+        if (prompt_counter % (this->total_num_prompts_in_data/this->num_subsets) == 0 )
+            if (record.is_event() && record.event().is_prompt())
+                this->list_mode_data_sptr->save_get_position();
+    }
 
     return Succeeded::yes;
-
 } 
  
  
@@ -480,7 +490,7 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
     long int more_events =
             this->do_time_frame? 1 : this->num_events_to_use;
 
-    long int num_events_per_subset = this->num_events_in_data/this->num_subsets;
+    long int num_events_per_subset = this->total_num_prompts_in_data/this->num_subsets;
 
     // Begin iterating over all data
     while (more_events)//this->list_mode_data_sptr->get_next_record(record) == Succeeded::yes)

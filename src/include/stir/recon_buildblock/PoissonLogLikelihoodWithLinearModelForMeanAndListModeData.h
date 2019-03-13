@@ -125,7 +125,7 @@ protected:
 
    //! Additions by Robbie for modifications to listmode
    //! Calculated in SETUP - used in the subset size calculations
-   long int num_events_in_data;
+   long int total_num_prompts_in_data;
    //!
    std::string subset_sampling_method;
  
