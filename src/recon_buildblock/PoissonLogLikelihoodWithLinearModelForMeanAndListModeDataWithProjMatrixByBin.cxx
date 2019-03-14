@@ -88,7 +88,7 @@ set_defaults()
   this->do_time_frame = false;
 
   this->total_num_prompts_in_data = 0;
-  this->subset_sampling_method = "0";
+  this->subset_sampling_method = "Geometric";
 } 
  
 template <typename TargetT> 
@@ -105,7 +105,7 @@ initialise_keymap()
 
   this->parser.add_key("num_events_to_use",&this->num_events_to_use);
 
-  //Additions by Robbie for LM Subset restructuring
+  //Robbie : Subset sampling method can be parsed in
   this->parser.add_key("Subset sampling method",&this->subset_sampling_method);
 } 
 template <typename TargetT> 
@@ -232,41 +232,42 @@ set_up_before_sensitivity(shared_ptr <TargetT > const& target_sptr)
         return Succeeded::no;
     }
 
-    //Robbie: Introduced to count the number of events in the listmode data
-
-    // Debugging the parser
     info( boost::format("Subset Sampling Method is set to : %1%") % this->subset_sampling_method);
 
-    this->list_mode_data_sptr->reset(); //Reset to possition 0 in listmode data
-    shared_ptr<CListRecord> record_sptr = this->list_mode_data_sptr->get_empty_record_sptr();
-    CListRecord& record = *record_sptr;
-
-    info( boost::format("Counting the number of prompts in the Listmode file"));
-    this->total_num_prompts_in_data = 0;
-    while (true)
+    //Robbie: If doing block sampling - Need to place get_position flags to mark the start of the subsets
+    // This is done by counting the number of prompts then reiterating through the counts marking at the correct positons
+    if ((this->subset_sampling_method == "Blocks" || this->subset_sampling_method == "blocks") && this->num_subsets > 1)
     {
-        if (this->list_mode_data_sptr->get_next_record(record) == Succeeded::no)
+        this->list_mode_data_sptr->reset(); //Reset to possition 0 in listmode data
+        shared_ptr<CListRecord> record_sptr = this->list_mode_data_sptr->get_empty_record_sptr();
+        CListRecord& record = *record_sptr;
+
+        info( boost::format("Counting the number of prompts in the Listmode file"));
+        this->total_num_prompts_in_data = 0;
+        while (true)
         {
-            info( boost::format("The number of prompts in the data: %1%") % this->total_num_prompts_in_data);
-            break;
-        }
-        if (record.is_event() && record.event().is_prompt())
-            this->total_num_prompts_in_data ++;
-    }
-
-    this->list_mode_data_sptr->reset(); //Reset to possition 0 in listmode data
-    info( boost::format("Placing subset flags in Listmode Data"));
-    long prompt_counter = 0;
-    while (true)
-    {
-        if (this->list_mode_data_sptr->get_next_record(record) == Succeeded::no)
-            break;
-
-        if (prompt_counter % (this->total_num_prompts_in_data/this->num_subsets) == 0 )
+            if (this->list_mode_data_sptr->get_next_record(record) == Succeeded::no)
+            {
+                info( boost::format("The number of prompts in the data: %1%") % this->total_num_prompts_in_data);
+                break;
+            }
             if (record.is_event() && record.event().is_prompt())
-                this->list_mode_data_sptr->save_get_position();
-    }
+                this->total_num_prompts_in_data ++;
+        }
 
+        this->list_mode_data_sptr->reset(); //Reset to possition 0 in listmode data
+        info( boost::format("Placing subset flags in Listmode Data"));
+        long prompt_counter = 0;
+        while (true)
+        {
+            if (this->list_mode_data_sptr->get_next_record(record) == Succeeded::no)
+                break;
+
+            if (prompt_counter % (this->total_num_prompts_in_data/this->num_subsets) == 0 )
+                if (record.is_event() && record.event().is_prompt())
+                    this->list_mode_data_sptr->save_get_position();
+        }
+    }
     return Succeeded::yes;
 } 
  
@@ -462,7 +463,6 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
                                                       const TargetT &current_estimate,
                                                       const int subset_num)
 { 
-
     assert(subset_num>=0);
     assert(subset_num<this->num_subsets);
 
@@ -476,13 +476,9 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
     //go to the beginning of this frame
     //  list_mode_data_sptr->set_get_position(start_time);
     // TODO implement function that will do this for a random time
-    this->list_mode_data_sptr->reset();
+
     double current_time = 0.;
     ProjMatrixElemsForOneBin proj_matrix_row;
-
-    this->list_mode_data_sptr->set_get_position(subset_num);
-    shared_ptr<CListRecord> record_sptr = this->list_mode_data_sptr->get_empty_record_sptr();
-    CListRecord& record = *record_sptr;
 
     VectorWithOffset<CListModeData::SavedPosition>
             frame_start_positions(1, static_cast<int>(this->frame_defs.get_num_frames()));
@@ -492,6 +488,15 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
 
     long int num_events_per_subset = this->total_num_prompts_in_data/this->num_subsets;
 
+    long num_events_projected = 0;
+    this->list_mode_data_sptr->reset();
+    if ((this->subset_sampling_method == "Blocks" || this->subset_sampling_method == "blocks") && this->num_subsets > 1)
+        this->list_mode_data_sptr->set_get_position(subset_num);
+    shared_ptr<CListRecord> record_sptr = this->list_mode_data_sptr->get_empty_record_sptr();
+    CListRecord& record = *record_sptr;
+
+
+    std::cout << "Performing LM iteration\n";
     // Begin iterating over all data
     while (more_events)//this->list_mode_data_sptr->get_next_record(record) == Succeeded::yes)
     {
@@ -500,12 +505,17 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
         }
         if (record.is_event() && record.event().is_prompt())
         {
+            Bin measured_bin;
+            measured_bin.set_bin_value(1.0f);
+            record.event().get_bin(measured_bin, *proj_data_info_sptr);//set measured bin info to the info of the LOR
+            measured_bin.set_bin_value(1.0f);
+
             if (this->num_subsets > 1)
             {
                 // Robbie: This section is what chooses whether the current "record" is within the subset.
 
                 // This is a block iteration method. The records file is split into groupings of events,
-                // iteration through records terminates after the subset has been exhausted. This is the simplest,
+                // iteration through records terminates after the subset has been exhausted. This is the simplest (and fastest)
                 // method for subset sampling.
                 if (this->subset_sampling_method == "Blocks" || this->subset_sampling_method == "blocks")
                 {
@@ -514,6 +524,7 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
                         break;
                     }
                 }
+
                     // This is a Nth subset sampling method. Every Nth event is used in the subset, where N corresponds
                     // to the number of subsets. This is a slower algoithm than BLOCKS but is better for kenetic data.
                 else if (this->subset_sampling_method == "Nth" || this->subset_sampling_method == "nth")
@@ -524,6 +535,17 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
                     }
                 }
 
+                    //This is the default Geometric sampling method. The
+                else if (this->subset_sampling_method == "Geometric" || this->subset_sampling_method == "geometric")
+                {
+
+                    measured_bin.set_bin_value(1.0f);
+                    Bin basic_bin = measured_bin;
+                    if (!this->PM_sptr->get_symmetries_ptr()->find_basic_bin(basic_bin) ||
+                            subset_num != static_cast<int>(basic_bin.view_num() % this->num_subsets))
+                        continue;
+                }
+
                     // Un-recognised subset sampling method
                 else {
                     warning("UNRECOGNISED SUBSET_SAMPLING_METHOD. Define a valid subset sampling method in parameter file");
@@ -532,25 +554,29 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
 
             }
 
-            Bin measured_bin; //Create a bin object
-            measured_bin.set_bin_value(1.0f);
-            record.event().get_bin(measured_bin,
-                                   *proj_data_info_sptr); //set measured bin info to the info of the LOR
-
-
             //Do i need this????
             //I believe this is a small (but maybe useless now) check to ensure the measured data is in the scanner FOV
             if (measured_bin.get_bin_value() != 1.0f
-                || measured_bin.segment_num() < proj_data_info_sptr->get_min_segment_num()
-                || measured_bin.segment_num() > proj_data_info_sptr->get_max_segment_num()
-                || measured_bin.tangential_pos_num() < proj_data_info_sptr->get_min_tangential_pos_num()
-                || measured_bin.tangential_pos_num() > proj_data_info_sptr->get_max_tangential_pos_num()
-                || measured_bin.axial_pos_num() <
-                   proj_data_info_sptr->get_min_axial_pos_num(measured_bin.segment_num())
-                || measured_bin.axial_pos_num() >
-                   proj_data_info_sptr->get_max_axial_pos_num(measured_bin.segment_num())) {
+                    || measured_bin.segment_num() < proj_data_info_sptr->get_min_segment_num()
+                    || measured_bin.segment_num()  > proj_data_info_sptr->get_max_segment_num()
+                    || measured_bin.tangential_pos_num() < proj_data_info_sptr->get_min_tangential_pos_num()
+                    || measured_bin.tangential_pos_num() > proj_data_info_sptr->get_max_tangential_pos_num()
+                    || measured_bin.axial_pos_num() < proj_data_info_sptr->get_min_axial_pos_num(measured_bin.segment_num())
+                    || measured_bin.axial_pos_num() > proj_data_info_sptr->get_max_axial_pos_num(measured_bin.segment_num()))
+            {
                 continue;
             }
+
+//            std::cout << "measured_bin.segment_num() " << measured_bin.segment_num() << "\n";
+//            std::cout << "measured_bin.tangential_pos_num() " << measured_bin.tangential_pos_num() << "\n";
+//            std::cout << "measured_bin.axial_pos_num() " << measured_bin.axial_pos_num() << "\n";
+//            std::cout << "proj_data_info_sptr->get_min_segment_num() " << proj_data_info_sptr->get_min_segment_num() << "\n";
+//            std::cout << "proj_data_info_sptr->get_max_segment_num() " << proj_data_info_sptr->get_max_segment_num() << "\n";
+//            std::cout << "proj_data_info_sptr->get_min_tangential_pos_num() " << proj_data_info_sptr->get_min_tangential_pos_num() << "\n";
+//            std::cout << "proj_data_info_sptr->get_max_tangential_pos_num() " << proj_data_info_sptr->get_max_tangential_pos_num() << "\n";
+//            std::cout << "proj_data_info_sptr->get_min_axial_pos_num(measured_bin.segment_num()) " << proj_data_info_sptr->get_min_axial_pos_num(measured_bin.segment_num()) << "\n";
+//            std::cout << "proj_data_info_sptr->get_max_axial_pos_num(measured_bin.segment_num())) " << proj_data_info_sptr->get_max_axial_pos_num(measured_bin.segment_num()) << "\n";
+
 
             this->PM_sptr->get_proj_matrix_elems_for_one_bin(proj_matrix_row, measured_bin);
             //in_the_range++;
@@ -580,11 +606,12 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
             //info(boost::format("div %1%") % measured_div_fwd);
             measured_bin.set_bin_value(measured_div_fwd);
             proj_matrix_row.back_project(gradient, measured_bin);
-
+            num_events_projected ++;
         }
         num_events_investigated += 1;
     }
     info(boost::format("Number of events used in this subiteration: %1%") % num_used_events);
+    info(boost::format("Number of events PROJECTED in this subiteration: %1%") % num_events_investigated);
 }
 
 
