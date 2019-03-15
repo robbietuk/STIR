@@ -237,7 +237,7 @@ set_up_before_sensitivity(shared_ptr <TargetT > const& target_sptr)
 
     std::cout << "PERFORMING::: this->list_mode_data_sptr->go_to_position(5)\n";
     unsigned long pos = 5;
-    this->list_mode_data_sptr->set_listmode_position(pos);
+    //this->list_mode_data_sptr->set_listmode_position(pos);
 
     //Robbie: If doing block sampling - Need to place get_position flags to mark the start of the subsets
     // This is done by counting the number of prompts then reiterating through the counts marking at the correct positons
