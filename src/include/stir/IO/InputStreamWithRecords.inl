@@ -176,7 +176,19 @@ Succeeded
 InputStreamWithRecords<RecordT, OptionsT>::
 set_listmode_position(const unsigned long pos)
 {
-    return Succeeded::no;
+    if (is_null_ptr(stream_ptr))
+      return Succeeded::no;
+
+    stream_ptr->clear();
+    if (pos >= std::streampos(-1))
+      stream_ptr->seekg(0, std::ios::end); // go to eof
+    else
+      stream_ptr->seekg(pos);
+
+    if (!stream_ptr->good())
+      return Succeeded::no;
+    else
+      return Succeeded::yes;
 }
 
 template <class RecordT, class OptionsT>
