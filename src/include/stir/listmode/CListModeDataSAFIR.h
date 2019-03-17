@@ -79,6 +79,16 @@ public:
 	virtual Succeeded set_get_position(const SavedPosition& pos)
 	{ return current_lm_data_ptr->set_get_position(pos); }
 
+    //! Set current position in the input file to pos
+   virtual
+    Succeeded set_list_mode_position(unsigned long pos)
+    { return current_lm_data_ptr->set_list_mode_position(pos);}
+
+   virtual
+    unsigned long get_list_mode_position()
+    {return current_lm_data_ptr->get_list_mode_position();}
+
+
 	/*! 
 	Returns just false in the moment.
 	\todo Implement this properly to check for delayed events in LM files.

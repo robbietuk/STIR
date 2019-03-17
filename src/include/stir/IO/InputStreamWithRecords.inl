@@ -172,6 +172,38 @@ set_get_position(const typename InputStreamWithRecords<RecordT, OptionsT>::Saved
 }
 
 template <class RecordT, class OptionsT>
+Succeeded
+InputStreamWithRecords<RecordT, OptionsT>::
+set_list_mode_position(const unsigned long pos)
+{
+    if (is_null_ptr(stream_ptr))
+      return Succeeded::no;
+
+    stream_ptr->clear();
+    if (pos >= std::streampos(-1))
+      stream_ptr->seekg(0, std::ios::end); // go to eof
+    else
+      stream_ptr->seekg(pos);
+
+    if (!stream_ptr->good())
+      return Succeeded::no;
+    else
+      return Succeeded::yes;
+}
+
+template <class RecordT, class OptionsT>
+unsigned long
+InputStreamWithRecords<RecordT, OptionsT>::
+get_list_mode_position()
+{
+    std::streampos pos;
+    pos = stream_ptr->tellg();
+    return pos;
+}
+
+
+
+template <class RecordT, class OptionsT>
 std::vector<std::streampos> 
 InputStreamWithRecords<RecordT, OptionsT>::
 get_saved_get_positions() const

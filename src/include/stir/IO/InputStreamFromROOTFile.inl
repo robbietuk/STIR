@@ -65,6 +65,35 @@ set_get_position(const InputStreamFromROOTFile::SavedPosition& pos)
     return Succeeded::yes;
 }
 
+
+//! Set current position
+Succeeded
+InputStreamFromROOTFile::
+set_listmode_position(unsigned long pos)
+{
+    if (pos > nentries){
+        current_position = nentries;
+        }
+    else
+    {
+        current_position = pos;
+    }
+
+    if (current_position == pos)
+        return Succeeded::yes;
+    else {
+        return Succeeded::no;
+    }
+}
+
+//get the current position
+unsigned long
+InputStreamFromROOTFile::
+get_list_mode_position()
+{
+    return current_position;
+}
+
 std::vector<unsigned long int>
 InputStreamFromROOTFile::
 get_saved_get_positions() const
