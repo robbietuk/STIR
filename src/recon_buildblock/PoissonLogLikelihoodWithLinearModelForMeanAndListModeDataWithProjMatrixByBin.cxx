@@ -232,47 +232,8 @@ set_up_before_sensitivity(shared_ptr <TargetT > const& target_sptr)
         return Succeeded::no;
     }
 
-    info( boost::format("Subset Sampling Method is set to : %1%") % this->subset_sampling_method);
+    info(boost::format("Subset Sampling Method is set to : %1%") % this->subset_sampling_method);
 
-
-    std::cout << "PERFORMING::: this->list_mode_data_sptr->go_to_position(5)\n";
-    unsigned long pos = 5;
-    this->list_mode_data_sptr->set_listmode_position(pos);
-
-    //Robbie: If doing block sampling - Need to place get_position flags to mark the start of the subsets
-    // This is done by counting the number of prompts then reiterating through the counts marking at the correct positons
-    if ((this->subset_sampling_method == "Blocks" || this->subset_sampling_method == "blocks") && this->num_subsets > 1)
-    {
-        this->list_mode_data_sptr->reset(); //Reset to possition 0 in listmode data
-        shared_ptr<CListRecord> record_sptr = this->list_mode_data_sptr->get_empty_record_sptr();
-        CListRecord& record = *record_sptr;
-
-        info( boost::format("Counting the number of prompts in the Listmode file"));
-        this->total_num_prompts_in_data = 0;
-        while (true)
-        {
-            if (this->list_mode_data_sptr->get_next_record(record) == Succeeded::no)
-            {
-                info( boost::format("The number of prompts in the data: %1%") % this->total_num_prompts_in_data);
-                break;
-            }
-            if (record.is_event() && record.event().is_prompt())
-                this->total_num_prompts_in_data ++;
-        }
-
-        this->list_mode_data_sptr->reset(); //Reset to possition 0 in listmode data
-        info( boost::format("Placing subset flags in Listmode Data"));
-        long prompt_counter = 0;
-        while (true)
-        {
-            if (this->list_mode_data_sptr->get_next_record(record) == Succeeded::no)
-                break;
-
-            if (prompt_counter % (this->total_num_prompts_in_data/this->num_subsets) == 0 )
-                if (record.is_event() && record.event().is_prompt())
-                    this->list_mode_data_sptr->save_get_position();
-        }
-    }
     return Succeeded::yes;
 } 
  
@@ -524,43 +485,45 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
                 // method for subset sampling.
                 if (this->subset_sampling_method == "Blocks" || this->subset_sampling_method == "blocks")
                 {
-                    if (num_events_investigated >= num_events_per_subset) {
-                        //Passed the max event number for the subset - There will be no other events in the subset
+                    if(num_events_investigated >= num_events_per_subset)
+                    {
                         break;
                     }
                 }
 
-                    // This is a Nth subset sampling method. Every Nth event is used in the subset, where N corresponds
-                    // to the number of subsets. This is a slower algoithm than BLOCKS but is better for kenetic data.
+                // This is a Nth subset sampling method. Every Nth event is used in the subset, where N corresponds
+                // to the number of subsets. This is a slower algoithm than BLOCKS but is better for kenetic data.
                 else if (this->subset_sampling_method == "Nth" || this->subset_sampling_method == "nth")
-                {
-                    if (num_events_investigated % this->num_subsets != subset_num) {
-                        //Go to next event
-                        continue;
+                    {
+                         if (num_events_investigated % this->num_subsets != subset_num)
+                         {
+                             continue;
+                         }
                     }
-                }
 
-                    //This is the default Geometric sampling method. The
+                //This is the default Geometric sampling method.
                 else if (this->subset_sampling_method == "Geometric" || this->subset_sampling_method == "geometric")
                 {
-
                     measured_bin.set_bin_value(1.0f);
                     Bin basic_bin = measured_bin;
                     if (!this->PM_sptr->get_symmetries_ptr()->find_basic_bin(basic_bin) ||
                             subset_num != static_cast<int>(basic_bin.view_num() % this->num_subsets))
+                    {
                         continue;
+                    }
                 }
 
                     // Un-recognised subset sampling method
-                else {
+                else
+                {
                     warning("UNRECOGNISED SUBSET_SAMPLING_METHOD. Define a valid subset sampling method in parameter file");
                     break;
                 }
 
             }
 
-            //Do i need this????
-            //I believe this is a small (but maybe useless now) check to ensure the measured data is in the scanner FOV
+            // Record projection
+
             if (measured_bin.get_bin_value() != 1.0f
                     || measured_bin.segment_num() < proj_data_info_sptr->get_min_segment_num()
                     || measured_bin.segment_num()  > proj_data_info_sptr->get_max_segment_num()
@@ -571,17 +534,6 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
             {
                 continue;
             }
-
-//            std::cout << "measured_bin.segment_num() " << measured_bin.segment_num() << "\n";
-//            std::cout << "measured_bin.tangential_pos_num() " << measured_bin.tangential_pos_num() << "\n";
-//            std::cout << "measured_bin.axial_pos_num() " << measured_bin.axial_pos_num() << "\n";
-//            std::cout << "proj_data_info_sptr->get_min_segment_num() " << proj_data_info_sptr->get_min_segment_num() << "\n";
-//            std::cout << "proj_data_info_sptr->get_max_segment_num() " << proj_data_info_sptr->get_max_segment_num() << "\n";
-//            std::cout << "proj_data_info_sptr->get_min_tangential_pos_num() " << proj_data_info_sptr->get_min_tangential_pos_num() << "\n";
-//            std::cout << "proj_data_info_sptr->get_max_tangential_pos_num() " << proj_data_info_sptr->get_max_tangential_pos_num() << "\n";
-//            std::cout << "proj_data_info_sptr->get_min_axial_pos_num(measured_bin.segment_num()) " << proj_data_info_sptr->get_min_axial_pos_num(measured_bin.segment_num()) << "\n";
-//            std::cout << "proj_data_info_sptr->get_max_axial_pos_num(measured_bin.segment_num())) " << proj_data_info_sptr->get_max_axial_pos_num(measured_bin.segment_num()) << "\n";
-
 
             this->PM_sptr->get_proj_matrix_elems_for_one_bin(proj_matrix_row, measured_bin);
             //in_the_range++;
@@ -599,7 +551,7 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
             if (!this->do_time_frame)
                 more_events -= 1;
 
-            num_used_events += 1;
+            num_used_events ++;
 
             if (num_used_events % 200000L == 0)
                 info(boost::format("Stored Events: %1% ") % num_used_events);
@@ -613,10 +565,10 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
             proj_matrix_row.back_project(gradient, measured_bin);
             num_events_projected ++;
         }
-        num_events_investigated += 1;
+        num_events_investigated ++;
     }
-    info(boost::format("Number of events used in this subiteration: %1%") % num_used_events);
-    info(boost::format("Number of events PROJECTED in this subiteration: %1%") % num_events_investigated);
+    info(boost::format("Number of investigated used in this subset: %1%") % num_events_investigated);
+    info(boost::format("Number of events BACKPROJECTED in this subset: %1%") % num_events_projected);
 }
 
 
