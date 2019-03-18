@@ -87,7 +87,6 @@ set_defaults()
   this->normalisation_sptr.reset(new TrivialBinNormalisation);
   this->do_time_frame = false;
 
-  this->total_num_prompts_in_data = 0;
   this->subset_sampling_method = "Geometric";
 } 
  
@@ -429,6 +428,7 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
                                                       const TargetT &current_estimate,
                                                       const int subset_num)
 { 
+
     assert(subset_num>=0);
     assert(subset_num<this->num_subsets);
 
@@ -452,15 +452,22 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
     long int more_events =
             this->do_time_frame? 1 : this->num_events_to_use;
 
-    long int num_events_per_subset = this->total_num_prompts_in_data/this->num_subsets;
+    long int num_events_per_subset = this->list_mode_data_sptr->get_total_number_of_events()/this->num_subsets;
 
     long num_events_projected = 0;
-    this->list_mode_data_sptr->reset();
-    if ((this->subset_sampling_method == "Blocks" || this->subset_sampling_method == "blocks") && this->num_subsets > 1)
-        this->list_mode_data_sptr->set_get_position(subset_num);
-    shared_ptr<CListRecord> record_sptr = this->list_mode_data_sptr->get_empty_record_sptr();
-    CListRecord& record = *record_sptr;
 
+    if (this->num_subsets > 1)
+    {
+        if (this->subset_sampling_method == "Blocks" || this->subset_sampling_method == "blocks")
+        {
+            this->list_mode_data_sptr->set_list_mode_position(num_events_per_subset * subset_num);
+        }
+}
+
+
+    shared_ptr<CListRecord> record_sptr = this->list_mode_data_sptr->get_empty_record_sptr();
+
+    CListRecord& record = *record_sptr;
 
     std::cout << "Performing LM iteration\n";
     // Begin iterating over all data
@@ -487,6 +494,7 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
                 {
                     if(num_events_investigated >= num_events_per_subset)
                     {
+                        std::cout << "num_events_per_subset : " << num_events_per_subset << "\n";
                         break;
                     }
                 }
