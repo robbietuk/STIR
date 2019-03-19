@@ -456,25 +456,39 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
 
     long num_events_projected = 0;
 
-    if (this->num_subsets > 1)
-    {
-        if (this->subset_sampling_method == "Blocks" || this->subset_sampling_method == "blocks")
-        {
-            this->list_mode_data_sptr->set_list_mode_position(num_events_per_subset * subset_num);
-        }
-}
+//    if (this->num_subsets > 1)
+//    {
+//        if (this->subset_sampling_method == "Blocks" || this->subset_sampling_method == "blocks")
+//        {
+//            this->list_mode_data_sptr->set_list_mode_position(num_events_per_subset * subset_num);
+//        }
+//}
 
 
     shared_ptr<CListRecord> record_sptr = this->list_mode_data_sptr->get_empty_record_sptr();
 
     CListRecord& record = *record_sptr;
 
-    std::cout << "Performing LM iteration\n";
+    std::cout << "Performing LM iteration\n"
+              << "Starting at positon : " << this->list_mode_data_sptr->get_list_mode_position() << "\n";
+
     // Begin iterating over all data
     while (more_events)//this->list_mode_data_sptr->get_next_record(record) == Succeeded::yes)
     {
+        // How to handle EOF
         if (this->list_mode_data_sptr->get_next_record(record) == Succeeded::no) {
-            break; //END OF FILE - get out of while loop
+            if (this->subset_sampling_method == "Blocks" || this->subset_sampling_method == "blocks")
+            {
+                // If we reach End of File in blocks we reset and go back to the begining of the list.
+                // For blocks sampling, we break out of while loop when num_events_investigated > num_events_per_subset
+                this->list_mode_data_sptr->reset();
+                continue;
+            }
+            else
+            {
+                break; //END OF FILE - get out of while loop
+            }
+
         }
         if (record.is_event() && record.event().is_prompt())
         {
@@ -575,8 +589,10 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
         }
         num_events_investigated ++;
     }
-    info(boost::format("Number of investigated used in this subset: %1%") % num_events_investigated);
-    info(boost::format("Number of events BACKPROJECTED in this subset: %1%") % num_events_projected);
+    std::cout << "Number of investigated used in this subset : " << num_events_investigated
+              << "\nNumber of events BACKPROJECTED in this subset : " << num_events_projected
+              << "\nthis->list_mode_data_sptr->get_list_mode_position : " << this->list_mode_data_sptr->get_list_mode_position()
+              <<"\n";
 }
 
 
