@@ -469,8 +469,8 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
 
     CListRecord& record = *record_sptr;
 
-    std::cout << "Performing LM iteration\n"
-              << "Starting at positon : " << this->list_mode_data_sptr->get_list_mode_position() << "\n";
+//    std::cout << "Performing LM iteration\n"
+//              << "Starting at positon : " << this->list_mode_data_sptr->get_list_mode_position() << "\n";
 
     // Begin iterating over all data
     while (more_events)//this->list_mode_data_sptr->get_next_record(record) == Succeeded::yes)
@@ -508,7 +508,7 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
                 {
                     if(num_events_investigated >= num_events_per_subset)
                     {
-                        std::cout << "num_events_per_subset : " << num_events_per_subset << "\n";
+//                        std::cout << "num_events_per_subset : " << num_events_per_subset << "\n";
                         break;
                     }
                 }
@@ -589,10 +589,10 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
         }
         num_events_investigated ++;
     }
-    std::cout << "Number of investigated used in this subset : " << num_events_investigated
-              << "\nNumber of events BACKPROJECTED in this subset : " << num_events_projected
-              << "\nthis->list_mode_data_sptr->get_list_mode_position : " << this->list_mode_data_sptr->get_list_mode_position()
-              <<"\n";
+//    std::cout << "Number of investigated used in this subset : " << num_events_investigated
+//              << "\nNumber of events BACKPROJECTED in this subset : " << num_events_projected
+//              << "\nthis->list_mode_data_sptr->get_list_mode_position : " << this->list_mode_data_sptr->get_list_mode_position()
+//              <<"\n";
 }
 
 
