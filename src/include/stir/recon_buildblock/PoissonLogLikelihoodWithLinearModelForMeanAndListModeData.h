@@ -125,7 +125,7 @@ protected:
   std::string subset_sampling_method;
 
   //! Used in block subset sampling method
-  double listmode_scan_time;
+  double list_mode_scan_time;
 
    //! Reconstruct based on time frames
    bool do_time_frame;
