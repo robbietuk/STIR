@@ -86,6 +86,9 @@ set_defaults()
 
   this->normalisation_sptr.reset(new TrivialBinNormalisation);
   this->do_time_frame = false;
+
+  this->subset_sampling_method = "Geometric";
+  this->list_mode_scan_time = 0.;
 } 
  
 template <typename TargetT> 
@@ -101,6 +104,10 @@ initialise_keymap()
   this->parser.add_key("additive sinogram",&this->additive_projection_data_filename); 
  
   this->parser.add_key("num_events_to_use",&this->num_events_to_use);
+
+  //Robbie : Subset sampling method can be parsed in
+  this->parser.add_key("Subset sampling method",&this->subset_sampling_method);
+  this->parser.add_key("Listmode scan time",&this->list_mode_scan_time);
 } 
 template <typename TargetT> 
 int 
@@ -116,7 +123,9 @@ bool
 PoissonLogLikelihoodWithLinearModelForMeanAndListModeDataWithProjMatrixByBin<TargetT>::
 actual_subsets_are_approximately_balanced(std::string& warning_message) const
 {
-    assert(this->num_subsets>0);
+    if (this->subset_sampling_method == "Geometric" || this->subset_sampling_method == "geometric" )
+    {
+        assert(this->num_subsets>0);
         const DataSymmetriesForBins& symmetries =
                 *this->PM_sptr->get_symmetries_ptr();
 
@@ -181,7 +190,8 @@ actual_subsets_are_approximately_balanced(std::string& warning_message) const
                 return false;
             }
         }
-        return true;
+    }
+    return true;
 }
 
 template <typename TargetT>  
@@ -223,6 +233,14 @@ set_up_before_sensitivity(shared_ptr <TargetT > const& target_sptr)
                     this->current_frame_num, this->frame_defs.get_num_frames());
             return Succeeded::no;
         }
+
+    info(boost::format("Current Subset Sampling Method is : %1%") % this->subset_sampling_method);
+
+    if ((this->subset_sampling_method == "Blocks" || this->subset_sampling_method == "blocks") && this->list_mode_scan_time <= 0.)
+    {
+        warning("List Mode Scan Time is undefined but is required of Block Subset Sampling. Please defined in seconds. \n");
+        return Succeeded::no;
+    }
 
     return Succeeded::yes;
 } 
@@ -431,10 +449,16 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
 
     //go to the beginning of this frame
     //  list_mode_data_sptr->set_get_position(start_time);
-    // TODO implement function that will do this for a random time
-    this->list_mode_data_sptr->reset();
+    // TODO implement function that will do this for a random time    
     double current_time = 0.;
     ProjMatrixElemsForOneBin proj_matrix_row;
+
+    // If not doing the block sampling method, reset the list_mode_data_sptr
+    if (this->subset_sampling_method != "Blocks" && this->subset_sampling_method != "blocks")
+    {
+        std::cout << "Resetting list mode data sprt\n";
+        this->list_mode_data_sptr->reset();
+    }
 
     shared_ptr<CListRecord> record_sptr = this->list_mode_data_sptr->get_empty_record_sptr();
     CListRecord& record = *record_sptr;
@@ -445,18 +469,35 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
     long int more_events =
             this->do_time_frame? 1 : this->num_events_to_use;
 
+    // Calculate the block subset start and end points
+    double subset_time_length = this->list_mode_scan_time / this->num_subsets;
+    double subset_initial_time = 0;
+    double subset_final_time =0 ;
     while (more_events)//this->list_mode_data_sptr->get_next_record(record) == Succeeded::yes)
     {
 
         if (this->list_mode_data_sptr->get_next_record(record) == Succeeded::no)
         {
             info("End of file!");
+            this->list_mode_data_sptr->reset();
             break; //get out of while loop
         }
 
+        if (num_used_events == 0)
+        {
+            //redefine these values once records have been properly setup
+            subset_initial_time = record.time().get_time_in_secs();
+            subset_final_time = subset_initial_time + subset_time_length;
+            //Debugging outputs
+            std::cout << "subset_time_lengt`h : " << subset_time_length
+                      << "\nsubset_initial_time :" << subset_initial_time
+                      << "\nsubset_final_time : " << subset_final_time << "\n";
+
+        }
+
+        current_time = record.time().get_time_in_secs();
         if(record.is_time() && end_time > 0.01)
         {
-            current_time = record.time().get_time_in_secs();
             if (this->do_time_frame && current_time >= end_time)
                 break; // get out of while loop
             if (current_time < start_time)
@@ -481,14 +522,27 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
             }
 
             measured_bin.set_bin_value(1.0f);
+            Bin basic_bin = measured_bin;
             // If more than 1 subsets, check if the current bin belongs to
             // the current.
             if (this->num_subsets > 1)
             {
-                Bin basic_bin = measured_bin;
-                if (!this->PM_sptr->get_symmetries_ptr()->find_basic_bin(basic_bin) ||
-                        subset_num != static_cast<int>(basic_bin.view_num() % this->num_subsets))
-                    continue;
+
+                if (this->subset_sampling_method == "Blocks" || this->subset_sampling_method == "blocks")
+                {
+                    if (current_time >= subset_final_time)
+                    {
+                        std::cout << "End of subset \nCurrent Time : " << record.time().get_time_in_secs()
+                                  << "\nnum_used_events : " << num_used_events << "\n";
+                        break;
+                    }
+                }
+                else
+                {
+                    if (!this->PM_sptr->get_symmetries_ptr()->find_basic_bin(basic_bin) ||
+                            subset_num != static_cast<int>(basic_bin.view_num() % this->num_subsets))
+                        continue;
+                }
             }
 
             this->PM_sptr->get_proj_matrix_elems_for_one_bin(proj_matrix_row, measured_bin);
@@ -511,8 +565,13 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
             num_used_events += 1;
 
             if (num_used_events%200000L==0)
+            {
                 info( boost::format("Stored Events: %1% ") % num_used_events);
-
+                if (this->subset_sampling_method == "Blocks" || this->subset_sampling_method == "blocks")
+                {
+                    info( boost::format("Current Event Time Stamp: %1% s") % record.time().get_time_in_secs());
+                }
+            }
             if ( measured_bin.get_bin_value() <= max_quotient *fwd_bin.get_bin_value())
                 measured_div_fwd = 1.0f /fwd_bin.get_bin_value();
             else

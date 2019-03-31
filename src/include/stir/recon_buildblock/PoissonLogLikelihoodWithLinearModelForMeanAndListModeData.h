@@ -120,6 +120,13 @@ protected:
 
   //! This is part of some functionality I transfer from LmToProjData.
   long int num_events_to_use;
+
+  //! Robbie- parsing key
+  std::string subset_sampling_method;
+
+  //! Used in block subset sampling method
+  double list_mode_scan_time;
+
    //! Reconstruct based on time frames
    bool do_time_frame;
  
