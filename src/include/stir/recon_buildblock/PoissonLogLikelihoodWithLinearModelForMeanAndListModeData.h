@@ -124,8 +124,11 @@ protected:
   //! Robbie- parsing key
   std::string subset_sampling_method;
 
+  //! A class variable used to save the current time between subiterations in block subset sampling.
+  double block_subset_time_stamp;
+
   //! Used in block subset sampling method
-  double list_mode_scan_time;
+  double list_mode_total_time;
 
    //! Reconstruct based on time frames
    bool do_time_frame;
