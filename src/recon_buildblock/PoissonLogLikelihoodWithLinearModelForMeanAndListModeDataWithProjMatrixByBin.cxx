@@ -457,7 +457,7 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
     // If not doing the block sampling method, reset the list_mode_data_sptr
     if (this->subset_sampling_method != "Blocks" && this->subset_sampling_method != "blocks")
     {
-        std::cout << "Resetting list mode data sprt\n";
+        info(boost::format("Resetting list mode data sprt\n"));
         this->list_mode_data_sptr->reset();
     }
 
@@ -476,9 +476,9 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
     double subset_final_time = subset_initial_time + subset_time_length;
     this->block_subset_time_stamp = subset_final_time;
 
-    std::cout << "subset_time_length : " << subset_time_length
-              << "\nsubset_initial_time :" << subset_initial_time
-              << "\nsubset_final_time : " << subset_final_time << "\n";
+//    std::cout << "subset_time_length : " << subset_time_length
+//              << "\nsubset_initial_time :" << subset_initial_time
+//              << "\nsubset_final_time : " << subset_final_time << "\n";
 
     while (more_events)//this->list_mode_data_sptr->get_next_record(record) == Succeeded::yes)
     {
