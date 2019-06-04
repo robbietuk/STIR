@@ -128,7 +128,7 @@ protected:
   double block_subset_time_stamp;
 
   //! Used in block subset sampling method
-  double list_mode_total_time;
+  double list_mode_file_total_scan_time;
 
    //! Reconstruct based on time frames
    bool do_time_frame;
