@@ -88,7 +88,7 @@ set_defaults()
   this->do_time_frame = false;
 
   this->subset_sampling_method = "Geometric";
-  this->list_mode_total_time = 0.0; // Defined in the parameter file
+  this->list_mode_file_total_scan_time = 0.0; // Defined in the parameter file
   this->block_subset_time_stamp = 0.0;
 } 
  
@@ -108,7 +108,7 @@ initialise_keymap()
 
   //Robbie : Subset sampling method can be parsed in
   this->parser.add_key("Subset sampling method",&this->subset_sampling_method);
-  this->parser.add_key("Listmode scan time",&this->list_mode_total_time);
+  this->parser.add_key("Listmode scan time",&this->list_mode_file_total_scan_time);
 } 
 template <typename TargetT> 
 int 
@@ -237,7 +237,7 @@ set_up_before_sensitivity(shared_ptr <TargetT > const& target_sptr)
 
     info(boost::format("Current Subset Sampling Method is : %1%") % this->subset_sampling_method);
 
-    if ((this->subset_sampling_method == "Blocks" || this->subset_sampling_method == "blocks") && this->list_mode_total_time <= 0.)
+    if ((this->subset_sampling_method == "Blocks" || this->subset_sampling_method == "blocks") && this->list_mode_file_total_scan_time <= 0.)
     {
         warning("List Mode Scan Time is undefined but is required of Block Subset Sampling. Please defined in seconds. \n");
         return Succeeded::no;
@@ -454,10 +454,10 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
     double current_time = 0.;
     ProjMatrixElemsForOneBin proj_matrix_row;
 
-    // If not doing the block sampling method, reset the list_mode_data_sptr
     if (this->subset_sampling_method != "Blocks" && this->subset_sampling_method != "blocks")
     {
-        info(boost::format("Resetting list mode data sprt\n"));
+        // If NOT doing block subset sampling, reset the list_mode_data_sptr
+        info("Resetting list mode data sprt");
         this->list_mode_data_sptr->reset();
     }
 
@@ -472,36 +472,25 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
 
     // Calculate the block subset start and end points and move the time_stamp
     double subset_initial_time = this->block_subset_time_stamp;
-    double subset_time_length = this->list_mode_total_time / this->num_subsets;
-    double subset_final_time = subset_initial_time + subset_time_length;
+    double subset_final_time = subset_initial_time + this->list_mode_file_total_scan_time / this->num_subsets;
     this->block_subset_time_stamp = subset_final_time;
 
-//    std::cout << "subset_time_length : " << subset_time_length
-//              << "\nsubset_initial_time :" << subset_initial_time
-//              << "\nsubset_final_time : " << subset_final_time << "\n";
+    info(boost::format("subset_initial_time : %1%s") % subset_initial_time);
+    info(boost::format("subset_final_time : %1%s") % subset_final_time);
 
     while (more_events)//this->list_mode_data_sptr->get_next_record(record) == Succeeded::yes)
     {
 
         if (this->list_mode_data_sptr->get_next_record(record) == Succeeded::no)
         {
-            info("End of file!");
+            info("End of List Mode file!");
             this->list_mode_data_sptr->reset();
             this->block_subset_time_stamp = 0;  //Reset the timestamp
-            break; //get out of while loop
+            break; //get out of loop
         }
 
-//        if (num_used_events == 0)
-//        {
-//            //redefine these values once records have been properly setup
-//            subset_initial_time = record.time().get_time_in_secs();
-//            subset_final_time = subset_initial_time + subset_time_length;
-//            //Debugging outputs
-
-//        }
-
         current_time = record.time().get_time_in_secs();
-        if(record.is_time() && end_time > 0.01)
+        if (record.is_time() && end_time > 0.01)
         {
             if (this->do_time_frame && current_time >= end_time)
                 break; // get out of while loop
@@ -539,6 +528,12 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
                     {
                         std::cout << "End of subset \nCurrent Time : " << record.time().get_time_in_secs()
                                   << "\nnum_used_events : " << num_used_events << "\n";
+                        if (current_time >= this->list_mode_file_total_scan_time)
+                        {
+                            info("Resetting List Mode File");
+                            this->list_mode_data_sptr->reset();
+                            this->block_subset_time_stamp = 0;  //Reset the timestamp
+                        }
                         break;
                     }
                 }
