@@ -434,6 +434,7 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
                                                       const int subset_num)
 { 
 
+    gradient.fill(0);
     assert(subset_num>=0);
     assert(subset_num<this->num_subsets);
 
@@ -521,8 +522,8 @@ compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient,
                 {
                     if (current_time >= subset_final_time)
                     {
-                        std::cout << "End of subset \nCurrent Time : " << record.time().get_time_in_secs()
-                                  << "\nnum_used_events : " << num_used_events << "\n";
+//                        std::cout << "End of subset \nCurrent Time : " << record.time().get_time_in_secs()
+//                                  << "\nnum_used_events : " << num_used_events << "\n";
                         if (current_time >= this->list_mode_file_total_scan_time)
                         {
                             info("Resetting List Mode File");
