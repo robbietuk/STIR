@@ -1,7 +1,7 @@
 //
 //
 /*
-    Copyright (C) 2000- 2011, Hammersmith Imanet Ltd
+    Copyright (C) 2000- 2019, Hammersmith Imanet Ltd
     This file is part of STIR.
 
     This file is free software; you can redistribute it and/or modify
@@ -154,7 +154,7 @@ RelativeDifferencePrior<elemT>::RelativeDifferencePrior()
 template <typename elemT>
 float
 RelativeDifferencePrior<elemT>::
-get_gamma()
+get_gamma() const
 { return this->gamma; }
 
 // Set the value of gamma - a RDP parameter
@@ -400,7 +400,7 @@ compute_gradient(DiscretisedDensity<3,elemT>& prior_gradient,
                             current = weights[dz][dy][dx] *
                                     (((current_image_estimate[z][y][x] - current_image_estimate[z+dz][y+dy][x+dx]) *
                                       (this->gamma * abs(current_image_estimate[z][y][x] - current_image_estimate[z+dz][y+dy][x+dx]) +
-                                       current_image_estimate[z][y][x] + 3 * current_image_estimate[z+dz][y+dy][x+dx]))/
+                                       current_image_estimate[z][y][x] + 3 * current_image_estimate[z+dz][y+dy][x+dx] + 2 * small))/
                                      (square((current_image_estimate[z][y][x] + current_image_estimate[z+dz][y+dy][x+dx]) +
                                       this->gamma * abs(current_image_estimate[z][y][x] - current_image_estimate[z+dz][y+dy][x+dx])) +small));
                         if (do_kappa)
