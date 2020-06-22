@@ -13,6 +13,8 @@
 # See STIR/LICENSE.txt for details
 
 # cmake file for building STIR. See the STIR User's Guide and http://www.cmake.org.
+cmake_minimum_required(VERSION 2.8.3)
+# require 2.8.3 to get FOLDER properties support (without that, we only need cmake 2.6)
 
 # avoid warning about WIN32 no longer defined in CYGWIN
 set(CMAKE_LEGACY_CYGWIN_WIN32 0) 
@@ -27,6 +29,7 @@ endif()
 PROJECT(STIR)
 
 SET_PROPERTY(GLOBAL PROPERTY USE_FOLDERS ON)
+
 # require 2.8.3 to get FOLDER properties support (without that, we only need cmake 2.6)
 cmake_minimum_required(VERSION 2.8.3)
 if (POLICY CMP0025)
@@ -37,19 +40,23 @@ endif()
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/src/cmake;${CMAKE_MODULE_PATH}")
 include(src/cmake/SetC++Version.cmake)
 
-UseCXX("${CMAKE_CXX_STANDARD}")
+UseCXX(11)
 
 # set default build-type to Release
 if(NOT CMAKE_BUILD_TYPE)
    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "type of build: Debug Release RelWithDebInfo MinSizeRel." FORCE)
 endif()
 
-if((${CMAKE_CXX_COMPILER_ID} MATCHES "AppleClang") OR
-   (APPLE AND ${CMAKE_SYSTEM_NAME} MATCHES "Darwin" AND
-    ${CMAKE_CXX_COMPILER_ID} MATCHES "Clang"))
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
-  # Ignore undefined template var warning
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-undefined-var-template")
+if (CMAKE_CXX_COMPILER_ID)
+   if((${CMAKE_CXX_COMPILER_ID} MATCHES "AppleClang") OR (${CMAKE_CXX_COMPILER_ID} MATCHES "Clang"))
+      # Ignore undefined template var warning (see https://github.com/UCL/STIR/issues/126)
+      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-undefined-var-template")
+      if (APPLE)
+          set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+      endif()
+   endif()
+else()
+   message(WARNING "CMAKE_CXX_COMPILER_ID is not set. We are therefore not able to set some options.")
 endif()
 
 ####### Set Version number etc

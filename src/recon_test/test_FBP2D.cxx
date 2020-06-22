@@ -59,12 +59,13 @@ void
 TestFBP2D::
 run_tests()
 {
-  std::cerr << "Tests for FB2D\n";
+  std::cerr << "Tests for FBP2D\n";
 
   try {
     this->construct_input_data();
     this->construct_reconstructor();
-    shared_ptr<const target_type> output_sptr = this->reconstruct();
+    shared_ptr<target_type> output_sptr(this->_input_density_sptr->get_empty_copy());
+    this->reconstruct(output_sptr);
     this->compare(output_sptr);
   }
   catch(const std::exception &error)
@@ -89,7 +90,6 @@ run_tests()
       }
     catch (...)
       {
-        everything_ok = true;
       }
   }
 }

@@ -79,9 +79,9 @@ START_NAMESPACE_STIR
    in DistributedWorker */
 void setup_distributable_computation(
                                      const shared_ptr<ProjectorByBinPair>& proj_pair_sptr,
-                                     const shared_ptr<ExamInfo>& exam_info_sptr,
-                                     const ProjDataInfo * const proj_data_info_ptr,
-                                     const shared_ptr<DiscretisedDensity<3,float> >& target_sptr,
+                                     const shared_ptr<const ExamInfo>& exam_info_sptr,
+                                     const shared_ptr<const ProjDataInfo> proj_data_info_sptr,
+                                     const shared_ptr<const DiscretisedDensity<3,float> >& target_sptr,
                                      const bool zero_seg0_end_planes,
                                      const bool distributed_cache_enabled)
 {
@@ -105,7 +105,7 @@ void setup_distributable_computation(
   distributed::send_image_estimate(target_sptr.get(), -1);
         
   //sending Data_info
-  distributed::send_exam_and_proj_data_info(*exam_info_sptr, *proj_data_info_ptr, -1);
+  distributed::send_exam_and_proj_data_info(*exam_info_sptr, *proj_data_info_sptr, -1);
 
   //send projector pair
   distributed::send_projectors(proj_pair_sptr, -1);
@@ -246,7 +246,7 @@ void send_viewgrams(const shared_ptr<RelatedViewgrams<float> >& y,
   shared_ptr<DataSymmetriesForViewSegmentNumbers> 
     symmetries_sptr(y->get_symmetries_ptr()->clone());
   if (distributed::test && distributed::first_iteration==true && next_receiver==1) 
-    distributed::test_related_viewgrams_master(y->get_proj_data_info_ptr()->create_shared_clone(), 
+    distributed::test_related_viewgrams_master(y->get_proj_data_info_sptr()->create_shared_clone(), 
                                                symmetries_sptr, y.get(), next_receiver);
 #endif
 
@@ -348,17 +348,17 @@ void distributable_computation(
   if (distributed::test && distributed::first_iteration) 
     {
       distributed::test_image_estimate_master(input_image_ptr, 1);
-      distributed::test_parameter_info_master(proj_dat_ptr->get_proj_data_info_ptr()->parameter_info(), 1, "proj_data_info");
+      distributed::test_parameter_info_master(proj_dat_ptr->get_proj_data_info_sptr()->parameter_info(), 1, "proj_data_info");
       distributed::test_bool_value_master(true, 1);
       distributed::test_int_value_master(444, 1);
       distributed::test_int_values_master(1);
                 
-      Viewgram<float> viewgram(proj_dat_ptr->get_proj_data_info_ptr()->create_shared_clone(), 44, 0);
+      Viewgram<float> viewgram(proj_dat_ptr->get_proj_data_info_sptr()->create_shared_clone(), 44, 0);
       for ( int tang_pos = viewgram.get_min_tangential_pos_num(); tang_pos  <= viewgram.get_max_tangential_pos_num() ;++tang_pos)  
         for ( int ax_pos = viewgram.get_min_axial_pos_num(); ax_pos <= viewgram.get_max_axial_pos_num() ;++ax_pos)
           viewgram[ax_pos][tang_pos]= rand();
                         
-      distributed::test_viewgram_master(viewgram, proj_dat_ptr->get_proj_data_info_ptr()->create_shared_clone());
+      distributed::test_viewgram_master(viewgram, proj_dat_ptr->get_proj_data_info_sptr()->create_shared_clone());
     }
 #endif
         
@@ -394,7 +394,7 @@ void distributable_computation(
     info("End-planes of segment 0 will be zeroed");
 
   const std::vector<ViewSegmentNumbers> vs_nums_to_process = 
-    detail::find_basic_vs_nums_in_subset(*proj_dat_ptr->get_proj_data_info_ptr(), *symmetries_ptr,
+    detail::find_basic_vs_nums_in_subset(*proj_dat_ptr->get_proj_data_info_sptr(), *symmetries_ptr,
                                          min_segment_num, max_segment_num,
                                          subset_num, num_subsets);
         
@@ -422,7 +422,7 @@ void distributable_computation(
 #ifdef STIR_OPENMP
 #pragma omp single
     {
-      info(boost::format("Starting loop with %1% threads") % omp_get_num_threads());
+      info(boost::format("Starting loop with %1% threads") % omp_get_num_threads(), 2);
       local_log_likelihoods.resize(omp_get_max_threads(), 0.);
       local_counts.resize(omp_get_max_threads(), 0);
       local_count2s.resize(omp_get_max_threads(), 0);
@@ -473,7 +473,7 @@ void distributable_computation(
           const int thread_num=omp_get_thread_num();
           info(boost::format("Thread %d/%d calculating segment_num: %d, view_num: %d")
                % thread_num % omp_get_num_threads()
-               % view_segment_num.segment_num() % view_segment_num.view_num());
+               % view_segment_num.segment_num() % view_segment_num.view_num(), 2);
 #else
           info(boost::format("calculating segment_num: %d, view_num: %d")
                % view_segment_num.segment_num() % view_segment_num.view_num(), 2);
