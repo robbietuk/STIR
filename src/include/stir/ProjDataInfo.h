@@ -407,8 +407,7 @@ public:
   //! Get empty related viewgrams, where the symmetries_ptr specifies the symmetries to use
   RelatedViewgrams<float> get_empty_related_viewgrams(const ViewSegmentNumbers&,
     const shared_ptr<DataSymmetriesForViewSegmentNumbers>&,
-    const bool make_num_tangential_poss_odd = false,
-	const int timing_pos_num = 0) const;
+    const bool make_num_tangential_poss_odd = false) const;
   //@}
 
 

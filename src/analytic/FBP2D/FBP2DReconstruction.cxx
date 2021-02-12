@@ -313,7 +313,7 @@ actual_reconstruct(shared_ptr<DiscretisedDensity<3,float> > const & density_ptr)
 #endif
         {
           viewgrams =
-            proj_data_ptr->get_related_viewgrams(vs_num, symmetries_sptr);   
+            proj_data_ptr->get_related_viewgrams(vs_num, symmetries_sptr, 0);
         }
 
         if (do_arc_correction)

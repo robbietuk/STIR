@@ -177,7 +177,7 @@ void get_viewgrams(shared_ptr<RelatedViewgrams<float> >& y,
 #if !defined(_MSC_VER) || _MSC_VER>1300
       additive_binwise_correction_viewgrams.reset(
         new RelatedViewgrams<float>
-        (binwise_correction->get_related_viewgrams(view_segment_num, symmetries_ptr, false, view_segment_num.tof_pos_num())));
+        (binwise_correction->get_related_viewgrams(view_segment_num, symmetries_ptr, false)));
 #else
       RelatedViewgrams<float> tmp(binwise_correction->
                                   get_related_viewgrams(view_segment_num, symmetries_ptr, false, view_segment_num.tof_pos_num()));
@@ -192,7 +192,7 @@ void get_viewgrams(shared_ptr<RelatedViewgrams<float> >& y,
 #endif
 #if !defined(_MSC_VER) || _MSC_VER>1300
       y.reset(new RelatedViewgrams<float>
-	      (proj_dat_ptr->get_related_viewgrams(view_segment_num, symmetries_ptr, false, view_segment_num.tof_pos_num())));
+	      (proj_dat_ptr->get_related_viewgrams(view_segment_num, symmetries_ptr, false)));
 #else
       // workaround VC++ 6.0 bug
       RelatedViewgrams<float> tmp(proj_dat_ptr->
@@ -203,14 +203,14 @@ void get_viewgrams(shared_ptr<RelatedViewgrams<float> >& y,
   else
     {
       y.reset(new RelatedViewgrams<float>
-	      (proj_dat_ptr->get_empty_related_viewgrams(view_segment_num, symmetries_ptr, false, view_segment_num.tof_pos_num())));
+	      (proj_dat_ptr->get_empty_related_viewgrams(view_segment_num, symmetries_ptr, false)));
     }
 
   // multiplicative correction
   if (!is_null_ptr(normalisation_sptr) && !normalisation_sptr->is_trivial())
     {
       mult_viewgrams_sptr.reset(
-				new RelatedViewgrams<float>(proj_dat_ptr->get_empty_related_viewgrams(view_segment_num, symmetries_ptr, false, view_segment_num.tof_pos_num())));
+				new RelatedViewgrams<float>(proj_dat_ptr->get_empty_related_viewgrams(view_segment_num, symmetries_ptr, false)));
       mult_viewgrams_sptr->fill(1.F);
 #ifdef STIR_OPENMP
 #pragma omp critical(MULT)

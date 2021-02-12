@@ -361,7 +361,7 @@ do_segments(const VoxelsOnCartesianGrid<float>& image,
 					<< endl;
 
 				RelatedViewgrams<float> viewgrams =
-					proj_data.get_empty_related_viewgrams(vs, symmetries_sptr, false,timing_pos_num);
+					proj_data.get_empty_related_viewgrams(vs, symmetries_sptr, false);
                 forw_projector.forward_project(viewgrams,
 					viewgrams.get_min_axial_pos_num(),
 					viewgrams.get_max_axial_pos_num(),

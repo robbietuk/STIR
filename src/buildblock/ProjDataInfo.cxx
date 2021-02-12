@@ -435,8 +435,7 @@ RelatedViewgrams<float>
 ProjDataInfo::get_empty_related_viewgrams(const ViewSegmentNumbers& view_segment_num,
                    //const int view_num, const int segment_num,
 		   const shared_ptr<DataSymmetriesForViewSegmentNumbers>& symmetries_used,
-		   const bool make_num_tangential_poss_odd,
-		   const int timing_pos_num) const
+		   const bool make_num_tangential_poss_odd) const
 {
   vector<ViewSegmentNumbers> pairs;
   symmetries_used->get_related_view_segment_numbers(
@@ -453,7 +452,7 @@ ProjDataInfo::get_empty_related_viewgrams(const ViewSegmentNumbers& view_segment
     viewgrams.push_back(get_empty_viewgram(pairs[i].view_num(),
                                           pairs[i].segment_num(),
 										  make_num_tangential_poss_odd,
-										  timing_pos_num));
+										  pairs[i].tof_pos_num()));
   }
 
   return RelatedViewgrams<float>(viewgrams, symmetries_used);

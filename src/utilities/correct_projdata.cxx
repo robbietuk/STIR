@@ -250,12 +250,12 @@ run() const
 		  // ** first fill in the data **      
 		  RelatedViewgrams<float> 
 			viewgrams = input_projdata.get_empty_related_viewgrams(view_seg_nums,symmetries_ptr,
-				false,timing_pos_num);
+				false);
 		  if (use_data_or_set_to_1)
 		  {
 			viewgrams += 
 			  input_projdata.get_related_viewgrams(view_seg_nums,
-							   symmetries_ptr,false,timing_pos_num);
+							   symmetries_ptr,false);
 		  }	  
 		  else
 		  {
@@ -273,14 +273,14 @@ run() const
 		  {
 			viewgrams += 
 			  scatter_projdata_ptr->get_related_viewgrams(view_seg_nums,
-													  symmetries_ptr,false,timing_pos_num);
+													  symmetries_ptr,false);
 		  }
 
 		  if (do_randoms && apply_or_undo_correction)
 		  {
 			viewgrams -= 
 			  randoms_projdata_ptr->get_related_viewgrams(view_seg_nums,
-													  symmetries_ptr,false,timing_pos_num);
+													  symmetries_ptr,false);
 		  }
 	#if 0
 		  if (frame_num==-1)
@@ -325,14 +325,14 @@ run() const
 		  {
 			viewgrams -= 
 			  scatter_projdata_ptr->get_related_viewgrams(view_seg_nums,
-													  symmetries_ptr,false,timing_pos_num);
+													  symmetries_ptr,false);
 		  }
 
 		  if (do_randoms && !apply_or_undo_correction)
 		  {
 			viewgrams += 
 			  randoms_projdata_ptr->get_related_viewgrams(view_seg_nums,
-													  symmetries_ptr,false,timing_pos_num);
+													  symmetries_ptr,false);
 		  }
 
 		  if (do_arc_correction && apply_or_undo_correction)
@@ -351,7 +351,7 @@ run() const
 		RelatedViewgrams<float> 
 		  output_viewgrams = 
 		  output_projdata.get_empty_related_viewgrams(view_seg_nums,
-								symmetries_ptr,false,timing_pos_num);
+								symmetries_ptr,false);
 		  output_viewgrams += viewgrams;
 
 		  if (!(output_projdata.set_related_viewgrams(viewgrams) == Succeeded::yes))

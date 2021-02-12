@@ -214,7 +214,7 @@ BackProjectorByBin::back_project(const ProjData& proj_data, int subset_num, int 
 #ifdef STIR_OPENMP
         RelatedViewgrams<float> viewgrams;
 #pragma omp critical (BACKPROJECTORBYBIN_GETVIEWGRAMS)
-        viewgrams = proj_data.get_related_viewgrams(vs, symmetries_sptr, false, vs.tof_pos_num());
+        viewgrams = proj_data.get_related_viewgrams(vs, symmetries_sptr, false);
 #else
         const RelatedViewgrams<float> viewgrams = 
           proj_data.get_related_viewgrams(vs, symmetries_sptr, false, vs.tof_pos_num());
