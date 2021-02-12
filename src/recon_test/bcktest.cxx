@@ -93,7 +93,7 @@ do_segments(DiscretisedDensity<3,float>& image,
     symmetries_sptr(back_projector_ptr->get_symmetries_used()->clone());
   
   
-  list<ViewSegmentNumbers> already_processed;
+  list<ViewSegmentTOFNumbers> already_processed;
   back_projector_ptr->start_accumulating_in_new_target();
   for (int timing_num = start_timing_num; timing_num <= end_timing_num; ++timing_num)
   {
@@ -101,7 +101,7 @@ do_segments(DiscretisedDensity<3,float>& image,
 	  for (int segment_num = start_segment_num; segment_num <= end_segment_num; ++segment_num)
 		  for (int view = start_view; view <= end_view; view++)
 		  {
-			  ViewSegmentNumbers vs(view, segment_num);
+			  ViewSegmentTOFNumbers vs(view, segment_num);
 			  symmetries_sptr->find_basic_view_segment_numbers(vs);
 			  if (find(already_processed.begin(), already_processed.end(), vs)
 				  != already_processed.end())

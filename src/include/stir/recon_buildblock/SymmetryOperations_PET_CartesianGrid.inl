@@ -29,7 +29,7 @@
    */
 
 #include "stir/BasicCoordinate.h"
-#include "stir/ViewSegmentNumbers.h"
+#include "stir/ViewSegmentTOFNumbers.h"
 #include "stir/Bin.h"
 
 START_NAMESPACE_STIR
@@ -43,7 +43,7 @@ SymmetryOperation_PET_CartesianGrid_z_shift::
 
 void 
 SymmetryOperation_PET_CartesianGrid_z_shift::
-    transform_view_segment_indices(ViewSegmentNumbers& vs) const
+    transform_view_segment_indices(ViewSegmentTOFNumbers& vs) const
 {
 }
  
@@ -65,7 +65,7 @@ SymmetryOperation_PET_CartesianGrid_swap_xmx_zq::
 }
 void 
 SymmetryOperation_PET_CartesianGrid_swap_xmx_zq::
-    transform_view_segment_indices(ViewSegmentNumbers& vs) const
+    transform_view_segment_indices(ViewSegmentTOFNumbers& vs) const
 {
   vs.view_num() = view180 - vs.view_num();
   assert(0<=vs.view_num());
@@ -94,7 +94,7 @@ SymmetryOperation_PET_CartesianGrid_swap_xmy_yx_zq::
 
 void 
 SymmetryOperation_PET_CartesianGrid_swap_xmy_yx_zq::
-    transform_view_segment_indices(ViewSegmentNumbers& vs) const
+    transform_view_segment_indices(ViewSegmentTOFNumbers& vs) const
 {
   vs.segment_num() *= -1;
   vs.view_num() += view180/2;
@@ -125,7 +125,7 @@ SymmetryOperation_PET_CartesianGrid_swap_xy_yx_zq::
 }
 void 
 SymmetryOperation_PET_CartesianGrid_swap_xy_yx_zq::
-    transform_view_segment_indices(ViewSegmentNumbers& vs) const
+    transform_view_segment_indices(ViewSegmentTOFNumbers& vs) const
 {
   vs.view_num() = view180/2 - vs.view_num();
   assert(0<=vs.view_num());
@@ -164,7 +164,7 @@ SymmetryOperation_PET_CartesianGrid_swap_xmy_yx::
 
 void 
 SymmetryOperation_PET_CartesianGrid_swap_xmy_yx::
-    transform_view_segment_indices(ViewSegmentNumbers& vs) const
+    transform_view_segment_indices(ViewSegmentTOFNumbers& vs) const
 {
   if (vs.view_num() < view180/2)
   {
@@ -208,7 +208,7 @@ SymmetryOperation_PET_CartesianGrid_swap_xy_yx::
 }
 void 
 SymmetryOperation_PET_CartesianGrid_swap_xy_yx::
-    transform_view_segment_indices(ViewSegmentNumbers& vs) const
+    transform_view_segment_indices(ViewSegmentTOFNumbers& vs) const
 {
   if (vs.view_num() <= view180/2)
   {
@@ -255,7 +255,7 @@ SymmetryOperation_PET_CartesianGrid_swap_xmx::
 
 void 
 SymmetryOperation_PET_CartesianGrid_swap_xmx::
-    transform_view_segment_indices(ViewSegmentNumbers& vs) const
+    transform_view_segment_indices(ViewSegmentTOFNumbers& vs) const
 {
   if (vs.view_num()!=0)
   {
@@ -297,7 +297,7 @@ SymmetryOperation_PET_CartesianGrid_swap_ymy::
 }
 void 
 SymmetryOperation_PET_CartesianGrid_swap_ymy::
-    transform_view_segment_indices(ViewSegmentNumbers& vs) const
+    transform_view_segment_indices(ViewSegmentTOFNumbers& vs) const
 {
   if (vs.view_num()!=0)
   {
@@ -331,7 +331,7 @@ SymmetryOperation_PET_CartesianGrid_swap_zq::
 
 void 
 SymmetryOperation_PET_CartesianGrid_swap_zq::
-    transform_view_segment_indices(ViewSegmentNumbers& vs) const
+    transform_view_segment_indices(ViewSegmentTOFNumbers& vs) const
 {
   vs.segment_num() *= -1;
 }
@@ -355,7 +355,7 @@ SymmetryOperation_PET_CartesianGrid_swap_xmx_ymy_zq::
 
 void 
 SymmetryOperation_PET_CartesianGrid_swap_xmx_ymy_zq::
-    transform_view_segment_indices(ViewSegmentNumbers& vs) const
+    transform_view_segment_indices(ViewSegmentTOFNumbers& vs) const
 {
   
 }
@@ -393,7 +393,7 @@ SymmetryOperation_PET_CartesianGrid_swap_xy_ymx_zq::
 
 void 
 SymmetryOperation_PET_CartesianGrid_swap_xy_ymx_zq::
-    transform_view_segment_indices(ViewSegmentNumbers& vs) const
+    transform_view_segment_indices(ViewSegmentTOFNumbers& vs) const
 {
   if (vs.view_num() < view180/2)
   {
@@ -440,7 +440,7 @@ SymmetryOperation_PET_CartesianGrid_swap_xy_ymx::
 }
 void 
 SymmetryOperation_PET_CartesianGrid_swap_xy_ymx::
-    transform_view_segment_indices(ViewSegmentNumbers& vs) const
+    transform_view_segment_indices(ViewSegmentTOFNumbers& vs) const
 {
   if (vs.view_num() < view180/2)
   {
@@ -487,7 +487,7 @@ SymmetryOperation_PET_CartesianGrid_swap_xmy_ymx::
 
 void 
 SymmetryOperation_PET_CartesianGrid_swap_xmy_ymx::
-    transform_view_segment_indices(ViewSegmentNumbers& vs) const
+    transform_view_segment_indices(ViewSegmentTOFNumbers& vs) const
 {
   if (vs.view_num() <= view180/2)
   {
@@ -527,7 +527,7 @@ SymmetryOperation_PET_CartesianGrid_swap_ymy_zq::
 
 void 
 SymmetryOperation_PET_CartesianGrid_swap_ymy_zq::
-    transform_view_segment_indices(ViewSegmentNumbers& vs) const
+    transform_view_segment_indices(ViewSegmentTOFNumbers& vs) const
 {
   vs.segment_num() *= -1;
   vs.view_num()= view180 - vs.view_num();
@@ -555,7 +555,7 @@ SymmetryOperation_PET_CartesianGrid_swap_xmx_ymy::
 }
 void 
 SymmetryOperation_PET_CartesianGrid_swap_xmx_ymy::
-    transform_view_segment_indices(ViewSegmentNumbers& vs) const
+    transform_view_segment_indices(ViewSegmentTOFNumbers& vs) const
 {
   vs.segment_num() *= -1;
 }
@@ -584,7 +584,7 @@ SymmetryOperation_PET_CartesianGrid_swap_xmy_ymx_zq::
 
 void 
 SymmetryOperation_PET_CartesianGrid_swap_xmy_ymx_zq::
-    transform_view_segment_indices(ViewSegmentNumbers& vs) const
+    transform_view_segment_indices(ViewSegmentTOFNumbers& vs) const
 {
   vs.segment_num() *= -1;
   vs.view_num() = view180/2 - vs.view_num();

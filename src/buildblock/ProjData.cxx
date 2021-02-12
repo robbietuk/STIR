@@ -51,7 +51,7 @@
 #include "stir/IO/GEHDF5Wrapper.h"
 #endif
 #include "stir/IO/stir_ecat7.h"
-#include "stir/ViewSegmentNumbers.h"
+#include "stir/ViewSegmentTOFNumbers.h"
 #include "stir/is_null_ptr.h"
 #include <cstring>
 #include <fstream>
@@ -267,7 +267,7 @@ ProjData::get_empty_segment_by_view(const int segment_num,
 }
 
 RelatedViewgrams<float> 
-ProjData::get_empty_related_viewgrams(const ViewSegmentNumbers& view_segmnet_num,
+ProjData::get_empty_related_viewgrams(const ViewSegmentTOFNumbers& view_segmnet_num,
                    //const int view_num, const int segment_num,
 		   const shared_ptr<DataSymmetriesForViewSegmentNumbers>& symmetries_used,
 		   const bool make_num_tangential_poss_odd) const
@@ -279,15 +279,15 @@ ProjData::get_empty_related_viewgrams(const ViewSegmentNumbers& view_segmnet_num
 
 
 RelatedViewgrams<float> 
-ProjData::get_related_viewgrams(const ViewSegmentNumbers& view_segment_num,
+ProjData::get_related_viewgrams(const ViewSegmentTOFNumbers& view_segment_num,
                    //const int view_num, const int segment_num,
 		   const shared_ptr<DataSymmetriesForViewSegmentNumbers>& symmetries_used,
 		   const bool make_num_bins_odd) const
 {
-  vector<ViewSegmentNumbers> pairs;
+  vector<ViewSegmentTOFNumbers> pairs;
   symmetries_used->get_related_view_segment_numbers(
     pairs, 
-    ViewSegmentNumbers(view_segment_num.view_num(),view_segment_num.segment_num(), view_segment_num.tof_pos_num())
+    ViewSegmentTOFNumbers(view_segment_num.view_num(),view_segment_num.segment_num(), view_segment_num.tof_pos_num())
     );
 
   vector<Viewgram<float> > viewgrams;

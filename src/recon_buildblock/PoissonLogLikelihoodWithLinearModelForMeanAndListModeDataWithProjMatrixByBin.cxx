@@ -33,7 +33,7 @@
 #include "stir/recon_buildblock/TrivialBinNormalisation.h"
 #include "stir/Viewgram.h"
 #include "stir/RelatedViewgrams.h"
-#include "stir/ViewSegmentNumbers.h"
+#include "stir/ViewSegmentTOFNumbers.h"
 #include "stir/recon_array_functions.h"
 
 #include <iostream>
@@ -378,7 +378,7 @@ add_subset_sensitivity(TargetT& sensitivity, const int subset_num) const
         for (int timing_pos_num = proj_data_info_sptr->get_min_tof_pos_num();
             proj_data_info_sptr->get_max_tof_pos_num(), timing_pos_num++;)
         {
-          const ViewSegmentNumbers view_segment_num(view, segment_num, timing_pos_num);
+          const ViewSegmentTOFNumbers view_segment_num(view, segment_num, timing_pos_num);
 
           if (! this->projector_pair_sptr->get_symmetries_used()->is_basic(view_segment_num))
             continue;
@@ -393,7 +393,7 @@ add_subset_sensitivity(TargetT& sensitivity, const int subset_num) const
 template<typename TargetT>
 void
 PoissonLogLikelihoodWithLinearModelForMeanAndListModeDataWithProjMatrixByBin<TargetT>::
-add_view_seg_to_sensitivity(const ViewSegmentNumbers& view_seg_nums) const
+add_view_seg_to_sensitivity(const ViewSegmentTOFNumbers& view_seg_nums) const
 {
 		shared_ptr<DataSymmetriesForViewSegmentNumbers> symmetries_used
         (this->projector_pair_sptr->get_symmetries_used()->clone());

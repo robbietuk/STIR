@@ -666,7 +666,7 @@ void FBP3DRPReconstruction::do_3D_Reconstruction(
     const int orig_max_axial_pos_num = proj_data_ptr->get_max_axial_pos_num(seg_num);
             
     for (int view_num=proj_data_ptr->get_min_view_num(); view_num <= proj_data_ptr->get_max_view_num(); ++view_num) {         
-      const ViewSegmentNumbers vs_num(view_num, seg_num);
+      const ViewSegmentTOFNumbers vs_num(view_num, seg_num);
       if (!symmetries_sptr->is_basic(vs_num))
 	continue;
 

@@ -243,7 +243,7 @@ run() const
 		  cerr<<endl<<"Processing segment # "<<segment_num << "(and any related segments) of timing position index # "<<timing_pos_num <<endl;
 		for (int view_num=input_projdata.get_min_view_num(); view_num<=input_projdata.get_max_view_num(); ++view_num)
 		{    
-		  const ViewSegmentNumbers view_seg_nums(view_num,segment_num);
+		  const ViewSegmentTOFNumbers view_seg_nums(view_num,segment_num);
 		  if (!symmetries_ptr->is_basic(view_seg_nums))
 			continue;
       

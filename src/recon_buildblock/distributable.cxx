@@ -39,7 +39,7 @@
 #include "stir/ProjData.h"
 #include "stir/ExamInfo.h"
 #include "stir/DiscretisedDensity.h"
-#include "stir/ViewSegmentNumbers.h"
+#include "stir/ViewSegmentTOFNumbers.h"
 #include "stir/CPUTimer.h"
 #include "stir/HighResWallClockTimer.h"
 #include "stir/recon_buildblock/ForwardProjectorByBin.h"
@@ -165,7 +165,7 @@ void get_viewgrams(shared_ptr<RelatedViewgrams<float> >& y,
                    const double start_time_of_frame,
                    const double end_time_of_frame,
                    const shared_ptr<DataSymmetriesForViewSegmentNumbers>& symmetries_ptr,
-                   const ViewSegmentNumbers& view_segment_num,
+                   const ViewSegmentTOFNumbers& view_segment_num,
 				   const int timing_pos_num
                    )
 {
@@ -397,7 +397,7 @@ void distributable_computation(
   if (zero_seg0_end_planes)
     info("End-planes of segment 0 will be zeroed");
 
-  const std::vector<ViewSegmentNumbers> vs_nums_to_process = 
+  const std::vector<ViewSegmentTOFNumbers> vs_nums_to_process =
     detail::find_basic_vs_nums_in_subset(*proj_dat_ptr->get_proj_data_info_sptr(), *symmetries_ptr,
                                          min_segment_num, max_segment_num,
                                          subset_num, num_subsets);
@@ -437,7 +437,7 @@ void distributable_computation(
     // note: older versions of openmp need an int as loop
     for (int i=0; i<static_cast<int>(vs_nums_to_process.size()); ++i)
       {
-        const ViewSegmentNumbers view_segment_num=vs_nums_to_process[i];
+        const ViewSegmentTOFNumbers view_segment_num=vs_nums_to_process[i];
 
         shared_ptr<RelatedViewgrams<float> > y;
         shared_ptr<RelatedViewgrams<float> > additive_binwise_correction_viewgrams;

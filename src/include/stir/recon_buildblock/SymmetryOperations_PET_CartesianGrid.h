@@ -58,7 +58,7 @@ public:
   inline void 
     transform_bin_coordinates(Bin&) const;
   inline void 
-    transform_view_segment_indices(ViewSegmentNumbers&) const;
+    transform_view_segment_indices(ViewSegmentTOFNumbers&) const;
   inline void
     transform_image_coordinates(BasicCoordinate<3,int>& c) const;
 
@@ -87,7 +87,7 @@ public:
   inline void 
     transform_bin_coordinates(Bin&) const;
   inline void 
-    transform_view_segment_indices(ViewSegmentNumbers&) const;
+    transform_view_segment_indices(ViewSegmentTOFNumbers&) const;
   inline void
     transform_image_coordinates(BasicCoordinate<3,int>& c) const;
 
@@ -122,7 +122,7 @@ public:
   inline void 
     transform_bin_coordinates(Bin&) const;
   inline void 
-    transform_view_segment_indices(ViewSegmentNumbers&) const;
+    transform_view_segment_indices(ViewSegmentTOFNumbers&) const;
   inline void
     transform_image_coordinates(BasicCoordinate<3,int>& c) const;
 
@@ -155,7 +155,7 @@ public:
   inline void 
     transform_bin_coordinates(Bin&) const;
   inline void 
-    transform_view_segment_indices(ViewSegmentNumbers&) const;
+    transform_view_segment_indices(ViewSegmentTOFNumbers&) const;
   inline void
     transform_image_coordinates(BasicCoordinate<3,int>& c) const;
 
@@ -187,7 +187,7 @@ public:
   inline void 
     transform_bin_coordinates(Bin&) const;
   inline void 
-    transform_view_segment_indices(ViewSegmentNumbers&) const;
+    transform_view_segment_indices(ViewSegmentTOFNumbers&) const;
   inline void
     transform_image_coordinates(BasicCoordinate<3,int>& c) const;
 
@@ -219,7 +219,7 @@ public:
   inline void 
     transform_bin_coordinates(Bin&) const;
   inline void 
-    transform_view_segment_indices(ViewSegmentNumbers&) const;
+    transform_view_segment_indices(ViewSegmentTOFNumbers&) const;
   inline void
     transform_image_coordinates(BasicCoordinate<3,int>& c) const;
 
@@ -252,7 +252,7 @@ public:
   inline void 
     transform_bin_coordinates(Bin&) const;
   inline void 
-    transform_view_segment_indices(ViewSegmentNumbers&) const;
+    transform_view_segment_indices(ViewSegmentTOFNumbers&) const;
   inline void
     transform_image_coordinates(BasicCoordinate<3,int>& c) const;
 
@@ -283,7 +283,7 @@ public:
   inline void 
     transform_bin_coordinates(Bin&) const;
   inline void 
-    transform_view_segment_indices(ViewSegmentNumbers&) const;
+    transform_view_segment_indices(ViewSegmentTOFNumbers&) const;
   inline void
     transform_image_coordinates(BasicCoordinate<3,int>& c) const;
 
@@ -314,7 +314,7 @@ public:
   inline void 
     transform_bin_coordinates(Bin&) const;
   inline void 
-    transform_view_segment_indices(ViewSegmentNumbers&) const;
+    transform_view_segment_indices(ViewSegmentTOFNumbers&) const;
   inline void
     transform_image_coordinates(BasicCoordinate<3,int>& c) const;
 
@@ -346,7 +346,7 @@ public:
   inline void 
     transform_bin_coordinates(Bin&) const;
   inline void 
-    transform_view_segment_indices(ViewSegmentNumbers&) const;
+    transform_view_segment_indices(ViewSegmentTOFNumbers&) const;
   inline void
     transform_image_coordinates(BasicCoordinate<3,int>& c) const;
 
@@ -378,7 +378,7 @@ public:
   inline void 
     transform_bin_coordinates(Bin&) const;
   inline void 
-    transform_view_segment_indices(ViewSegmentNumbers&) const;
+    transform_view_segment_indices(ViewSegmentTOFNumbers&) const;
   inline void
     transform_image_coordinates(BasicCoordinate<3,int>& c) const;
 
@@ -410,7 +410,7 @@ public:
   inline void 
     transform_bin_coordinates(Bin&) const;
   inline void 
-    transform_view_segment_indices(ViewSegmentNumbers&) const;
+    transform_view_segment_indices(ViewSegmentTOFNumbers&) const;
   inline void
     transform_image_coordinates(BasicCoordinate<3,int>& c) const;
 
@@ -441,7 +441,7 @@ public:
   inline void 
     transform_bin_coordinates(Bin&) const;
   inline void 
-    transform_view_segment_indices(ViewSegmentNumbers&) const;
+    transform_view_segment_indices(ViewSegmentTOFNumbers&) const;
   inline void
     transform_image_coordinates(BasicCoordinate<3,int>& c) const;
 
@@ -472,7 +472,7 @@ public:
   inline void 
     transform_bin_coordinates(Bin&) const;
   inline void 
-    transform_view_segment_indices(ViewSegmentNumbers&) const;
+    transform_view_segment_indices(ViewSegmentTOFNumbers&) const;
   inline void
     transform_image_coordinates(BasicCoordinate<3,int>& c) const;
 
@@ -504,7 +504,7 @@ public:
   inline void 
     transform_bin_coordinates(Bin&) const;
   inline void 
-    transform_view_segment_indices(ViewSegmentNumbers&) const;
+    transform_view_segment_indices(ViewSegmentTOFNumbers&) const;
   inline void
     transform_image_coordinates(BasicCoordinate<3,int>& c) const;
 
@@ -535,7 +535,7 @@ public:
   inline void 
     transform_bin_coordinates(Bin&) const;
   inline void 
-    transform_view_segment_indices(ViewSegmentNumbers&) const;
+    transform_view_segment_indices(ViewSegmentTOFNumbers&) const;
   inline void
     transform_image_coordinates(BasicCoordinate<3,int>& c) const;
 

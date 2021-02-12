@@ -139,7 +139,7 @@ apply(ProjData& proj_data,
   if (is_null_ptr(symmetries_sptr))
     symmetries_sptr.reset(new TrivialDataSymmetriesForBins(proj_data.get_proj_data_info_sptr()->create_shared_clone()));
 
-  const std::vector<ViewSegmentNumbers> vs_nums_to_process = 
+  const std::vector<ViewSegmentTOFNumbers> vs_nums_to_process =
     detail::find_basic_vs_nums_in_subset(*proj_data.get_proj_data_info_sptr(), *symmetries_sptr,
                                          proj_data.get_min_segment_num(), proj_data.get_max_segment_num(),
                                          0, 1/*subset_num, num_subsets*/);
@@ -150,7 +150,7 @@ apply(ProjData& proj_data,
     // note: older versions of openmp need an int as loop
   for (int i=0; i<static_cast<int>(vs_nums_to_process.size()); ++i)
     {
-      const ViewSegmentNumbers vs=vs_nums_to_process[i];
+      const ViewSegmentTOFNumbers vs=vs_nums_to_process[i];
       
 		  RelatedViewgrams<float> viewgrams;
 #ifdef STIR_OPENMP
@@ -186,7 +186,7 @@ undo(ProjData& proj_data,
   if (is_null_ptr(symmetries_sptr))
     symmetries_sptr.reset(new TrivialDataSymmetriesForBins(proj_data.get_proj_data_info_sptr()->create_shared_clone()));
 
-  const std::vector<ViewSegmentNumbers> vs_nums_to_process = 
+  const std::vector<ViewSegmentTOFNumbers> vs_nums_to_process =
     detail::find_basic_vs_nums_in_subset(*proj_data.get_proj_data_info_sptr(), *symmetries_sptr,
                                          proj_data.get_min_segment_num(), proj_data.get_max_segment_num(),
                                          0, 1/*subset_num, num_subsets*/);
@@ -197,7 +197,7 @@ undo(ProjData& proj_data,
     // note: older versions of openmp need an int as loop
   for (int i=0; i<static_cast<int>(vs_nums_to_process.size()); ++i)
     {
-      const ViewSegmentNumbers vs=vs_nums_to_process[i];
+      const ViewSegmentTOFNumbers vs=vs_nums_to_process[i];
       
 		  RelatedViewgrams<float> viewgrams;
 #ifdef STIR_OPENMP
