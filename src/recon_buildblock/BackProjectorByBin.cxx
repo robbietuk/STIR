@@ -219,22 +219,17 @@ BackProjectorByBin::back_project(const ProjData& proj_data, int subset_num, int 
       {
         const ViewSegmentNumbers vs=vs_nums_to_process[i];
 
-        for (int k=proj_data.get_proj_data_info_sptr()->get_min_tof_pos_num();
-              k<=proj_data.get_proj_data_info_sptr()->get_max_tof_pos_num();
-      		  ++k)
-        {
 #ifdef STIR_OPENMP
         RelatedViewgrams<float> viewgrams;
 #pragma omp critical (BACKPROJECTORBYBIN_GETVIEWGRAMS)
-        viewgrams = proj_data.get_related_viewgrams(vs, symmetries_sptr, false, k);
+        viewgrams = proj_data.get_related_viewgrams(vs, symmetries_sptr, false, vs.tof_pos_num());
 #else
         const RelatedViewgrams<float> viewgrams = 
-          proj_data.get_related_viewgrams(vs, symmetries_sptr, false, k);
+          proj_data.get_related_viewgrams(vs, symmetries_sptr, false, vs.tof_pos_num());
 #endif
 
         info(boost::format("Processing view %1% of segment %2%") % vs.view_num() % vs.segment_num(), 2);
         back_project(viewgrams);
-      }
   }
   }
 #ifdef STIR_OPENMP
