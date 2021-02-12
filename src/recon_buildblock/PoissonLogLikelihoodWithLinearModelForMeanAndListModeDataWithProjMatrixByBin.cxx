@@ -375,11 +375,15 @@ add_subset_sensitivity(TargetT& sensitivity, const int subset_num) const
           view <= proj_data_info_sptr->get_max_view_num();
           view += this->num_subsets)
       {
-        const ViewSegmentNumbers view_segment_num(view, segment_num);
+        for (int timing_pos_num = proj_data_info_sptr->get_min_tof_pos_num();
+            proj_data_info_sptr->get_max_tof_pos_num(), timing_pos_num++;)
+        {
+          const ViewSegmentNumbers view_segment_num(view, segment_num, timing_pos_num);
 
-        if (! this->projector_pair_sptr->get_symmetries_used()->is_basic(view_segment_num))
-          continue;
-        this->add_view_seg_to_sensitivity(view_segment_num);
+          if (! this->projector_pair_sptr->get_symmetries_used()->is_basic(view_segment_num))
+            continue;
+          this->add_view_seg_to_sensitivity(view_segment_num);
+        }
       }
     }
     this->sens_backprojector_sptr->
@@ -391,10 +395,6 @@ void
 PoissonLogLikelihoodWithLinearModelForMeanAndListModeDataWithProjMatrixByBin<TargetT>::
 add_view_seg_to_sensitivity(const ViewSegmentNumbers& view_seg_nums) const
 {
-    int min_timing_pos_num = use_tofsens ? this->proj_data_info_sptr->get_min_tof_pos_num() : 0;
-    int max_timing_pos_num = use_tofsens ? this->proj_data_info_sptr->get_max_tof_pos_num() : 0;
-	for (int timing_pos_num = min_timing_pos_num; timing_pos_num <= max_timing_pos_num; ++timing_pos_num)
-	{
 		shared_ptr<DataSymmetriesForViewSegmentNumbers> symmetries_used
         (this->projector_pair_sptr->get_symmetries_used()->clone());
 
@@ -419,7 +419,6 @@ add_view_seg_to_sensitivity(const ViewSegmentNumbers& view_seg_nums) const
             this->sens_backprojector_sptr->back_project(viewgrams,
 				min_ax_pos_num, max_ax_pos_num);
 		}
-	}
 
 }
 
