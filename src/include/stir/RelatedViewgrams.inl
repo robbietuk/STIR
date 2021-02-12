@@ -90,7 +90,7 @@ template <typename elemT>
 ViewSegmentNumbers RelatedViewgrams<elemT>::
 get_basic_view_segment_num() const
 {
-  return ViewSegmentNumbers(get_basic_view_num(), get_basic_segment_num());
+  return ViewSegmentNumbers(get_basic_view_num(), get_basic_segment_num(), get_basic_timing_pos_num());
 }
 
 template <typename elemT>

@@ -125,7 +125,7 @@ do_segments(DiscretisedDensity<3,float>& image,
 			  if (fill_with_1)
 			  {
 				  RelatedViewgrams<float> viewgrams_empty =
-					  proj_data_org.get_empty_related_viewgrams(vs, symmetries_sptr, false, timing_num);
+					  proj_data_org.get_empty_related_viewgrams(vs, symmetries_sptr, false);
 				  //proj_data_org.get_empty_related_viewgrams(vs.view_num(),vs.segment_num(), symmetries_sptr);
 
 				  RelatedViewgrams<float>::iterator r_viewgrams_iter = viewgrams_empty.begin();
@@ -152,7 +152,7 @@ do_segments(DiscretisedDensity<3,float>& image,
 				  RelatedViewgrams<float> viewgrams =
 					  proj_data_org.get_related_viewgrams(vs,
 						  //proj_data_org.get_related_viewgrams(vs.view_num(),vs.segment_num(),
-						  symmetries_sptr, false, timing_num);
+						  symmetries_sptr, false);
 				  RelatedViewgrams<float>::iterator r_viewgrams_iter = viewgrams.begin();
 
 				  while (r_viewgrams_iter != viewgrams.end())

@@ -702,7 +702,7 @@ void FBP3DRPReconstruction::do_3D_Reconstruction(
       full_log << "\n  - Getting related viewgrams"  << endl;
  
       RelatedViewgrams<float> viewgrams = 
-	proj_data_ptr->get_related_viewgrams(vs_num, symmetries_sptr);
+	proj_data_ptr->get_related_viewgrams(vs_num, symmetries_sptr, 0);
         
       do_process_viewgrams(
 			   viewgrams,

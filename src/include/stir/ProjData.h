@@ -184,8 +184,7 @@ public:
   virtual RelatedViewgrams<float> 
     get_related_viewgrams(const ViewSegmentNumbers&,
     const shared_ptr<DataSymmetriesForViewSegmentNumbers>&,
-    const bool make_num_tangential_poss_odd = false,
-	const int timing_pos = 0) const;
+    const bool make_num_tangential_poss_odd = false) const;
   //! Set related viewgrams
   virtual Succeeded set_related_viewgrams(const RelatedViewgrams<float>& viewgrams);
 //  //! Get related bin values
@@ -197,8 +196,7 @@ public:
     get_empty_related_viewgrams(const ViewSegmentNumbers& view_segmnet_num,
     //const int view_num, const int segment_num, 
     const shared_ptr<DataSymmetriesForViewSegmentNumbers>& symmetries_ptr,
-    const bool make_num_tangential_poss_odd = false,
-	const int timing_pos = 0) const;
+    const bool make_num_tangential_poss_odd = false) const;
 
 
   //! set all bins to the same value

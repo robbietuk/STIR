@@ -407,8 +407,8 @@ add_view_seg_to_sensitivity(const ViewSegmentNumbers& view_seg_nums) const
         (this->projector_pair_sptr->get_symmetries_used()->clone());
 
 		RelatedViewgrams<float> viewgrams =
-            proj_data_info_sptr->get_empty_related_viewgrams(
-				view_seg_nums, symmetries_used, false, timing_pos_num);
+                proj_data_info_sptr->get_empty_related_viewgrams(
+                        view_seg_nums, symmetries_used, false);
 
 		viewgrams.fill(1.F);
 		// find efficiencies
