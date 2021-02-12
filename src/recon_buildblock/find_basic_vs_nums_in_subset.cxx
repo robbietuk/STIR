@@ -37,7 +37,7 @@ namespace detail
     std::vector<ViewSegmentNumbers> vs_nums_to_process;
     for (int segment_num = min_segment_num; segment_num <= max_segment_num; segment_num++)
       {
-        for (int timing_pos_num = -proj_data_info.get_min_tof_pos_num();
+        for (int timing_pos_num = proj_data_info.get_min_tof_pos_num();
                       timing_pos_num<= proj_data_info.get_max_tof_pos_num();
                       ++timing_pos_num)
               {
@@ -45,7 +45,7 @@ namespace detail
              view <= proj_data_info.get_max_view_num(); 
              view += num_subsets)
           {
-            const ViewSegmentNumbers view_segment_num(view, segment_num);
+            const ViewSegmentNumbers view_segment_num(view, segment_num, timing_pos_num);
 
             if (!symmetries.is_basic(view_segment_num))
               continue;

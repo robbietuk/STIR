@@ -152,11 +152,6 @@ apply(ProjData& proj_data,
     {
       const ViewSegmentNumbers vs=vs_nums_to_process[i];
       
-      for (int k=proj_data.get_proj_data_info_sptr()->get_min_tof_pos_num();
-              k<=proj_data.get_proj_data_info_sptr()->get_max_tof_pos_num();
-    		  ++k)
-      {
-
 		  RelatedViewgrams<float> viewgrams;
 #ifdef STIR_OPENMP
 		  // reading/writing to streams is not safe in multi-threaded code
@@ -167,7 +162,7 @@ apply(ProjData& proj_data,
 #endif
 		  {
 			viewgrams =
-			  proj_data.get_related_viewgrams(vs, symmetries_sptr, false, k);
+			  proj_data.get_related_viewgrams(vs, symmetries_sptr, false, vs.tof_pos_num());
 		  }
 
       this->apply(viewgrams);
@@ -180,7 +175,6 @@ apply(ProjData& proj_data,
 		  }
       }
     }
-}
 
 void 
 BinNormalisation::
@@ -205,17 +199,13 @@ undo(ProjData& proj_data,
     {
       const ViewSegmentNumbers vs=vs_nums_to_process[i];
       
-      for (int k=proj_data.get_proj_data_info_sptr()->get_min_tof_pos_num();
-              k<=proj_data.get_proj_data_info_sptr()->get_max_tof_pos_num();
-    		  ++k)
-      {
 		  RelatedViewgrams<float> viewgrams;
 #ifdef STIR_OPENMP
 #pragma omp critical (BINNORMALISATION_UNDO__VIEWGRAMS)
 #endif
 		  {
 			viewgrams =
-			  proj_data.get_related_viewgrams(vs, symmetries_sptr,false,k);
+			  proj_data.get_related_viewgrams(vs, symmetries_sptr,false, vs.tof_pos_num());
 		  }
 
       this->undo(viewgrams);
@@ -228,7 +218,6 @@ undo(ProjData& proj_data,
 		  }
       }
     }
-}
 
  
 END_NAMESPACE_STIR
