@@ -20,8 +20,6 @@
 # Author Nikos Efthimiou
 # 
 
-export PATH=/Users/roberttwyman/bin/STIR/devel/TOF/install/bin:${PATH}
-
 # Scripts should exit with error code when a test fails:
 if [ -n "$TRAVIS" ]; then
     # The code runs inside Travis
