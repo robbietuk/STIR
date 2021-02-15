@@ -217,7 +217,7 @@ BackProjectorByBin::back_project(const ProjData& proj_data, int subset_num, int 
         viewgrams = proj_data.get_related_viewgrams(vs, symmetries_sptr, false);
 #else
         const RelatedViewgrams<float> viewgrams = 
-          proj_data.get_related_viewgrams(vs, symmetries_sptr, false, vs.tof_pos_num());
+          proj_data.get_related_viewgrams(vs, symmetries_sptr, false);
 #endif
 
         info(boost::format("Processing view %1% of segment %2%") % vs.view_num() % vs.segment_num(), 2);
