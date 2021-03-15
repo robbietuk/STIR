@@ -96,7 +96,7 @@ int main(int argc, char **argv)
     
   GeoData3D norm_geo_data(num_axial_crystals_per_block, num_transaxial_crystals_per_block/2, num_rings, num_detectors_per_ring);
 
-  BlockData3D norm_block_data(num_axial_blocks, num_transaxial_blocks,
+  BucketData3D norm_block_data(num_axial_blocks, num_transaxial_blocks,
                               num_axial_blocks-1, num_transaxial_blocks-1);
   DetectorEfficiencies efficiencies(IndexRange2D(num_rings, num_detectors_per_ring));
 
@@ -164,7 +164,7 @@ int main(int argc, char **argv)
     if (do_geo)
           apply_geo_norm(fan_data, norm_geo_data, apply_or_undo);
 	if (do_block)
-	      apply_block_norm(fan_data, norm_block_data, apply_or_undo);
+      apply_bucket_norm(fan_data, norm_block_data, apply_or_undo);
 
 	if (do_display)
 	  display(fan_data, "input*norm");

@@ -45,7 +45,7 @@
 
 static void print_usage_and_exit(const std::string& program_name)
 {
-  std::cerr<<"Usage: " << program_name << " [--display | --print-KL | --include-block-timing-model] \\\n"
+  std::cerr<<"Usage: " << program_name << " [--display | --print-KL | --include-bucket-timing-model] \\\n"
 	   << " out_filename_prefix measured_data model num_iterations num_eff_iterations\n"
 	   << " set num_iterations to 0 to do only efficiencies\n";
   exit(EXIT_FAILURE);
@@ -64,7 +64,7 @@ int main(int argc, char **argv)
   bool do_display = false;
   bool do_KL = false;
   bool do_geo = true;
-  bool do_block = false;
+  bool do_bucket = false;
 
   // first process command line options
   while (argc>0 && argv[0][0]=='-' && argc>=1)
@@ -84,9 +84,9 @@ int main(int argc, char **argv)
 	  do_geo = true;
 	  --argc; ++argv;
 	}
-      else if (strcmp(argv[0], "--include-block-timing-model")==0)
+      else if (strcmp(argv[0], "--include-bucket-timing-model")==0)
 	{
-	  do_block = true;
+      do_bucket = true;
 	  --argc; ++argv;
 	}
       else
@@ -111,19 +111,32 @@ int main(int argc, char **argv)
   const int num_detectors_per_ring = 
     measured_data->get_proj_data_info_sptr()->get_scanner_sptr()->
     get_num_detectors_per_ring();
+  const int num_transaxial_buckets =
+          measured_data->get_proj_data_info_sptr()->get_scanner_sptr()->
+                  get_num_transaxial_buckets();
   const int num_transaxial_blocks =
     measured_data->get_proj_data_info_sptr()->get_scanner_sptr()->
     get_num_transaxial_blocks();
+  const int num_axial_buckets =
+          measured_data->get_proj_data_info_sptr()->get_scanner_sptr()->
+                  get_num_axial_buckets();
   const int num_axial_blocks =
     measured_data->get_proj_data_info_sptr()->get_scanner_sptr()->
     get_num_axial_blocks();
+  const int num_transaxial_blocks_per_bucket =
+          measured_data->get_proj_data_info_sptr()->get_scanner_sptr()->
+          get_num_transaxial_blocks_per_bucket();
+  const int num_axial_blocks_per_bucket =
+          measured_data->get_proj_data_info_sptr()->get_scanner_sptr()->
+                  get_num_axial_blocks_per_bucket();
     const int num_transaxial_crystals_per_block =
     measured_data->get_proj_data_info_sptr()->get_scanner_sptr()->
     get_num_transaxial_crystals_per_block();
     const int num_axial_crystals_per_block =
     measured_data->get_proj_data_info_sptr()->get_scanner_sptr()->
     get_num_axial_crystals_per_block();
-
+    const int num_axial_crystals_per_bucket = num_axial_blocks_per_bucket * num_axial_crystals_per_block;
+    const int num_transaxial_crystals_per_bucket = num_transaxial_blocks_per_bucket * num_transaxial_crystals_per_block;
 
     
     CPUTimer timer;
@@ -134,11 +147,11 @@ int main(int argc, char **argv)
     Array<2,float> data_fan_sums(IndexRange2D(num_rings, num_detectors_per_ring));
     DetectorEfficiencies efficiencies(IndexRange2D(num_rings, num_detectors_per_ring));
     
-    GeoData3D measured_geo_data(num_axial_crystals_per_block, num_transaxial_crystals_per_block/2, num_rings, num_detectors_per_ring ); //inputes have to be modified
-    GeoData3D norm_geo_data(num_axial_crystals_per_block, num_transaxial_crystals_per_block/2, num_rings, num_detectors_per_ring ); //inputes have to be modified
+    GeoData3D measured_geo_data(num_axial_crystals_per_bucket, num_transaxial_crystals_per_bucket/2, num_rings, num_detectors_per_ring ); //inputes have to be modified
+    GeoData3D norm_geo_data(num_axial_crystals_per_bucket, num_transaxial_crystals_per_bucket/2, num_rings, num_detectors_per_ring ); //inputes have to be modified
     
-    BlockData3D measured_block_data(num_axial_blocks, num_transaxial_blocks, num_axial_blocks-1, num_transaxial_blocks-1);
-    BlockData3D norm_block_data(num_axial_blocks, num_transaxial_blocks, num_axial_blocks-1, num_transaxial_blocks-1);
+    BucketData3D measured_bucket_data(num_axial_buckets, num_transaxial_buckets, num_axial_buckets - 1, num_transaxial_buckets - 1);
+    BucketData3D norm_bucket_data(num_axial_buckets, num_transaxial_buckets, num_axial_buckets - 1, num_transaxial_buckets - 1);
 
 
     make_fan_data(model_fan_data, *model_data);
@@ -169,9 +182,9 @@ int main(int argc, char **argv)
             
             make_fan_sum_data(data_fan_sums, measured_fan_data);
             make_geo_data(measured_geo_data, measured_fan_data);
-            make_block_data(measured_block_data, measured_fan_data);
+            make_bucket_data(measured_bucket_data, measured_fan_data);
             if (do_display)
-                display(measured_block_data, "raw block data from measurements");
+                display(measured_bucket_data, "raw bucket data from measurements");
             
            /* {
              char *out_filename = new char[20];
@@ -203,15 +216,15 @@ int main(int argc, char **argv)
             {
                 efficiencies.fill(sqrt(data_fan_sums.sum()/model_fan_data.sum()));
                 norm_geo_data.fill(1);
-                norm_block_data.fill(1);
+                norm_bucket_data.fill(1);
             }
             // efficiencies
             {
                 fan_data = model_fan_data;
                 apply_geo_norm(fan_data, norm_geo_data);
-                apply_block_norm(fan_data, norm_block_data);
+                apply_bucket_norm(fan_data, norm_bucket_data);
                 if (do_display)
-                    display(fan_data,  "model*geo*block");
+                    display(fan_data,  "model*geo*bucket");
                 for (int eff_iter_num = 1; eff_iter_num<=num_eff_iterations; ++eff_iter_num)
                 {
                     iterate_efficiencies(efficiencies, data_fan_sums, fan_data);
@@ -234,7 +247,7 @@ int main(int argc, char **argv)
                         // now restore for further iterations
                         fan_data = model_fan_data;
                         apply_geo_norm(fan_data, norm_geo_data);
-                        apply_block_norm(fan_data, norm_block_data);
+                      apply_bucket_norm(fan_data, norm_bucket_data);
                     }
                     if (do_display)
                     {
@@ -244,7 +257,7 @@ int main(int argc, char **argv)
                         // now restore for further iterations
                         fan_data = model_fan_data;
                         apply_geo_norm(fan_data, norm_geo_data);
-                        apply_block_norm(fan_data, norm_block_data);
+                      apply_bucket_norm(fan_data, norm_bucket_data);
                     }
                     
                 }
@@ -255,7 +268,7 @@ int main(int argc, char **argv)
             
             fan_data = model_fan_data;
             apply_efficiencies(fan_data, efficiencies);
-            apply_block_norm(fan_data, norm_block_data);
+          apply_bucket_norm(fan_data, norm_bucket_data);
             
             if (do_geo)
               iterate_geo_norm(norm_geo_data, measured_geo_data, fan_data);
@@ -292,20 +305,20 @@ int main(int argc, char **argv)
             }
 
             
-            // block norm
+            // bucket norm
            {
                 fan_data = model_fan_data;
                 apply_efficiencies(fan_data, efficiencies);
                 apply_geo_norm(fan_data, norm_geo_data);
-                if (do_block)
-                  iterate_block_norm(norm_block_data, measured_block_data, fan_data);
+                if (do_bucket)
+                  iterate_bucket_norm(norm_bucket_data, measured_bucket_data, fan_data);
                  #if 0
                  { // check
-                 for (int a=0; a<measured_block_data.get_length(); ++a)
-                 for (int b=0; b<measured_block_data[0].get_length(); ++b)
-                 if (norm_block_data[a][b]==0 && measured_block_data[a][b]!=0)
-                 warning("block norm 0 at a=%d b=%d measured value=%g\n",
-                 a,b,measured_block_data[a][b]);
+                 for (int a=0; a<measured_bucket_data.get_length(); ++a)
+                 for (int b=0; b<measured_bucket_data[0].get_length(); ++b)
+                 if (norm_bucket_data[a][b]==0 && measured_bucket_data[a][b]!=0)
+                 warning("bucket norm 0 at a=%d b=%d measured value=%g\n",
+                 a,b,measured_bucket_data[a][b]);
                  }
                  #endif
                 {
@@ -313,34 +326,34 @@ int main(int argc, char **argv)
                     sprintf(out_filename, "%s_%s_%d.out",
                             out_filename_prefix.c_str(), "block", iter_num);
                     std::ofstream out(out_filename);
-                    out << norm_block_data;
+                    out << norm_bucket_data;
                     delete[] out_filename;
                 }
                 if (do_KL)
                 {
-                    apply_block_norm(fan_data, norm_block_data);
+                  apply_bucket_norm(fan_data, norm_bucket_data);
                     info(boost::format("KL %1%") % KL(measured_fan_data, fan_data, threshold_for_KL));
                 }
                 if (do_display)
                 {
                     fan_data.fill(1);
-                    apply_block_norm(fan_data, norm_block_data);
-                    display(norm_block_data, "raw block norm");
-                    display(fan_data, "block norm");
+                  apply_bucket_norm(fan_data, norm_bucket_data);
+                    display(norm_bucket_data, "raw bucket norm");
+                    display(fan_data, "bucket norm");
                 }
-            } // end block
+            } // end bucket
   
 
  //// print KL for fansums
          if (do_KL)
        {
     Array<2,float> fan_sums(IndexRange2D(num_rings, num_detectors_per_ring));
-    GeoData3D geo_data(num_axial_crystals_per_block, num_transaxial_crystals_per_block/2, num_rings, num_detectors_per_ring ); //inputes have to be modified
-    BlockData3D block_data(num_axial_blocks, num_transaxial_blocks, num_axial_blocks-1, num_transaxial_blocks-1);
+    GeoData3D geo_data(num_axial_crystals_per_bucket, num_transaxial_crystals_per_bucket/2, num_rings, num_detectors_per_ring ); //inputes have to be modified
+    BucketData3D bucket_data(num_axial_buckets, num_transaxial_buckets, num_axial_buckets - 1, num_transaxial_buckets - 1);
    
             make_fan_sum_data(fan_sums, fan_data);
             make_geo_data(geo_data, fan_data);
-            make_block_data(block_data, measured_fan_data);
+         make_bucket_data(bucket_data, measured_fan_data);
             
 std::cerr << "KL on fans: " << KL(measured_fan_data, fan_data,0) << ", " << KL(measured_geo_data,geo_data,0) << std::endl;
 }

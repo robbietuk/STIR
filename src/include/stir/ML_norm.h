@@ -139,7 +139,7 @@ class GeoData3D : public Array<4,float>
 {
 public:
     GeoData3D();
-    GeoData3D(const int num_axial_crystals_per_block, const int half_num_transaxial_crystals_per_block, const int num_rings, const int num_detectors_per_ring);
+    GeoData3D(const int num_axial_crystals_per_bucket, const int half_num_transaxial_crystals_per_block, const int num_rings, const int num_detectors_per_ring);
     virtual  ~GeoData3D();
     GeoData3D& operator=(const GeoData3D&);
 
@@ -170,8 +170,8 @@ private:
     friend std::ostream& operator<<(std::ostream&, const GeoData3D&);
     friend std::istream& operator>>(std::istream&, GeoData3D&);
     typedef Array<4,float> base_type;
-    int num_axial_crystals_per_block;
-    int half_num_transaxial_crystals_per_block;
+    int num_axial_crystals_per_bucket;
+    int half_num_transaxial_crystals_per_bucket;
     int num_rings;
     int num_detectors_per_ring;
     
@@ -221,7 +221,7 @@ private:
     int half_fan_size;
 };
 
-typedef FanProjData BlockData3D;
+typedef FanProjData BucketData3D;
 
 shared_ptr<const ProjDataInfoCylindricalNoArcCorr>
 get_fan_info(int& num_rings, int& num_detectors_per_ring, 
@@ -240,9 +240,9 @@ void set_fan_data(ProjData& proj_data,
 void set_fan_data_add_gaps(ProjData& proj_data,
                   const FanProjData& fan_data);
 
-void apply_block_norm(FanProjData& fan_data,
-                      const BlockData3D& block_data,
-                      const bool apply= true);
+void apply_bucket_norm(FanProjData& fan_data,
+                       const BucketData3D& bucket_data,
+                       const bool apply= true);
 
 void apply_geo_norm(FanProjData& fan_data,
                     const GeoData3D& geo_data,
@@ -265,7 +265,7 @@ void make_fan_sum_data(Array<2,float>& data_fan_sums,
 void make_geo_data(GeoData3D& geo_data, const FanProjData& fan_data);
 
 
-void make_block_data(BlockData3D& block_data, const FanProjData& fan_data);
+void make_bucket_data(BucketData3D& bucket_data, const FanProjData& fan_data);
 
 
 void iterate_efficiencies(DetectorEfficiencies& efficiencies,
@@ -281,9 +281,9 @@ void iterate_geo_norm(GeoData3D& geo_data,
                       const GeoData3D& measured_geo_data,
                       const FanProjData& model);
 
-void iterate_block_norm(BlockData3D& norm_block_data,
-                        const BlockData3D& measured_block_data,
-                        const FanProjData& model);
+void iterate_bucket_norm(BucketData3D& norm_bucket_data,
+                         const BucketData3D& measured_bucket_data,
+                         const FanProjData& model);
 
 inline double KL(const double a, const double b, const double threshold_a = 0)
 {
