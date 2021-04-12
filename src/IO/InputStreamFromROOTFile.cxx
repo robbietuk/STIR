@@ -217,13 +217,13 @@ InputStreamFromROOTFile::check_brentry_randoms_scatter_energy_conditions(Long64_
     is_scattered_event = true;
 
   // Test inclusion conditions
-  if (!this->include_trues && is_same_eventID )
+  if ( !this->include_trues && is_same_eventID && !is_scattered_event )
     return false;
-  if ( !this->include_randoms && !is_same_eventID )
+  if ( !this->include_randoms && !is_same_eventID && !is_scattered_event )
     return false;
-  if (!this->include_scattered && is_scattered_event )
+  if ( !this->include_scattered && is_same_eventID && is_scattered_event )
     return false;
-  if (!include_scattered_randoms && is_scattered_event && !is_same_eventID )
+  if ( !include_scattered_randoms && !is_same_eventID && is_scattered_event )
     return false;
 
   // Energy condition.
