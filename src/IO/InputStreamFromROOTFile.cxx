@@ -67,6 +67,10 @@ InputStreamFromROOTFile::set_defaults()
 {
     starting_stream_position = 0;
     singles_readout_depth = -1;
+    include_trues = true;
+    include_randoms = true;
+    include_scattered = true;
+    include_scattered_randoms = true;
     exclude_scattered = false;
     exclude_randoms = false;
     check_energy_window_information = true;
@@ -86,6 +90,10 @@ InputStreamFromROOTFile::initialise_keymap()
     this->parser.add_key("name of data file", &this->filename);
     this->parser.add_key("Singles readout depth", &this->singles_readout_depth);
     this->parser.add_key("name of input TChain", &this->chain_name);
+    this->parser.add_key("include true events", &this->include_trues);
+    this->parser.add_key("include random events", &this->include_randoms);
+    this->parser.add_key("include scattered events", &this->include_scattered);
+    this->parser.add_key("include scattered random events", &this->include_scattered_randoms);
     this->parser.add_key("exclude scattered events", &this->exclude_scattered);
     this->parser.add_key("exclude random events", &this->exclude_randoms);
     this->parser.add_key("check energy window information", &this->check_energy_window_information);
@@ -164,6 +172,16 @@ InputStreamFromROOTFile::set_up(const std::string & header_path)
         stream_ptr->SetBranchAddress("sourcePosZ2",&sourcePosZ2, &br_sourcePosZ2);
     }
 
+    // Check on exclude event type variables, these overwrite the include event type variables
+    if ( exclude_randoms ){
+      include_randoms = false;
+      include_scattered_randoms = false;
+    }
+    if ( exclude_scattered ){
+      include_scattered = false;
+      include_scattered_randoms = false;
+    }
+
     return Succeeded::yes;
 }
 
@@ -173,25 +191,29 @@ InputStreamFromROOTFile::check_brentry_randoms_scatter_energy_conditions(Long64_
   if (brentry < 0)
     return false;
 
-  // Scatter event condition.
-  if (this->exclude_scattered) {
-    GetEntryCheck(br_comptonPhantom1->GetEntry(brentry));
-    GetEntryCheck(br_comptonPhantom2->GetEntry(brentry));
+  GetEntryCheck(br_comptonPhantom1->GetEntry(brentry));
+  GetEntryCheck(br_comptonPhantom2->GetEntry(brentry));
+  GetEntryCheck(br_eventID1->GetEntry(brentry));
+  GetEntryCheck(br_eventID2->GetEntry(brentry));
 
-    // Check if either event has been Compton scattered
-    if (this->comptonphantom1 > 0 || this->comptonphantom2 > 0)
-      return false;
-  }
+  bool is_same_eventID = true;
+  bool is_scattered_event = false;
 
-  // Random event condition.
-  if (this->exclude_randoms) {
-    GetEntryCheck(br_eventID1->GetEntry(brentry));
-    GetEntryCheck(br_eventID2->GetEntry(brentry));
+  // Test event ID's and Compton scatter
+  if ( eventID1 != eventID2 )
+    is_same_eventID = false;
+  if ( this->comptonphantom1 > 0 || this->comptonphantom2 > 0 )
+    is_scattered_event = true;
 
-    // Check for the same event
-    if ((this->eventID1 != this->eventID2))
-      return false;
-  }
+  // Test inclusion conditions
+  if (!this->include_trues && is_same_eventID )
+    return false;
+  if ( !this->include_randoms && !is_same_eventID )
+    return false;
+  if (!this->include_scattered && is_scattered_event )
+    return false;
+  if (!include_scattered_randoms && is_scattered_event && !is_same_eventID )
+    return false;
 
   // Energy condition.
   if (this->check_energy_window_information){

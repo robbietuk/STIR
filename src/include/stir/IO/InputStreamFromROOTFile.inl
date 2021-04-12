@@ -131,6 +131,30 @@ InputStreamFromROOTFile::set_exclude_random_events(bool val)
 }
 
 void
+InputStreamFromROOTFile::set_include_true_events(bool val)
+{
+  include_trues = val;
+}
+
+void
+InputStreamFromROOTFile::set_include_random_events(bool val)
+{
+  include_randoms = val;
+}
+
+void
+InputStreamFromROOTFile::set_include_scattered_events(bool val)
+{
+  include_scattered = val;
+}
+
+void
+InputStreamFromROOTFile::set_include_scattered_random_events(bool val)
+{
+  include_scattered_randoms = val;
+}
+
+void
 InputStreamFromROOTFile::set_detectors_offset(int val)
 {
     offset_dets = val;

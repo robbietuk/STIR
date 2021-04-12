@@ -157,6 +157,14 @@ public:
 
     inline void set_chain_name(const std::string&);
 
+    inline void set_include_true_events(bool);
+
+    inline void set_include_random_events(bool);
+
+    inline void set_include_scattered_events(bool);
+
+    inline void set_include_scattered_random_events(bool);
+
     inline void set_exclude_scattered_events(bool);
 
     inline void set_exclude_random_events(bool);
@@ -258,10 +266,19 @@ public:
     int num_virtual_axial_crystals_per_block;
     int num_virtual_transaxial_crystals_per_block;
     //@}
-    //! Skip scattered events (comptonphantom1 > 0 && comptonphantom2 > 0). Default is false
+    //! Include true events (eventID1 == eventID2) and (comptonphantom1 == 0 && comptonphantom2 == 0)
+    bool include_trues;
+    //! Include random events (eventID1 != eventID2) and (comptonphantom1 == 0 && comptonphantom2 == 0)
+    bool include_randoms;
+    //! Include scattered events (eventID1 == eventID2) and (comptonphantom1 > 0 || comptonphantom2 > 0)
+    bool include_scattered;
+    //! Include scattered random events (eventID1 != eventID2) and (comptonphantom1 > 0 || comptonphantom2 > 0)
+    bool include_scattered_randoms;
+    //! Skip scattered (comptonphantom1 > 0 || comptonphantom2 > 0) and random (eventID1 != eventID2) events. Default is false. Legacy code, please use include event selection.
+    //@{!
     bool exclude_scattered;
-    //! Skip random events (eventID1 != eventID2). Default is false
     bool exclude_randoms;
+    //@}
     //! Check energy window information (low_energy_window < energy <  up_energy_window). Default is true
     bool check_energy_window_information;
     //! Lower energy threshold. Default is 1000 (keV)
