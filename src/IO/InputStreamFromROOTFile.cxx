@@ -173,14 +173,18 @@ InputStreamFromROOTFile::set_up(const std::string & header_path)
     }
 
     // Check on exclude event type variables, these overwrite the include event type variables
-    if ( exclude_randoms ){
-      include_randoms = false;
-      include_scattered_randoms = false;
+    if ( this->exclude_randoms ){
+      this->include_randoms = false;
+      this->include_scattered_randoms = false;
     }
-    if ( exclude_scattered ){
-      include_scattered = false;
-      include_scattered_randoms = false;
+    if ( this->exclude_scattered ){
+      this->include_scattered = false;
+      this->include_scattered_randoms = false;
     }
+
+    if (!this->include_trues && !this->include_randoms && !this->include_scattered && !this->include_scattered_randoms )
+      error("InputStreamFromROOTFile: All event types (trues, randoms, scattered, and random-scattered) are disabled, "
+            "will not process any data.");
 
     return Succeeded::yes;
 }
