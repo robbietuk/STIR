@@ -186,6 +186,13 @@ InputStreamFromROOTFile::set_up(const std::string & header_path)
       error("InputStreamFromROOTFile: All event types (trues, randoms, scattered, and random-scattered) are disabled, "
             "will not process any data.");
 
+    std::string status = "InputStreamFromROOTFile: Processing data with the following event type inclusions:"
+                         "\n    True events:             " + std::to_string(this->include_trues) +
+                         "\n    Random events:           " + std::to_string(this->include_randoms) +
+                         "\n    Scattered events:        " + std::to_string(this->include_scattered) +
+                         "\n    Scattered Random events: " + std::to_string(this->include_scattered_randoms);
+    warning(status);
+
     return Succeeded::yes;
 }
 
