@@ -430,6 +430,17 @@ add_multiplication_with_approximate_Hessian(DiscretisedDensity<3,elemT>& output,
   return Succeeded::no;
 }
 
+template <typename elemT>
+Succeeded
+RelativeDifferencePrior<elemT>::
+accumulate_Hessian_times_input(DiscretisedDensity<3,elemT>& output,
+                               const DiscretisedDensity<3,elemT>& current_estimate,
+                               const DiscretisedDensity<3,elemT>& input) const
+{
+  error("accumulate_Hessian_times_input()  is not implemented in Relative Difference Prior.");
+  return Succeeded::no;
+}
+
 #  ifdef _MSC_VER
 // prevent warning message on reinstantiation, 
 // note that we get a linking error if we don't have the explicit instantiation below

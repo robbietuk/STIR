@@ -130,6 +130,11 @@ class RelativeDifferencePrior:  public
     add_multiplication_with_approximate_Hessian(DiscretisedDensity<3,elemT>& output,
                                                 const DiscretisedDensity<3,elemT>& input) const;
 
+    //! Compute the multiplication of the hessian of the prior multiplied by the input.
+  virtual Succeeded accumulate_Hessian_times_input(DiscretisedDensity<3,elemT>& output,
+                                                   const DiscretisedDensity<3,elemT>& current_estimate,
+                                                   const DiscretisedDensity<3,elemT>& input) const;
+
   //! get the gamma value used in RDP
   float get_gamma() const;
   //! set the gamma value used in the RDP
