@@ -198,6 +198,19 @@ protected:
   virtual bool post_processing();
  private:
   shared_ptr<DiscretisedDensity<3,elemT> > kappa_ptr;
+
+  //! The Hessian of the Relative Difference Prior
+  /*!
+   This function returns the hessian of the RDP
+   * @param d the difference between the ith and jth voxel.
+   * @param scalar is the logcosh scalar value controlling the priors transition between the quadratic and linear behaviour
+   * @return the second derivative of the log-cosh function
+   */
+  static inline float Hessian(const float lambda_j, const float lambda_k, const float gamma)
+  {
+    return (16 * lambda_j * lambda_k)/
+      pow(lambda_j + lambda_k + gamma * abs(lambda_j - lambda_k), 3);
+  }
 };
 
 
