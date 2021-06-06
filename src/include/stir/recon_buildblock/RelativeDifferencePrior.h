@@ -201,19 +201,19 @@ protected:
 
   //! The Hessian of the Relative Difference Prior
   /*!
-   This function returns the hessian (second derivative) of the RDP w.r.t lambda_j and lambda_k.
-   When j=k, this reduces to the second derivative w.r.t lambda_j.
-   * @param lambda_j jth voxel.
-   * @param lambda_k kth voxel.
+   This function returns the hessian (second derivative) of the RDP w.r.t \c x and \c y.
+   When j=k, this reduces to the second derivative w.r.t \c x.
+   * @param x is the target voxel.
+   * @param y is the neighbourhood voxel.
    * @param gamma is the edge preservation value controlling the priors transition between the quadratic and linear behaviour
    * @return the second derivative of the Relative Difference Prior
 
    */
-  static inline float Hessian(const float lambda_j, const float lambda_k, const float gamma, const float eps)
+  static inline float Hessian(const float x, const float y, const float gamma, const float eps)
   {
-    if (lambda_j > 0.0 && lambda_k > 0.0 && eps > 0.0)
-      return 2 * (2 * lambda_j + eps)*(2 * lambda_k + eps) /
-        pow(lambda_j + lambda_k + gamma * abs(lambda_j - lambda_k) + eps, 3);
+    if (x > 0.0 && y > 0.0 && eps > 0.0)
+      return 2 * (2 * x + eps)*(2 * y + eps) /
+        pow(x + y + gamma * abs(x - y) + eps, 3);
     else
       return 0.0;
   }
