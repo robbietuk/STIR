@@ -211,8 +211,11 @@ protected:
    */
   static inline float Hessian(const float lambda_j, const float lambda_k, const float gamma)
   {
-    return (16.0 * lambda_j * lambda_k)/
-      pow(lambda_j + lambda_k + gamma * abs(lambda_j - lambda_k), 3);
+    if (lambda_j > 0.0 && lambda_k > 0.0)
+      return (16.0 * lambda_j * lambda_k)/
+        pow(lambda_j + lambda_k + gamma * abs(lambda_j - lambda_k), 3);
+    else
+      return 0.0;
   }
 };
 
