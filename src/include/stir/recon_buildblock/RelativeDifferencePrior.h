@@ -201,14 +201,17 @@ protected:
 
   //! The Hessian of the Relative Difference Prior
   /*!
-   This function returns the hessian of the RDP
-   * @param d the difference between the ith and jth voxel.
-   * @param scalar is the logcosh scalar value controlling the priors transition between the quadratic and linear behaviour
-   * @return the second derivative of the log-cosh function
+   This function returns the hessian (second derivative) of the RDP w.r.t lambda_j and lambda_k.
+   When j=k, this reduces to the second derivative w.r.t lambda_j.
+   * @param lambda_j jth voxel.
+   * @param lambda_k kth voxel.
+   * @param gamma is the edge preservation value controlling the priors transition between the quadratic and linear behaviour
+   * @return the second derivative of the Relative Difference Prior
+
    */
   static inline float Hessian(const float lambda_j, const float lambda_k, const float gamma)
   {
-    return (16 * lambda_j * lambda_k)/
+    return (16.0 * lambda_j * lambda_k)/
       pow(lambda_j + lambda_k + gamma * abs(lambda_j - lambda_k), 3);
   }
 };
