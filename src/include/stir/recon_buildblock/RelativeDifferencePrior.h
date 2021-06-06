@@ -209,11 +209,11 @@ protected:
    * @return the second derivative of the Relative Difference Prior
 
    */
-  static inline float Hessian(const float lambda_j, const float lambda_k, const float gamma)
+  static inline float Hessian(const float lambda_j, const float lambda_k, const float gamma, const float eps)
   {
-    if (lambda_j > 0.0 && lambda_k > 0.0)
-      return (16.0 * lambda_j * lambda_k)/
-        pow(lambda_j + lambda_k + gamma * abs(lambda_j - lambda_k), 3);
+    if (lambda_j > 0.0 && lambda_k > 0.0 && eps > 0.0)
+      return 2 * (2 * lambda_j + eps)*(2 * lambda_k + eps) /
+        pow(lambda_j + lambda_k + gamma * abs(lambda_j - lambda_k) + eps, 3);
     else
       return 0.0;
   }
