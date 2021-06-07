@@ -201,11 +201,13 @@ protected:
 
   //! The Hessian of the Relative Difference Prior
   /*!
-   This function returns the hessian (second derivative) of the RDP w.r.t \c x and \c y.
-   When j=k, this reduces to the second derivative w.r.t \c x.
+   This function returns the hessian (second derivative) of the RDP.
+   It is assumed that the diagonal elements of the Hessian are 0, or the weighing is, and thus only compute the partial
+   derivative w.r.t \c x and \c y.
    * @param x is the target voxel.
    * @param y is the neighbourhood voxel.
-   * @param gamma is the edge preservation value controlling the priors transition between the quadratic and linear behaviour
+   * @param gamma is the edge preservation value controlling the transition between the quadratic and linear behaviour
+   * @param eps is a small non-negative value included to prevent division by zero, see epsilon.
    * @return the second derivative of the Relative Difference Prior
 
    */
