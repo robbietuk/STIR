@@ -487,9 +487,6 @@ accumulate_Hessian_times_input(DiscretisedDensity<3,elemT>& output,
           for (int dy=min_dy;dy<=max_dy;++dy)
             for (int dx=min_dx;dx<=max_dx;++dx)
             {
-//              elemT voxel_diff= current_estimate[z][y][x] - current_estimate[z+dz][y+dy][x+dx];
-//              elemT current = weights[dz][dy][dx] * Hessian( voxel_diff, this->scalar) * input[z+dz][y+dy][x+dx];
-
               elemT current = weights[dz][dy][dx] *
                       Hessian(current_estimate[z][y][x], current_estimate[z+dz][y+dy][x+dx],
                               this->get_gamma(), this->get_epsilon()) *
