@@ -480,16 +480,29 @@ compute_Hessian(DiscretisedDensity<3,elemT>& prior_Hessian_for_single_densel,
     for (int dy=min_dy;dy<=max_dy;++dy)
       for (int dx=min_dx;dx<=max_dx;++dx)
       {
-        // dz==0,dy==0,dx==0 will have weight 0, so we can just include it in the loop
-        elemT current =
-          weights[dz][dy][dx];
+        elemT current = 0.0;
+        if (dz == dy == dz == 0) {
+          // The j == k case
+          for (int ddz=min_dz;ddz<=max_dz;++ddz)
+            for (int ddy=min_dy;ddy<=max_dy;++ddy)
+              for (int ddx=min_dx;ddx<=max_dx;++ddx)
+              {
+                elemT sub_current = weights[z+ddz][y+ddy][x+ddx] *
+                        diagonal_second_derivative(current_image_estimate[z][y][x],
+                                                   current_image_estimate[z+ddz][y+ddy][x+ddx]);
+                if (do_kappa)
+                  sub_current *= (*kappa_ptr)[z][y][x] * (*kappa_ptr)[z+ddz][y+ddy][x+ddx];
+              }
+        } else {
+          current = weights[dz][dy][dx] * off_diagonal_second_derivative(current_image_estimate[z][y][x],
+                                                                         current_image_estimate[z+dz][y+dy][x+dx]);
+        }
         
         if (do_kappa)
-          current *= 
-          (*kappa_ptr)[z][y][x] * (*kappa_ptr)[z+dz][y+dy][x+dx];
+          current *= (*kappa_ptr)[z][y][x] * (*kappa_ptr)[z+dz][y+dy][x+dx];
         
         diagonal += current;
-        prior_Hessian_for_single_densel_cast[z+dz][y+dy][x+dx] = -current*this->penalisation_factor;
+        prior_Hessian_for_single_densel_cast[z+dz][y+dy][x+dx] = + current*this->penalisation_factor;
       }
       
       prior_Hessian_for_single_densel[z][y][x]= diagonal * this->penalisation_factor;
