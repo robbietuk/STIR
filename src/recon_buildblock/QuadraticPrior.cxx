@@ -654,7 +654,7 @@ template <typename elemT>
 Succeeded
 QuadraticPrior<elemT>::
 accumulate_Hessian_times_input(DiscretisedDensity<3,elemT>& output,
-                               const DiscretisedDensity<3,elemT>& /*current_estimate*/,
+                               const DiscretisedDensity<3,elemT>& current_estimate,
                                const DiscretisedDensity<3,elemT>& input) const
 {
   // TODO this function overlaps enormously with parabolic_surrogate_curvature
@@ -710,6 +710,7 @@ accumulate_Hessian_times_input(DiscretisedDensity<3,elemT>& output,
               //(H_{wf} y)_j =
               //      \sum_{k\in N_j} w_{(j,k)} f''_{d}(x_j,x_k) y_j +
               //      \sum_{(i \in N_j) \ne j} w_{(j,i)} f''_{od}(x_j, x_i) y_i
+              // Note the condition in the second sum that i is not equal to j
 
                 elemT result = 0;
                 for (int dz=min_dz;dz<=max_dz;++dz)
@@ -720,11 +721,11 @@ accumulate_Hessian_times_input(DiscretisedDensity<3,elemT>& output,
                         if (dz != 0 || dy != 0 || dz != 0)
                         {
                           current = weights[dz][dy][dx] *
-                                    ( (1.0) * input[z][y][x] + // diagonal Hessian terms
-                                      (-1.0) * input[z+dz][y+dy][x+dx] ); // off-diagonal Hessian terms
+                                    ( diagonal_second_derivative(current_estimate[z][y][x], current_estimate[z+dz][y+dy][x+dx]) * input[z][y][x] +
+                                      off_diagonal_second_derivative(current_estimate[z][y][x], current_estimate[z+dz][y+dy][x+dx]) * input[z+dz][y+dy][x+dx] );
                         } else {
                           // The j == k case
-                          current = weights[dz][dy][dx] * (1.0) * input[z][y][x];
+                          current = weights[dz][dy][dx] * diagonal_second_derivative(current_estimate[z][y][x], current_estimate[z+dz][y+dy][x+dx]) * input[z][y][x];
                         }
 
                          if (do_kappa)
@@ -739,6 +740,18 @@ accumulate_Hessian_times_input(DiscretisedDensity<3,elemT>& output,
     }
   return Succeeded::yes;
 }
+
+template <typename elemT>
+float
+QuadraticPrior<elemT>::
+diagonal_second_derivative(const float x_j, const float x_k) const
+{ return 1.0;}
+
+template <typename elemT>
+float
+QuadraticPrior<elemT>::
+off_diagonal_second_derivative(const float x_j, const float x_k) const
+{ return -1.0;}
 
 #  ifdef _MSC_VER
 // prevent warning message on reinstantiation, 
