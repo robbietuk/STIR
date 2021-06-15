@@ -182,11 +182,11 @@ protected:
 
   //! The second partial derivatives of the Quadratic Prior
   /*!
-   Diagonal refers to the second derivative w.r.t. x_j only
-   Off-diagonal refers to the second derivative w.r.t. x_j and x_k
+   Diagonal refers to the second derivative w.r.t. x_j only (i.e. diagonal of the Hessian)
+   Off-diagonal refers to the second derivative w.r.t. x_j and x_k (i.e. off-diagonal of the Hessian)
    * @param x_j is the target voxel.
    * @param x_k is the voxel in the neighbourhood.
-   * @return the second partial derivative of the Relative Difference Prior
+   * @return the second partial derivative of the Quadratic Prior
    */
   //@{
   float diagonal_second_derivative(const float x_j, const float x_k) const;
