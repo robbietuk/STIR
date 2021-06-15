@@ -717,15 +717,17 @@ accumulate_Hessian_times_input(DiscretisedDensity<3,elemT>& output,
                   for (int dy=min_dy;dy<=max_dy;++dy)
                     for (int dx=min_dx;dx<=max_dx;++dx)
                       {
-                        elemT current = 0.0;
-                        if (dz != 0 || dy != 0 || dz != 0)
-                        {
-                          current = weights[dz][dy][dx] *
-                                    ( diagonal_second_derivative(current_estimate[z][y][x], current_estimate[z+dz][y+dy][x+dx]) * input[z][y][x] +
-                                      off_diagonal_second_derivative(current_estimate[z][y][x], current_estimate[z+dz][y+dy][x+dx]) * input[z+dz][y+dy][x+dx] );
-                        } else {
+                        elemT current = weights[dz][dy][dx];
+                        if (dz == dy == dz == 0) {
                           // The j == k case
-                          current = weights[dz][dy][dx] * diagonal_second_derivative(current_estimate[z][y][x], current_estimate[z+dz][y+dy][x+dx]) * input[z][y][x];
+                          current *= diagonal_second_derivative(current_estimate[z][y][x],
+                                                                current_estimate[z + dz][y + dy][x + dx]) * input[z][y][x];
+                        } else {
+                          current *= (diagonal_second_derivative(current_estimate[z][y][x],
+                                                                 current_estimate[z + dz][y + dy][x + dx]) * input[z][y][x] +
+                                      off_diagonal_second_derivative(current_estimate[z][y][x],
+                                                                     current_estimate[z + dz][y + dy][x + dx]) *
+                                      input[z + dz][y + dy][x + dx]);
                         }
 
                          if (do_kappa)
