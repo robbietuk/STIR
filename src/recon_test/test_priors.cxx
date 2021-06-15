@@ -91,16 +91,25 @@ protected:
                             GeneralisedPrior<GeneralisedPriorTests::target_type>& objective_function,
                             shared_ptr<GeneralisedPriorTests::target_type> target_sptr);
 
-  //! Test various configurations of the prior's Hessian via accumulate_Hessian_times_input()
+  //! Test various configurations of the prior's Hessian via accumulate_Hessian_times_input() for convexity
   /*!
-    Tests the concave function condition
+    Tests the convexity condition:
     \f[ x^T \cdot H_{\lambda}x >= 0 \f]
-    for all non-negative \c x and non-zero \c \lambda (Relative Difference Penalty conditions).
+    for all non-negative \c x and non-zero \c \lambda (Relative Difference Prior conditions).
     This function constructs an array of configurations to test this condition and calls \c test_Hessian_configuration().
   */
   void test_Hessian_convexity(const std::string& test_name,
                               GeneralisedPrior<GeneralisedPriorTests::target_type>& objective_function,
                               shared_ptr<GeneralisedPriorTests::target_type> target_sptr);
+
+  //! Tests the compute_Hessian_method
+  /*!
+    Do a perturbation response using compute_gradients to determine if the compute_Hessian (for a single densel) is
+    within tolerance.
+  */
+  void test_Hessian_against_numerical(const std::string& test_name,
+                                      GeneralisedPrior<GeneralisedPriorTests::target_type>& objective_function,
+                                      shared_ptr<GeneralisedPriorTests::target_type> target_sptr);
 
 private:
   //! Hessian test for a particular configuration of the Hessian concave condition
@@ -129,7 +138,6 @@ run_tests_for_objective_function(const std::string& test_name,
 
   std::cerr << "----- test " << test_name << "  --> Gradient\n";
   test_gradient(test_name, objective_function, target_sptr);
-  std::cerr << "----- test " << test_name << "  --> Hessian-vector product (accumulate_Hessian_times_input)\n";
   test_Hessian_methods(test_name, objective_function, target_sptr);
 }
 
@@ -187,7 +195,10 @@ test_Hessian_methods(const std::string& test_name,
                      GeneralisedPrior<GeneralisedPriorTests::target_type>& objective_function,
                      shared_ptr<GeneralisedPriorTests::target_type> target_sptr)
 {
+  std::cerr << "----- test " << test_name << "  --> Hessian-vector product for convexity)\n";
   test_Hessian_convexity(test_name, objective_function, target_sptr);
+  std::cerr << "----- test " << test_name << "  --> Hessian against numerical\n";
+  test_Hessian_against_numerical(test_name, objective_function, target_sptr);
 }
 
 void
@@ -276,6 +287,16 @@ test_Hessian_configuration(const std::string& test_name,
          "\n >target image max=" + std::to_string(target.find_max()) +
          "\n >target image min=" + std::to_string(target.find_min()));
   }
+}
+
+
+void
+GeneralisedPriorTests::
+test_Hessian_against_numerical(const std::string &test_name,
+                               GeneralisedPrior<GeneralisedPriorTests::target_type> &objective_function,
+                               shared_ptr<GeneralisedPriorTests::target_type> target_sptr)
+{
+  int x;
 }
 
 void
