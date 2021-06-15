@@ -86,6 +86,11 @@ protected:
                      GeneralisedPrior<GeneralisedPriorTests::target_type>& objective_function,
                      shared_ptr<GeneralisedPriorTests::target_type> target_sptr);
 
+  //! Runs tests on the Hessian methods
+  void test_Hessian_methods(const std::string& test_name,
+                            GeneralisedPrior<GeneralisedPriorTests::target_type>& objective_function,
+                            shared_ptr<GeneralisedPriorTests::target_type> target_sptr);
+
   //! Test various configurations of the prior's Hessian via accumulate_Hessian_times_input()
   /*!
     Tests the concave function condition
@@ -93,9 +98,9 @@ protected:
     for all non-negative \c x and non-zero \c \lambda (Relative Difference Penalty conditions).
     This function constructs an array of configurations to test this condition and calls \c test_Hessian_configuration().
   */
-  void test_Hessian(const std::string& test_name,
-                     GeneralisedPrior<GeneralisedPriorTests::target_type>& objective_function,
-                     shared_ptr<GeneralisedPriorTests::target_type> target_sptr);
+  void test_Hessian_convexity(const std::string& test_name,
+                              GeneralisedPrior<GeneralisedPriorTests::target_type>& objective_function,
+                              shared_ptr<GeneralisedPriorTests::target_type> target_sptr);
 
 private:
   //! Hessian test for a particular configuration of the Hessian concave condition
@@ -125,7 +130,7 @@ run_tests_for_objective_function(const std::string& test_name,
   std::cerr << "----- test " << test_name << "  --> Gradient\n";
   test_gradient(test_name, objective_function, target_sptr);
   std::cerr << "----- test " << test_name << "  --> Hessian-vector product (accumulate_Hessian_times_input)\n";
-  test_Hessian(test_name, objective_function, target_sptr);
+  test_Hessian_methods(test_name, objective_function, target_sptr);
 }
 
 
@@ -178,9 +183,18 @@ test_gradient(const std::string& test_name,
 
 void
 GeneralisedPriorTests::
-test_Hessian(const std::string& test_name,
-              GeneralisedPrior<GeneralisedPriorTests::target_type>& objective_function,
-              shared_ptr<GeneralisedPriorTests::target_type> target_sptr)
+test_Hessian_methods(const std::string& test_name,
+                     GeneralisedPrior<GeneralisedPriorTests::target_type>& objective_function,
+                     shared_ptr<GeneralisedPriorTests::target_type> target_sptr)
+{
+  test_Hessian_convexity(test_name, objective_function, target_sptr);
+}
+
+void
+GeneralisedPriorTests::
+test_Hessian_convexity(const std::string& test_name,
+                       GeneralisedPrior<GeneralisedPriorTests::target_type>& objective_function,
+                       shared_ptr<GeneralisedPriorTests::target_type> target_sptr)
 {
   /// Construct configurations
   float beta_array[] = {0.01, 1, 100};  // Penalty strength should only affect scale
