@@ -582,7 +582,72 @@ QuadraticPrior<elemT>::
 add_multiplication_with_approximate_Hessian(DiscretisedDensity<3,elemT>& output,
                                             const DiscretisedDensity<3,elemT>& input) const
 {
-  return accumulate_Hessian_times_input(output, input, input);
+  // TODO this function overlaps enormously with parabolic_surrogate_curvature
+  // the only difference is that parabolic_surrogate_curvature uses input==1
+
+  assert( output.has_same_characteristics(input));
+  if (this->penalisation_factor==0)
+  {
+    return Succeeded::yes;
+  }
+
+  this->check(input);
+
+  DiscretisedDensityOnCartesianGrid<3,elemT>& output_cast =
+    dynamic_cast<DiscretisedDensityOnCartesianGrid<3,elemT> &>(output);
+
+  if (weights.get_length() ==0)
+  {
+    compute_weights(weights, output_cast.get_grid_spacing(), this->only_2D);
+  }
+
+  const bool do_kappa = !is_null_ptr(kappa_ptr);
+
+  if (do_kappa && !kappa_ptr->has_same_characteristics(input))
+    error("QuadraticPrior: kappa image has not the same index range as the reconstructed image\n");
+
+  const int min_z = output.get_min_index();
+  const int max_z = output.get_max_index();
+  for (int z=min_z; z<=max_z; z++)
+    {
+      const int min_dz = max(weights.get_min_index(), min_z-z);
+      const int max_dz = min(weights.get_max_index(), max_z-z);
+
+      const int min_y = output[z].get_min_index();
+      const int max_y = output[z].get_max_index();
+
+      for (int y=min_y;y<= max_y;y++)
+        {
+          const int min_dy = max(weights[0].get_min_index(), min_y-y);
+          const int max_dy = min(weights[0].get_max_index(), max_y-y);
+
+          const int min_x = output[z][y].get_min_index();
+          const int max_x = output[z][y].get_max_index();
+
+          for (int x=min_x;x<= max_x;x++)
+            {
+              const int min_dx = max(weights[0][0].get_min_index(), min_x-x);
+              const int max_dx = min(weights[0][0].get_max_index(), max_x-x);
+
+                elemT result = 0;
+                for (int dz=min_dz;dz<=max_dz;++dz)
+                  for (int dy=min_dy;dy<=max_dy;++dy)
+                    for (int dx=min_dx;dx<=max_dx;++dx)
+                      {
+                        elemT current =
+                          weights[dz][dy][dx] * input[z+dz][y+dy][x+dx];
+
+                         if (do_kappa)
+                          current *=
+                            (*kappa_ptr)[z][y][x] * (*kappa_ptr)[z+dz][y+dy][x+dx];
+                         result += current;
+                      }
+
+                output[z][y][x] += result * this->penalisation_factor;
+            }
+        }
+    }
+  return Succeeded::yes;
 }
 
 template <typename elemT>
@@ -639,13 +704,28 @@ accumulate_Hessian_times_input(DiscretisedDensity<3,elemT>& output,
               const int min_dx = max(weights[0][0].get_min_index(), min_x-x); 
               const int max_dx = min(weights[0][0].get_max_index(), max_x-x); 
                 
+              /// At this point, we have j = [z][y][x]
+              // The next for loops will have k = [z+dz][y+dy][x+dx]
+              // The following computes
+              //(H_{wf} y)_j =
+              //      \sum_{k\in N_j} w_{(j,k)} f''_{d}(x_j,x_k) y_j +
+              //      \sum_{(i \in N_j) \ne j} w_{(j,i)} f''_{od}(x_j, x_i) y_i
+
                 elemT result = 0;
                 for (int dz=min_dz;dz<=max_dz;++dz)
                   for (int dy=min_dy;dy<=max_dy;++dy)
                     for (int dx=min_dx;dx<=max_dx;++dx)
                       {
-                        elemT current =
-                          weights[dz][dy][dx] * input[z+dz][y+dy][x+dx];
+                        elemT current = 0.0;
+                        if (dz != 0 || dy != 0 || dz != 0)
+                        {
+                          current = weights[dz][dy][dx] *
+                                    ( (1.0) * input[z][y][x] + // diagonal Hessian terms
+                                      (-1.0) * input[z+dz][y+dy][x+dx] ); // off-diagonal Hessian terms
+                        } else {
+                          // The j == k case
+                          current = weights[dz][dy][dx] * (1.0) * input[z][y][x];
+                        }
 
                          if (do_kappa)
                           current *= 
