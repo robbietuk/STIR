@@ -184,6 +184,7 @@ protected:
   /*!
    Diagonal refers to the second derivative w.r.t. x_j only (i.e. diagonal of the Hessian)
    Off-diagonal refers to the second derivative w.r.t. x_j and x_k (i.e. off-diagonal of the Hessian)
+   For the Quadratic Prior, the off diagonal is the negative of the diagonal.
    * @param x_j is the target voxel.
    * @param x_k is the voxel in the neighbourhood.
    * @return the second partial derivative of the Quadratic Prior
