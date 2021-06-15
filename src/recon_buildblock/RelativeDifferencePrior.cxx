@@ -489,6 +489,7 @@ accumulate_Hessian_times_input(DiscretisedDensity<3,elemT>& output,
         //(H_{wf} y)_j =
         //      \sum_{k\in N_j} w_{(j,k)} f''_{d}(x_j,x_k) y_j +
         //      \sum_{(i \in N_j) \ne j} w_{(j,i)} f''_{od}(x_j, x_i) y_i
+        // Note the condition in the second sum that i is not equal to j
 
         elemT result = 0;
         for (int dz=min_dz;dz<=max_dz;++dz)
