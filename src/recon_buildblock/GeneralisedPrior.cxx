@@ -83,8 +83,7 @@ void GeneralisedPrior<TargetT>::check(TargetT const& current_estimate) const
 }
 
 template <typename TargetT>
-bool GeneralisedPrior<TargetT>::get_is_convex()
-{
+bool GeneralisedPrior<TargetT>::get_is_convex() const {
   return this->_is_convex;
 }
 
