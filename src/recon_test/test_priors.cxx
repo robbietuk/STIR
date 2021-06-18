@@ -96,7 +96,7 @@ protected:
     Tests the convexity condition:
     \f[ x^T \cdot H_{\lambda}x >= 0 \f]
     for all non-negative \c x and non-zero \c \lambda (Relative Difference Prior conditions).
-    This function constructs an array of configurations to test this condition and calls \c test_Hessian_configuration().
+    This function constructs an array of configurations to test this condition and calls \c test_Hessian_convexity_configuration().
   */
   void test_Hessian_convexity(const std::string& test_name,
                               GeneralisedPrior<GeneralisedPriorTests::target_type>& objective_function,
@@ -113,12 +113,12 @@ protected:
 
 private:
   //! Hessian test for a particular configuration of the Hessian concave condition
-  void test_Hessian_configuration(const std::string& test_name,
-                                  GeneralisedPrior<GeneralisedPriorTests::target_type>& objective_function,
-                                  shared_ptr<GeneralisedPriorTests::target_type> target_sptr,
-                                  float beta,
-                                  float input_multiplication, float input_addition,
-                                  float current_image_multiplication, float current_image_addition);
+  void test_Hessian_convexity_configuration(const std::string& test_name,
+                                            GeneralisedPrior<GeneralisedPriorTests::target_type>& objective_function,
+                                            shared_ptr<GeneralisedPriorTests::target_type> target_sptr,
+                                            const float beta,
+                                            const float input_multiplication, const float input_addition,
+                                            const float current_image_multiplication, const float current_image_addition);
 };
 
 GeneralisedPriorTests::
@@ -222,10 +222,10 @@ test_Hessian_convexity(const std::string& test_name,
       for (float input_addition : input_addition_array) {
         for (float current_image_multiplication : current_image_multiplication_array) {
           for (float current_image_addition : current_image_addition_array) {
-            test_Hessian_configuration(test_name, objective_function, target_sptr,
-                                       beta,
-                                       input_multiplication, input_addition,
-                                       current_image_multiplication, current_image_addition);
+            test_Hessian_convexity_configuration(test_name, objective_function, target_sptr,
+                                                 beta,
+                                                 input_multiplication, input_addition,
+                                                 current_image_multiplication, current_image_addition);
           }
         }
       }
@@ -237,12 +237,12 @@ test_Hessian_convexity(const std::string& test_name,
 
 void
 GeneralisedPriorTests::
-test_Hessian_configuration(const std::string& test_name,
-                           GeneralisedPrior<GeneralisedPriorTests::target_type>& objective_function,
-                           shared_ptr<GeneralisedPriorTests::target_type> target_sptr,
-                           const float beta,
-                           const float input_multiplication, const float input_addition,
-                           const float current_image_multiplication, const float current_image_addition)
+test_Hessian_convexity_configuration(const std::string& test_name,
+                                     GeneralisedPrior<GeneralisedPriorTests::target_type>& objective_function,
+                                     shared_ptr<GeneralisedPriorTests::target_type> target_sptr,
+                                     const float beta,
+                                     const float input_multiplication, const float input_addition,
+                                     const float current_image_multiplication, const float current_image_addition)
 {
   /// setup images
   target_type& target(*target_sptr);
