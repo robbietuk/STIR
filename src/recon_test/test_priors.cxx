@@ -135,11 +135,14 @@ run_tests_for_objective_function(const std::string& test_name,
   std::cerr << "----- test " << test_name << "  --> Gradient\n";
   test_gradient(test_name, objective_function, target_sptr);
 
-  // Hessian tests
-  std::cerr << "----- test " << test_name << "  --> Hessian-vector product for convexity)\n";
-  test_Hessian_convexity(test_name, objective_function, target_sptr);
-  std::cerr << "----- test " << test_name << "  --> Hessian against numerical\n";
-  test_Hessian_against_numerical(test_name, objective_function, target_sptr);
+  if (objective_function.get_is_convex())
+  {
+    // Hessian tests
+    std::cerr << "----- test " << test_name << "  --> Hessian-vector product for convexity\n";
+    test_Hessian_convexity(test_name, objective_function, target_sptr);
+    std::cerr << "----- test " << test_name << "  --> Hessian against numerical\n";
+    test_Hessian_against_numerical(test_name, objective_function, target_sptr);
+  }
 }
 
 
@@ -196,6 +199,8 @@ test_Hessian_convexity(const std::string& test_name,
                        GeneralisedPrior<GeneralisedPriorTests::target_type>& objective_function,
                        shared_ptr<GeneralisedPriorTests::target_type> target_sptr)
 {
+  if (!objective_function.get_is_convex())
+    return;
   /// Construct configurations
   float beta_array[] = {0.01, 1, 100};  // Penalty strength should only affect scale
   // Modifications to the input image
@@ -233,6 +238,8 @@ test_Hessian_convexity_configuration(const std::string& test_name,
                                      const float input_multiplication, const float input_addition,
                                      const float current_image_multiplication, const float current_image_addition)
 {
+  if (!objective_function.get_is_convex())
+    return;
   /// setup images
   target_type& target(*target_sptr);
   shared_ptr<target_type> output(target.get_empty_copy());
@@ -285,7 +292,9 @@ test_Hessian_against_numerical(const std::string &test_name,
                                GeneralisedPrior<GeneralisedPriorTests::target_type> &objective_function,
                                shared_ptr<GeneralisedPriorTests::target_type> target_sptr)
 {
-  int x;
+  if (!objective_function.get_is_convex())
+    return;
+
 }
 
 void

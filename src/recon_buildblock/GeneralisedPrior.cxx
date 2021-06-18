@@ -82,6 +82,12 @@ void GeneralisedPrior<TargetT>::check(TargetT const& current_estimate) const
     error("The prior should already be set-up, but it's not.");
 }
 
+template <typename TargetT>
+bool GeneralisedPrior<TargetT>::get_is_convex()
+{
+  return this->_is_convex;
+}
+
 #  ifdef _MSC_VER
 // prevent warning message on instantiation of abstract class 
 #  pragma warning(disable:4661)

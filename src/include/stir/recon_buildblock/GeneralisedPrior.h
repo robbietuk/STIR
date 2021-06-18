@@ -89,6 +89,8 @@ public:
   virtual Succeeded 
     set_up(shared_ptr<const DataT> const& target_sptr);
 
+  bool get_is_convex();
+
 protected:
   float penalisation_factor;
   //! sets value for penalisation factor
