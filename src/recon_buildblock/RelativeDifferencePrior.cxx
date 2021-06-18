@@ -179,6 +179,7 @@ template <typename elemT>
 RelativeDifferencePrior<elemT>::RelativeDifferencePrior(const bool only_2D_v, float penalisation_factor_v, float gamma_v, float epsilon_v)
   :  only_2D(only_2D_v)
 {
+  set_defaults();
   this->penalisation_factor = penalisation_factor_v;
   this->gamma = gamma_v;
   this->epsilon = epsilon_v;
