@@ -140,6 +140,10 @@ run_tests_for_objective_function(const std::string& test_name,
     // Hessian tests
     std::cerr << "----- test " << test_name << "  --> Hessian-vector product for convexity\n";
     test_Hessian_convexity(test_name, objective_function, target_sptr);
+
+    if (test_name != "Quadratic_no_kappa")
+      return; // Currently can only test Quadratic_no_kappa as it is the only method to have compute_Hessian implemented
+
     std::cerr << "----- test " << test_name << "  --> Hessian against numerical\n";
     test_Hessian_against_numerical(test_name, objective_function, target_sptr);
   }
@@ -295,6 +299,72 @@ test_Hessian_against_numerical(const std::string &test_name,
   if (!objective_function.get_is_convex())
     return;
 
+  /// How to test the Hessian against a numerical
+  // The Hessian is computed w.r.t a single voxel using `compute_Hessian`.
+  // This value should be compared with the numerical hessian computed with (g(x + eps) - g(x))/eps,
+  // where eps is a small perturbation and g(.) is the gradient function.
+
+  const float eps = 1e-3F;
+
+  // setup images
+  target_type& input(*target_sptr->get_empty_copy());
+  shared_ptr<target_type> gradient_sptr(target_sptr->get_empty_copy());
+  shared_ptr<target_type> numerical_grad_and_Hessian_sptr(target_sptr->get_empty_copy());
+  shared_ptr<target_type> Hessian_sptr(target_sptr->get_empty_copy());
+  shared_ptr<target_type> numerical_Hessian_sptr(target_sptr->get_empty_copy());
+
+
+  // Get min/max indices
+  const int min_z = input.get_min_index();
+  const int max_z = input.get_max_index();
+  const int min_y = input[min_z].get_min_index();
+  const int max_y = input[min_z].get_max_index();
+  const int min_x = input[min_z][min_y].get_min_index();
+  const int max_x = input[min_z][min_y].get_max_index();
+
+
+  // Temp assignment (should check that these are
+  int pert_z = 0;
+  int pert_y = 0;
+  int pert_x = 0;
+
+
+  // Create coordinates (order is z,y,x)
+  BasicCoordinate<3, int> pert_coords;
+  pert_coords[1] = pert_z; pert_coords[2] = pert_y; pert_coords[3] = pert_x;
+
+  //Compute g(x) and H(x)_j
+  objective_function.compute_gradient(*gradient_sptr, input);
+  objective_function.compute_Hessian(*Hessian_sptr, pert_coords, input);
+
+
+  // Perturb target in [z][y][x], compute perturbed gradient, and reset it to the original value
+  float pert_voxel_original_value = input[pert_coords[1]][pert_coords[2]][pert_coords[3]];
+  input[pert_coords[1]][pert_coords[2]][pert_coords[3]] += eps;
+  objective_function.compute_gradient(*numerical_grad_and_Hessian_sptr, input);
+  input[pert_coords[1]][pert_coords[2]][pert_coords[3]] = pert_voxel_original_value;
+
+  // Now compute (g(x+eps) - g(x))/eps
+  *numerical_grad_and_Hessian_sptr -= *gradient_sptr;
+  *numerical_grad_and_Hessian_sptr /= eps;
+
+
+  // Loop over each of the elements and compare the numerical Hessian with Hessian
+  target_type::full_iterator numerical_grad_and_Hessian_iter = numerical_grad_and_Hessian_sptr->begin_all();
+  target_type::full_iterator Hessian_iter = Hessian_sptr->begin_all();
+  bool testOK = true;
+  while(numerical_grad_and_Hessian_iter != numerical_grad_and_Hessian_sptr->end_all())// && testOK)
+  {
+    testOK = testOK && this->check_if_equal(*numerical_grad_and_Hessian_iter, *Hessian_iter, "Hessian");
+    ++numerical_grad_and_Hessian_iter; ++ Hessian_iter;
+  }
+
+  if (!testOK)
+  {
+    info("Writing diagnostic files Hessian_" + test_name + ".hv, numerical_Hessian_" + test_name + ".hv");
+    write_to_file("Hessian_" + test_name + ".hv", *Hessian_sptr);
+    write_to_file("numerical_Hessian_" + test_name + ".hv", *numerical_grad_and_Hessian_sptr);
+  }
 }
 
 void
