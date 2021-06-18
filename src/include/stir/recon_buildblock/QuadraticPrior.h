@@ -117,9 +117,9 @@ class QuadraticPrior:  public
                         const DiscretisedDensity<3,elemT> &current_image_estimate);
 
   //! compute Hessian 
-  void compute_Hessian(DiscretisedDensity<3,elemT>& prior_Hessian_for_single_densel, 
+  virtual Succeeded compute_Hessian(DiscretisedDensity<3,elemT>& prior_Hessian_for_single_densel,
                 const BasicCoordinate<3,int>& coords,
-                const DiscretisedDensity<3,elemT> &current_image_estimate);
+                const DiscretisedDensity<3,elemT> &current_image_estimate) const;
 
   //! Call accumulate_Hessian_times_input
   virtual Succeeded 

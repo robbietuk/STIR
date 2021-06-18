@@ -60,6 +60,11 @@ public:
   virtual void compute_gradient(DataT& prior_gradient, 
 		   const DataT &current_estimate) =0; 
 
+  virtual Succeeded
+    compute_Hessian(DataT& prior_Hessian_for_single_densel,
+                    const BasicCoordinate<3,int>& coords,
+                    const DataT& current_image_estimate) const;
+
   //! This should compute the multiplication of the Hessian with a vector and add it to \a output
   /*! Default implementation just call error(). This function needs to be overridden by the
       derived class.
