@@ -86,11 +86,6 @@ protected:
                      GeneralisedPrior<GeneralisedPriorTests::target_type>& objective_function,
                      shared_ptr<GeneralisedPriorTests::target_type> target_sptr);
 
-  //! Runs tests on the Hessian methods
-  void test_Hessian_methods(const std::string& test_name,
-                            GeneralisedPrior<GeneralisedPriorTests::target_type>& objective_function,
-                            shared_ptr<GeneralisedPriorTests::target_type> target_sptr);
-
   //! Test various configurations of the prior's Hessian via accumulate_Hessian_times_input() for convexity
   /*!
     Tests the convexity condition:
@@ -136,9 +131,15 @@ run_tests_for_objective_function(const std::string& test_name,
   if (!check(objective_function.set_up(target_sptr)==Succeeded::yes, "set-up of objective function"))
     return;
 
+  // Gradient tests
   std::cerr << "----- test " << test_name << "  --> Gradient\n";
   test_gradient(test_name, objective_function, target_sptr);
-  test_Hessian_methods(test_name, objective_function, target_sptr);
+
+  // Hessian tests
+  std::cerr << "----- test " << test_name << "  --> Hessian-vector product for convexity)\n";
+  test_Hessian_convexity(test_name, objective_function, target_sptr);
+  std::cerr << "----- test " << test_name << "  --> Hessian against numerical\n";
+  test_Hessian_against_numerical(test_name, objective_function, target_sptr);
 }
 
 
@@ -187,18 +188,6 @@ test_gradient(const std::string& test_name,
     write_to_file("gradient" + test_name + ".hv", *gradient_sptr);
     write_to_file("numerical_gradient" + test_name + ".hv", *gradient_2_sptr);
   }
-}
-
-void
-GeneralisedPriorTests::
-test_Hessian_methods(const std::string& test_name,
-                     GeneralisedPrior<GeneralisedPriorTests::target_type>& objective_function,
-                     shared_ptr<GeneralisedPriorTests::target_type> target_sptr)
-{
-  std::cerr << "----- test " << test_name << "  --> Hessian-vector product for convexity)\n";
-  test_Hessian_convexity(test_name, objective_function, target_sptr);
-  std::cerr << "----- test " << test_name << "  --> Hessian against numerical\n";
-  test_Hessian_against_numerical(test_name, objective_function, target_sptr);
 }
 
 void
