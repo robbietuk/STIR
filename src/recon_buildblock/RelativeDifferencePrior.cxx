@@ -475,7 +475,7 @@ compute_Hessian(DiscretisedDensity<3,elemT>& prior_Hessian_for_single_densel,
         elemT current = 0.0;
         if (dz == 0 && dy == 0 && dx == 0)
         {
-          // The j == k case
+          // The j == k case (diagonal Hessian element), which is a sum over the neighbourhood.
           for (int ddz=min_dz;ddz<=max_dz;++ddz)
             for (int ddy=min_dy;ddy<=max_dy;++ddy)
               for (int ddx=min_dx;ddx<=max_dx;++ddx)
@@ -490,6 +490,7 @@ compute_Hessian(DiscretisedDensity<3,elemT>& prior_Hessian_for_single_densel,
         }
         else
         {
+          // The j != k vases (off-diagonal Hessian elements)
           current = weights[dz][dy][dx] * off_diagonal_second_derivative(current_image_estimate[z][y][x],
                                                                          current_image_estimate[z+dz][y+dy][x+dx]);
           if (do_kappa)
@@ -607,7 +608,6 @@ float
 RelativeDifferencePrior<elemT>::
 diagonal_second_derivative(const float x_j, const float x_k) const
 {
-  // THIS MATH IS WRONG!!!
   if (x_j > 0.0 || x_k > 0.0 || this->epsilon > 0.0)
     return 2 * pow(2 * x_k + this->epsilon, 2) /
            pow(x_j + x_k + this->gamma * abs(x_j - x_k) + this->epsilon, 3);
@@ -620,7 +620,6 @@ float
 RelativeDifferencePrior<elemT>::
 off_diagonal_second_derivative(const float x_j, const float x_k) const
 {
-  // Not sure if math is correct
   if (x_j > 0.0 || x_k > 0.0 || this->epsilon > 0.0)
     return - 2 * (2 * x_j + this->epsilon)*(2 * x_k + this->epsilon) /
            pow(x_j + x_k + this->gamma * abs(x_j - x_k) + this->epsilon, 3);

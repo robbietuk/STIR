@@ -207,9 +207,10 @@ protected:
   /*!
    Diagonal refers to the second derivative w.r.t. x_j only (i.e. diagonal of the Hessian)
    Off-diagonal refers to the second derivative w.r.t. x_j and x_k (i.e. off-diagonal of the Hessian)
+   See J. Nuyts, et al., 2002, Equation 7.
    * @param x_j is the target voxel.
    * @param x_k is the voxel in the neighbourhood.
-   * @return the second partial derivative of the Relative Difference Prior
+   * @return the second order partial derivatives of the Relative Difference Prior
    */
   //@{
   float diagonal_second_derivative(const float x_j, const float x_k) const;

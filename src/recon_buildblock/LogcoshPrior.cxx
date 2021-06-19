@@ -428,7 +428,7 @@ compute_Hessian(DiscretisedDensity<3,elemT>& prior_Hessian_for_single_densel,
         elemT current = 0.0;
         if (dz == 0 && dy == 0 && dx == 0)
         {
-          // The j == k case
+          // The j == k case (diagonal Hessian element), which is a sum over the neighbourhood.
           for (int ddz=min_dz;ddz<=max_dz;++ddz)
             for (int ddy=min_dy;ddy<=max_dy;++ddy)
               for (int ddx=min_dx;ddx<=max_dx;++ddx)
@@ -443,6 +443,7 @@ compute_Hessian(DiscretisedDensity<3,elemT>& prior_Hessian_for_single_densel,
         }
         else
         {
+          // The j != k vases (off-diagonal Hessian elements)
           current = weights[dz][dy][dx] * off_diagonal_second_derivative(current_image_estimate[z][y][x],
                                                                          current_image_estimate[z+dz][y+dy][x+dx]);
           if (do_kappa)

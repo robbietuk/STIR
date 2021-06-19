@@ -125,9 +125,10 @@ public:
                                        const DiscretisedDensity<3,elemT> &current_image_estimate);
 
     //! compute Hessian
-    virtual Succeeded compute_Hessian(DiscretisedDensity<3,elemT>& prior_Hessian_for_single_densel,
-                                      const BasicCoordinate<3,int>& coords,
-                                      const DiscretisedDensity<3,elemT> &current_image_estimate) const;
+    virtual Succeeded
+    compute_Hessian(DiscretisedDensity<3,elemT>& prior_Hessian_for_single_densel,
+                    const BasicCoordinate<3,int>& coords,
+                    const DiscretisedDensity<3,elemT> &current_image_estimate) const;
 
     //! Compute the multiplication of the hessian of the prior multiplied by the input.
     virtual Succeeded accumulate_Hessian_times_input(DiscretisedDensity<3,elemT>& output,
@@ -231,7 +232,7 @@ private:
      For LogCosh, the off diagonal is the negative of the diagonal.
      * @param x_j is the target voxel.
      * @param x_k is the voxel in the neighbourhood.
-     * @return the second partial derivative of the LogCosh Prior
+     * @return the second order partial derivatives of the LogCosh Prior
      */
     //@{
     float diagonal_second_derivative(const float x_j, const float x_k) const;

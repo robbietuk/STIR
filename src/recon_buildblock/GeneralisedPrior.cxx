@@ -60,11 +60,9 @@ compute_Hessian(TargetT& output,
                 const TargetT& current_image_estimate) const
 {
   if (this->get_is_convex())
-    error("GeneralisedPrior:\n"
-          "compute_Hessian implementation is not overloaded by your convex prior.");
+    error("GeneralisedPrior:\n  compute_Hessian implementation is not overloaded by your convex prior.");
   else
-    error("GeneralisedPrior:\n"
-          "compute_Hessian implemented because prior is not convex.");
+    error("GeneralisedPrior:\n  compute_Hessian implemented because prior is not convex.");
   return Succeeded::no;
 }
 
