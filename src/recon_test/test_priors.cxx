@@ -108,7 +108,7 @@ protected:
 
 private:
   //! Hessian test for a particular configuration of the Hessian concave condition
-  void test_Hessian_convexity_configuration(const std::string& test_name,
+  bool test_Hessian_convexity_configuration(const std::string& test_name,
                                             GeneralisedPrior<GeneralisedPriorTests::target_type>& objective_function,
                                             shared_ptr<GeneralisedPriorTests::target_type> target_sptr,
                                             const float beta,
@@ -214,26 +214,24 @@ test_Hessian_convexity(const std::string& test_name,
   float current_image_multiplication_array[] = {0.01, 1, 100};
   float current_image_addition_array[] = {0.0, 0.5, 1, 10}; // RDP has constraint that current_image is non-negative
 
+  bool testOK = true;
   float initial_beta = objective_function.get_penalisation_factor();
-  for (float beta : beta_array) {
-    for (float input_multiplication : input_multiplication_array) {
-      for (float input_addition : input_addition_array) {
-        for (float current_image_multiplication : current_image_multiplication_array) {
+  for (float beta : beta_array)
+    for (float input_multiplication : input_multiplication_array)
+      for (float input_addition : input_addition_array)
+        for (float current_image_multiplication : current_image_multiplication_array)
           for (float current_image_addition : current_image_addition_array) {
-            test_Hessian_convexity_configuration(test_name, objective_function, target_sptr,
-                                                 beta,
-                                                 input_multiplication, input_addition,
-                                                 current_image_multiplication, current_image_addition);
+            if (testOK)  // only compute configuration if testOK
+              testOK = test_Hessian_convexity_configuration(test_name, objective_function, target_sptr,
+                                                            beta,
+                                                            input_multiplication, input_addition,
+                                                            current_image_multiplication, current_image_addition);
           }
-        }
-      }
-    }
-  }
   /// Reset beta to original value
   objective_function.set_penalisation_factor(initial_beta);
 }
 
-void
+bool
 GeneralisedPriorTests::
 test_Hessian_convexity_configuration(const std::string& test_name,
                                      GeneralisedPrior<GeneralisedPriorTests::target_type>& objective_function,
@@ -242,9 +240,7 @@ test_Hessian_convexity_configuration(const std::string& test_name,
                                      const float input_multiplication, const float input_addition,
                                      const float current_image_multiplication, const float current_image_addition)
 {
-  if (!objective_function.get_is_convex())
-    return;
-  /// setup images
+  /// setup targets
   target_type& target(*target_sptr);
   shared_ptr<target_type> output(target.get_empty_copy());
   shared_ptr<target_type> current_image(target.get_empty_copy());
@@ -255,7 +251,7 @@ test_Hessian_convexity_configuration(const std::string& test_name,
     target_type::full_iterator input_iter = input->begin_all();
     target_type::full_iterator current_image_iter = current_image->begin_all();
     target_type::full_iterator target_iter = target.begin_all();
-    while (input_iter != input->end_all())// && testOK)
+    while (input_iter != input->end_all())
     {
       *input_iter = input_multiplication * *target_iter + input_addition;
       *current_image_iter = current_image_multiplication * *target_iter + current_image_addition;
@@ -273,6 +269,7 @@ test_Hessian_convexity_configuration(const std::string& test_name,
   // test for a CONVEX function
   if (this->check_if_less(0, my_sum)) {
 //    info("PASS: Computation of x^T H x = " + std::to_string(my_sum) + " > 0 and is therefore convex");
+    return true;
   } else {
     // print to console the FAILED configuration
     info("FAIL: Computation of x^T H x = " + std::to_string(my_sum) + " < 0 and is therefore NOT convex" +
@@ -286,6 +283,7 @@ test_Hessian_convexity_configuration(const std::string& test_name,
          "\n >input image min=" + std::to_string(input->find_min()) +
          "\n >target image max=" + std::to_string(target.find_max()) +
          "\n >target image min=" + std::to_string(target.find_min()));
+    return false;
   }
 }
 
