@@ -357,14 +357,14 @@ test_Hessian_against_numerical(const std::string &test_name,
           target_type::full_iterator Hessian_iter = Hessian_sptr->begin_all();
           while(numerical_Hessian_iter != pert_grad_and_numerical_Hessian_sptr->end_all() && testOK)
           {
-            testOK = testOK && this->check_if_equal(*numerical_Hessian_iter, *Hessian_iter, "Hessian");
+            testOK = testOK && this->check_if_equal(*Hessian_iter, *numerical_Hessian_iter, "Hessian");
             ++numerical_Hessian_iter; ++ Hessian_iter;
           }
 
           if (!testOK)
           {
             std::cerr << "Numerical-Hessian test failed with for " + test_name + " prior\n";
-            info("Writing diagnostic files Hessian_" + test_name + ".hv, numerical_Hessian_" + test_name + ".hv");
+            info("Writing diagnostic files `Hessian_" + test_name + ".hv` and `numerical_Hessian_" + test_name + ".hv`");
             write_to_file("Hessian_" + test_name + ".hv", *Hessian_sptr);
             write_to_file("numerical_Hessian_" + test_name + ".hv", *pert_grad_and_numerical_Hessian_sptr);
             write_to_file("input_" + test_name + ".hv", input);
@@ -428,7 +428,7 @@ run_tests()
   {
     // gamma is default and epsilon is "small"
     RelativeDifferencePrior<float> objective_function(false, 1.F, 2.F, 0.0001F);
-    this->run_tests_for_objective_function("RDP_no_kappa_w/eps", objective_function, density_sptr);
+    this->run_tests_for_objective_function("RDP_no_kappa_with_eps", objective_function, density_sptr);
   }
   // Disabled PLS due to known issue
 //  std::cerr << "\n\nTests for PLSPrior\n";
