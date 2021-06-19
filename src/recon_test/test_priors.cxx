@@ -306,6 +306,12 @@ test_Hessian_against_numerical(const std::string &test_name,
   shared_ptr<target_type> pert_grad_and_numerical_Hessian_sptr(target_sptr->get_empty_copy());
   shared_ptr<target_type> Hessian_sptr(target_sptr->get_empty_copy());
 
+  objective_function.compute_gradient(*gradient_sptr, input);
+//  this->set_tolerance(std::max(fabs(double(gradient_sptr->find_min())), fabs(double(gradient_sptr->find_max()))) /10);
+
+  // Setup coordinates (z,y,x) for perturbation test (Hessian will also be computed w.r.t this voxel, j)
+  BasicCoordinate<3, int> perturbation_coords;
+
   // Get min/max indices
   const int min_z = input.get_min_index();
   const int max_z = input.get_max_index();
@@ -314,56 +320,56 @@ test_Hessian_against_numerical(const std::string &test_name,
   const int min_x = input[min_z][min_y].get_min_index();
   const int max_x = input[min_z][min_y].get_max_index();
 
+  // Loop over each voxel j in the input and check perturbation response.
+  for (int z=min_z;z<= max_z;z++)
+    for (int y=min_y;y<= max_y;y++)
+      for (int x=min_x;x<= max_x;x++)
+        if (testOK)
+        {
+          perturbation_coords[1] = z; perturbation_coords[2] = y; perturbation_coords[3] = x;
 
-  // Setup coordinates (z,y,x) for perturbation test (Hessian will also be computed w.r.t this voxel, j)
-  BasicCoordinate<3, int> pert_coords;
+          //  Compute H(x)_j (row of the Hessian at the jth voxel)
+          objective_function.compute_Hessian(*Hessian_sptr, perturbation_coords, input);
+          this->set_tolerance(std::max(fabs(double(Hessian_sptr->find_min())), fabs(double(Hessian_sptr->find_max()))) /500);
 
-  // Temp assignment (should check that these are within the correct range but (0,0,0) should always be.)
-  int pert_z = 0;
-  int pert_y = 0;
-  int pert_x = 0;
+          // Compute g(x + eps)
+          // Perturb target at jth voxel, compute perturbed gradient, and reset voxel to original value
+          float perturbed_voxels_original_value = input[perturbation_coords[1]][perturbation_coords[2]][perturbation_coords[3]];
+          input[perturbation_coords[1]][perturbation_coords[2]][perturbation_coords[3]] += eps;
+          objective_function.compute_gradient(*pert_grad_and_numerical_Hessian_sptr, input);
+          input[perturbation_coords[1]][perturbation_coords[2]][perturbation_coords[3]] = perturbed_voxels_original_value;
 
-  pert_coords[1] = pert_z; pert_coords[2] = pert_y; pert_coords[3] = pert_x;
+          // Now compute the numerical-Hessian = (g(x+eps) - g(x))/eps
+          *pert_grad_and_numerical_Hessian_sptr -= *gradient_sptr;
+          *pert_grad_and_numerical_Hessian_sptr /= eps;
 
-  //Compute g(x) and H(x)_j (Hessian row)
-  objective_function.compute_gradient(*gradient_sptr, input);
-  objective_function.compute_Hessian(*Hessian_sptr, pert_coords, input);
+          // Test if pert_grad_and_numerical_Hessian_sptr is all zeros.
+          // This can happen if the eps is too small. This is a quick test that allows for easier debugging.
+          if (pert_grad_and_numerical_Hessian_sptr->sum_positive() == 0.0)
+          {
+            this->everything_ok = false;
+            testOK = false;
+            info("test_Hessian_against_numerical: failed because all values are 0 in numerical Hessian");
+          }
 
-  // Perturb target at jth voxel, compute perturbed gradient, and reset voxel to original value
-  float perturbed_voxels_original_value = input[pert_coords[1]][pert_coords[2]][pert_coords[3]];
-  input[pert_coords[1]][pert_coords[2]][pert_coords[3]] += eps;
-  objective_function.compute_gradient(*pert_grad_and_numerical_Hessian_sptr, input);
-  input[pert_coords[1]][pert_coords[2]][pert_coords[3]] = perturbed_voxels_original_value;
+          // Loop over each of the voxels and compare the numerical-Hessian with Hessian
+          target_type::full_iterator numerical_Hessian_iter = pert_grad_and_numerical_Hessian_sptr->begin_all();
+          target_type::full_iterator Hessian_iter = Hessian_sptr->begin_all();
+          while(numerical_Hessian_iter != pert_grad_and_numerical_Hessian_sptr->end_all() && testOK)
+          {
+            testOK = testOK && this->check_if_equal(*numerical_Hessian_iter, *Hessian_iter, "Hessian");
+            ++numerical_Hessian_iter; ++ Hessian_iter;
+          }
 
-  // Now compute the numerical-Hessian = (g(x+eps) - g(x))/eps
-  *pert_grad_and_numerical_Hessian_sptr -= *gradient_sptr;
-  *pert_grad_and_numerical_Hessian_sptr /= eps;
-
-  // Test if pert_grad_and_numerical_Hessian_sptr is all zeros.
-  // This can happen if the eps is too small. This is a quick test that allows for easier debugging.
-  if (pert_grad_and_numerical_Hessian_sptr->sum_positive() == 0.0)
-  {
-    this->everything_ok = false;
-    testOK = false;
-    info("test_Hessian_against_numerical: failed because all values are 0 in numerical Hessian");
-  }
-
-  // Loop over each of the voxels and compare the numerical-Hessian with Hessian
-  target_type::full_iterator numerical_Hessian_iter = pert_grad_and_numerical_Hessian_sptr->begin_all();
-  target_type::full_iterator Hessian_iter = Hessian_sptr->begin_all();
-  while(numerical_Hessian_iter != pert_grad_and_numerical_Hessian_sptr->end_all())// && testOK)
-  {
-    testOK = testOK && this->check_if_equal(*numerical_Hessian_iter, *Hessian_iter, "Hessian");
-    ++numerical_Hessian_iter; ++ Hessian_iter;
-  }
-
-  if (!testOK)
-  {
-    std::cerr << "Numerical-Hessian test failed with for " + test_name + " prior\n";
-    info("Writing diagnostic files Hessian_" + test_name + ".hv, numerical_Hessian_" + test_name + ".hv");
-    write_to_file("Hessian_" + test_name + ".hv", *Hessian_sptr);
-    write_to_file("numerical_Hessian_" + test_name + ".hv", *pert_grad_and_numerical_Hessian_sptr);
-  }
+          if (!testOK)
+          {
+            std::cerr << "Numerical-Hessian test failed with for " + test_name + " prior\n";
+            info("Writing diagnostic files Hessian_" + test_name + ".hv, numerical_Hessian_" + test_name + ".hv");
+            write_to_file("Hessian_" + test_name + ".hv", *Hessian_sptr);
+            write_to_file("numerical_Hessian_" + test_name + ".hv", *pert_grad_and_numerical_Hessian_sptr);
+            write_to_file("input_" + test_name + ".hv", input);
+          }
+        }
 }
 
 void
