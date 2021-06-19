@@ -609,7 +609,7 @@ diagonal_second_derivative(const float x_j, const float x_k) const
 {
   // THIS MATH IS WRONG!!!
   if (x_j > 0.0 || x_k > 0.0 || this->epsilon > 0.0)
-    return 2 * (2 * x_j + this->epsilon)*(2 * x_k + this->epsilon) /
+    return 2 * pow(2 * x_k + this->epsilon, 2) /
            pow(x_j + x_k + this->gamma * abs(x_j - x_k) + this->epsilon, 3);
   else
     return 0.0;
@@ -622,7 +622,7 @@ off_diagonal_second_derivative(const float x_j, const float x_k) const
 {
   // Not sure if math is correct
   if (x_j > 0.0 || x_k > 0.0 || this->epsilon > 0.0)
-    return 2 * (2 * x_j + this->epsilon)*(2 * x_k + this->epsilon) /
+    return - 2 * (2 * x_j + this->epsilon)*(2 * x_k + this->epsilon) /
            pow(x_j + x_k + this->gamma * abs(x_j - x_k) + this->epsilon, 3);
   else
     return 0.0;
