@@ -34,6 +34,7 @@
 #include "stir/IO/read_from_file.h"
 #include "stir/IO/write_to_file.h"
 #include "stir/info.h"
+#include "stir/Verbosity.h"
 #include "stir/Succeeded.h"
 #include "stir/num_threads.h"
 #include <iostream>
@@ -159,7 +160,10 @@ test_gradient(const std::string& test_name,
   shared_ptr<target_type> gradient_2_sptr(target.get_empty_copy());
 
   info("Computing gradient",3);
+  const int verbosity_default = Verbosity::get();
+  Verbosity::set(0);
   objective_function.compute_gradient(*gradient_sptr, target);
+  Verbosity::set(verbosity_default);
   this->set_tolerance(std::max(fabs(double(gradient_sptr->find_min())), fabs(double(gradient_sptr->find_max()))) /1000);
 
   info("Computing objective function at target",3);
@@ -298,6 +302,7 @@ test_Hessian_against_numerical(const std::string &test_name,
   /// Setup
   const float eps = 1e-3F;
   bool testOK = true;
+  const int verbosity_default = Verbosity::get();
 
   // setup images
   target_type& input(*target_sptr->get_empty_copy());
@@ -306,7 +311,9 @@ test_Hessian_against_numerical(const std::string &test_name,
   shared_ptr<target_type> pert_grad_and_numerical_Hessian_sptr(target_sptr->get_empty_copy());
   shared_ptr<target_type> Hessian_sptr(target_sptr->get_empty_copy());
 
+  Verbosity::set(0);
   objective_function.compute_gradient(*gradient_sptr, input);
+  Verbosity::set(verbosity_default);
 //  this->set_tolerance(std::max(fabs(double(gradient_sptr->find_min())), fabs(double(gradient_sptr->find_max()))) /10);
 
   // Setup coordinates (z,y,x) for perturbation test (Hessian will also be computed w.r.t this voxel, j)
@@ -333,6 +340,7 @@ test_Hessian_against_numerical(const std::string &test_name,
           this->set_tolerance(std::max(fabs(double(Hessian_sptr->find_min())), fabs(double(Hessian_sptr->find_max()))) /500);
 
           // Compute g(x + eps)
+          Verbosity::set(0);
           // Perturb target at jth voxel, compute perturbed gradient, and reset voxel to original value
           float perturbed_voxels_original_value = input[perturbation_coords[1]][perturbation_coords[2]][perturbation_coords[3]];
           input[perturbation_coords[1]][perturbation_coords[2]][perturbation_coords[3]] += eps;
@@ -343,6 +351,7 @@ test_Hessian_against_numerical(const std::string &test_name,
           *pert_grad_and_numerical_Hessian_sptr -= *gradient_sptr;
           *pert_grad_and_numerical_Hessian_sptr /= eps;
 
+          Verbosity::set(verbosity_default);
           // Test if pert_grad_and_numerical_Hessian_sptr is all zeros.
           // This can happen if the eps is too small. This is a quick test that allows for easier debugging.
           if (pert_grad_and_numerical_Hessian_sptr->sum_positive() == 0.0)
