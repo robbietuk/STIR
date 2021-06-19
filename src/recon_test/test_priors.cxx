@@ -86,21 +86,21 @@ protected:
                      GeneralisedPrior<GeneralisedPriorTests::target_type>& objective_function,
                      shared_ptr<GeneralisedPriorTests::target_type> target_sptr);
 
-  //! Test various configurations of the prior's Hessian via accumulate_Hessian_times_input() for convexity
+  //! Test various configurations of the Hessian of the prior via accumulate_Hessian_times_input() for convexity
   /*!
     Tests the convexity condition:
     \f[ x^T \cdot H_{\lambda}x >= 0 \f]
     for all non-negative \c x and non-zero \c \lambda (Relative Difference Prior conditions).
-    This function constructs an array of configurations to test this condition and calls \c test_Hessian_convexity_configuration().
+    This function constructs an array of configurations to test this condition and calls
+    \c test_Hessian_convexity_configuration().
   */
   void test_Hessian_convexity(const std::string& test_name,
                               GeneralisedPrior<GeneralisedPriorTests::target_type>& objective_function,
                               shared_ptr<GeneralisedPriorTests::target_type> target_sptr);
 
-  //! Tests the compute_Hessian_method
-  /*!
-    Do a perturbation response using compute_gradients to determine if the compute_Hessian (for a single densel) is
-    within tolerance.
+  //! Tests the compute_Hessian method implemented into convex priors
+  /*! Performs a perturbation response using compute_gradient to determine if the compute_Hessian (for a single densel)
+      is within tolerance.
   */
   void test_Hessian_against_numerical(const std::string& test_name,
                                       GeneralisedPrior<GeneralisedPriorTests::target_type>& objective_function,
@@ -137,7 +137,7 @@ run_tests_for_objective_function(const std::string& test_name,
 
   if (objective_function.get_is_convex())
   {
-    // Hessian tests
+    // The Hessian tests can only be performed on convex priors
     std::cerr << "----- test " << test_name << "  --> Hessian-vector product for convexity\n";
     test_Hessian_convexity(test_name, objective_function, target_sptr);
 
@@ -295,12 +295,7 @@ test_Hessian_against_numerical(const std::string &test_name,
   if (!objective_function.get_is_convex())
     return;
 
-  /// How to test the compute_Hessian function of convex priors against a numerical Hessian computed from gradients
-  // The Hessian is computed w.r.t a single voxel using `compute_Hessian`.
-  // This value should be compared with the numerical hessian computed with (g(x + eps) - g(x))/eps,
-  // where eps is a small perturbation and g(.) is the gradient function.
-
-  ///Setup
+  /// Setup
   const float eps = 1e-3F;
   bool testOK = true;
 
@@ -327,6 +322,7 @@ test_Hessian_against_numerical(const std::string &test_name,
   int pert_z = 0;
   int pert_y = 0;
   int pert_x = 0;
+
   pert_coords[1] = pert_z; pert_coords[2] = pert_y; pert_coords[3] = pert_x;
 
   //Compute g(x) and H(x)_j (Hessian row)
@@ -339,11 +335,12 @@ test_Hessian_against_numerical(const std::string &test_name,
   objective_function.compute_gradient(*pert_grad_and_numerical_Hessian_sptr, input);
   input[pert_coords[1]][pert_coords[2]][pert_coords[3]] = perturbed_voxels_original_value;
 
-  // Now compute the numerical Hessian = (g(x+eps) - g(x))/eps
+  // Now compute the numerical-Hessian = (g(x+eps) - g(x))/eps
   *pert_grad_and_numerical_Hessian_sptr -= *gradient_sptr;
   *pert_grad_and_numerical_Hessian_sptr /= eps;
 
-  // Test if pert_grad_and_numerical_Hessian_sptr is all zeros. This can happen if the eps is too small.
+  // Test if pert_grad_and_numerical_Hessian_sptr is all zeros.
+  // This can happen if the eps is too small. This is a quick test that allows for easier debugging.
   if (pert_grad_and_numerical_Hessian_sptr->sum_positive() == 0.0)
   {
     this->everything_ok = false;
@@ -351,18 +348,18 @@ test_Hessian_against_numerical(const std::string &test_name,
     info("test_Hessian_against_numerical: failed because all values are 0 in numerical Hessian");
   }
 
-  // Loop over each of the voxels and compare the numerical Hessian with Hessian
-  target_type::full_iterator numerical_grad_and_Hessian_iter = pert_grad_and_numerical_Hessian_sptr->begin_all();
+  // Loop over each of the voxels and compare the numerical-Hessian with Hessian
+  target_type::full_iterator numerical_Hessian_iter = pert_grad_and_numerical_Hessian_sptr->begin_all();
   target_type::full_iterator Hessian_iter = Hessian_sptr->begin_all();
-  while(numerical_grad_and_Hessian_iter != pert_grad_and_numerical_Hessian_sptr->end_all())// && testOK)
+  while(numerical_Hessian_iter != pert_grad_and_numerical_Hessian_sptr->end_all())// && testOK)
   {
-    testOK = testOK && this->check_if_equal(*numerical_grad_and_Hessian_iter, *Hessian_iter, "Hessian");
-    ++numerical_grad_and_Hessian_iter; ++ Hessian_iter;
+    testOK = testOK && this->check_if_equal(*numerical_Hessian_iter, *Hessian_iter, "Hessian");
+    ++numerical_Hessian_iter; ++ Hessian_iter;
   }
 
   if (!testOK)
   {
-    std::cerr << "Numerical Hessian test failed with for " + test_name + " prior\n";
+    std::cerr << "Numerical-Hessian test failed with for " + test_name + " prior\n";
     info("Writing diagnostic files Hessian_" + test_name + ".hv, numerical_Hessian_" + test_name + ".hv");
     write_to_file("Hessian_" + test_name + ".hv", *Hessian_sptr);
     write_to_file("numerical_Hessian_" + test_name + ".hv", *pert_grad_and_numerical_Hessian_sptr);
