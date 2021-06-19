@@ -117,7 +117,6 @@ protected:
 
   bool _already_set_up;
 
-private:
   //! Variable to indicate that the prior is a convex function, should be set in defaults by the derived class
   bool _is_convex;
 };
