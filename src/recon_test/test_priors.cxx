@@ -141,9 +141,6 @@ run_tests_for_objective_function(const std::string& test_name,
     std::cerr << "----- test " << test_name << "  --> Hessian-vector product for convexity\n";
     test_Hessian_convexity(test_name, objective_function, target_sptr);
 
-    if (test_name != "Quadratic_no_kappa")
-      return; // Currently can only test Quadratic_no_kappa as it is the only method to have compute_Hessian implemented
-
     std::cerr << "----- test " << test_name << "  --> Hessian against numerical\n";
     test_Hessian_against_numerical(test_name, objective_function, target_sptr);
   }
@@ -191,6 +188,7 @@ test_gradient(const std::string& test_name,
   }
   if (!testOK)
   {
+    std::cerr << "Numerical gradient test failed with for " + test_name + " prior\n";
     info("Writing diagnostic files gradient" + test_name + ".hv, numerical_gradient" + test_name + ".hv");
     write_to_file("gradient" + test_name + ".hv", *gradient_sptr);
     write_to_file("numerical_gradient" + test_name + ".hv", *gradient_2_sptr);
@@ -221,7 +219,7 @@ test_Hessian_convexity(const std::string& test_name,
       for (float input_addition : input_addition_array)
         for (float current_image_multiplication : current_image_multiplication_array)
           for (float current_image_addition : current_image_addition_array) {
-            if (testOK)  // only compute configuration if testOK
+            if (testOK)  // only compute configuration if testOK from previous tests
               testOK = test_Hessian_convexity_configuration(test_name, objective_function, target_sptr,
                                                             beta,
                                                             input_multiplication, input_addition,
@@ -406,19 +404,19 @@ run_tests()
   shared_ptr<target_type> density_sptr;
   construct_input_data(density_sptr);
 
-  std::cerr << "Tests for QuadraticPrior\n";
+  std::cerr << "\n\nTests for QuadraticPrior\n";
   {
     QuadraticPrior<float> objective_function(false, 1.F);
     this->run_tests_for_objective_function("Quadratic_no_kappa", objective_function, density_sptr);
   }
-  std::cerr << "Tests for Relative Difference Prior\n";
+  std::cerr << "\n\nTests for Relative Difference Prior\n";
   {
     // gamma is default and epsilon is off
     RelativeDifferencePrior<float> objective_function(false, 1.F, 2.F, 0.F);
     this->run_tests_for_objective_function("RDP_no_kappa", objective_function, density_sptr);
   }
   // Disabled PLS due to known issue
-//  std::cerr << "Tests for PLSPrior\n";
+//  std::cerr << "\n\nTests for PLSPrior\n";
 //  {
 //    PLSPrior<float> objective_function(false, 1.F);
 //    shared_ptr<DiscretisedDensity<3,float> > anatomical_image_sptr(density_sptr->get_empty_copy());
@@ -426,7 +424,7 @@ run_tests()
 //    objective_function.set_anatomical_image_sptr(anatomical_image_sptr);
 //    this->run_tests_for_objective_function("PLS_no_kappa_flat_anatomical", objective_function, density_sptr);
 //  }
-  std::cerr << "Tests for Logcosh Prior\n";
+  std::cerr << "\n\nTests for Logcosh Prior\n";
   {
     // scalar is off
     LogcoshPrior<float> objective_function(false, 1.F, 1.F);
