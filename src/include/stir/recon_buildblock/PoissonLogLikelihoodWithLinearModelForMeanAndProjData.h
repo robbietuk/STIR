@@ -212,10 +212,11 @@ public:
   virtual const ProjData& get_input_data() const;
 //@}
   
-  virtual void 
-    compute_sub_gradient_without_penalty_plus_sensitivity(TargetT& gradient, 
-                                                          const TargetT &current_estimate, 
-                                                          const int subset_num); 
+  virtual void
+  actual_compute_subset_gradient_without_penalty(TargetT& gradient,
+                                                 const TargetT &current_estimate,
+                                                 const int subset_num,
+                                                 const bool add_sensitivity);
 
   virtual std::unique_ptr<ExamInfo>
   get_exam_info_uptr_for_target()  const;
@@ -272,11 +273,11 @@ public:
     The Hessian (without penalty) is approximately given by:
     \f[ H_{jk} = - \sum_i P_{ij} h_i^{''}(y_i) P_{ik} \f]
     where
-    \f[ h_i(l) = y_i log (l) - l; h_i^{''}(y_i) = y_i / ((P \lambda)_i + a_i)^2; \f]
+    \f[ h_i(l) = y_i log (l) - l; h_i^{''}(y_i) = - y_i / ((P \lambda)_i + a_i)^2; \f]
     and \f$P_{ij} \f$ is the probability matrix.
 
     Hence
-    \f[ H_{jk} =  \sum_i P_{ij}(y_i / ((P \lambda)_i + a_i)^2) P_{ik} \f]
+    \f[ H_{jk} = - \sum_i P_{ij}(y_i / ((P \lambda)_i + a_i)^2) P_{ik} \f]
 
     This function is computationally expensive and can be approximated, see
     add_multiplication_with_approximate_sub_Hessian_without_penalty()
