@@ -102,7 +102,7 @@ public:
   virtual Succeeded 
     set_up(shared_ptr<const DataT> const& target_sptr);
 
-  //! Returns the status of the _is_convex variable
+  //! Returns if the prior is convex
   bool get_is_convex() const;
 
 protected:
