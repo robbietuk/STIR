@@ -25,6 +25,7 @@
 
 #include "stir/RegisteredParsingObject.h"
 #include "stir/recon_buildblock/PriorWithParabolicSurrogate.h"
+#include "stir/recon_buildblock/GeneralisedConvexPrior.h"
 #include "stir/Array.h"
 #include "stir/DiscretisedDensity.h"
 #include "stir/shared_ptr.h"
@@ -80,7 +81,8 @@ class QuadraticPrior:  public
                        RegisteredParsingObject< QuadraticPrior<elemT>,
                                                 GeneralisedPrior<DiscretisedDensity<3,elemT> >,
                                                 PriorWithParabolicSurrogate<DiscretisedDensity<3,elemT> >
-                                              >
+                                              >,
+                       public GeneralisedConvexPrior<DiscretisedDensity<3, elemT> >
 {
  private:
   typedef
