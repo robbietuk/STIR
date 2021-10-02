@@ -58,6 +58,7 @@ set(${dir_LIB_SOURCES}
 	BinNormalisationFromAttenuationImage.cxx
 	BinNormalisationSPECT.cxx
 	GeneralisedPrior.cxx
+	GeneralisedConvexPrior.cxx
 	ProjDataRebinning.cxx
 	FourierRebinning.cxx
 	PLSPrior.cxx

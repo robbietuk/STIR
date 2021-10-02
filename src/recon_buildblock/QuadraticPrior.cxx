@@ -19,6 +19,7 @@
 */
 
 #include "stir/recon_buildblock/QuadraticPrior.h"
+#include "stir/recon_buildblock/GeneralisedConvexPrior.h"
 #include "stir/Succeeded.h"
 #include "stir/DiscretisedDensityOnCartesianGrid.h"
 #include "stir/IndexRange3D.h"

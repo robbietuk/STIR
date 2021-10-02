@@ -327,10 +327,10 @@ update_estimate(TargetT &current_image_estimate)
   // For the quadratic prior, this is independent of the image (only on kappa's)
   // And of course, it's also independent when there is no prior
   // TODO by default, this should be off probably (to save time).
+  auto* parabolic_surrogate_prior = dynamic_cast<PriorWithParabolicSurrogate<TargetT>*>(this->get_prior_ptr());
   const bool recompute_penalty_term_in_denominator =
     !this->objective_function_sptr->prior_is_zero() &&
-    static_cast<PriorWithParabolicSurrogate<TargetT> const&>(*this->get_prior_ptr()).
-     parabolic_surrogate_curvature_depends_on_argument();
+    parabolic_surrogate_prior->parabolic_surrogate_curvature_depends_on_argument();
 #ifndef PARALLEL
   //CPUTimer subset_timer;
   //subset_timer.start();
@@ -366,8 +366,7 @@ update_estimate(TargetT &current_image_estimate)
       // avoid work (or crash) when penalty is 0
       if (!this->objective_function_sptr->prior_is_zero())
 	{
-	  static_cast<PriorWithParabolicSurrogate<TargetT>&>(*get_prior_ptr()).
-	    parabolic_surrogate_curvature(*work_image_ptr, current_image_estimate);   
+      parabolic_surrogate_prior->parabolic_surrogate_curvature(*work_image_ptr, current_image_estimate);
 	  //*work_image_ptr *= 2;
 	  //*work_image_ptr += *precomputed_denominator_ptr ;
 	  std::transform(work_image_ptr->begin_all(), work_image_ptr->end_all(),
