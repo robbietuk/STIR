@@ -38,7 +38,7 @@ START_NAMESPACE_STIR
 */
 template <typename TargetT>
 class PriorWithParabolicSurrogate: 	
-  public GeneralisedPrior<TargetT>			      	   
+    virtual public GeneralisedPrior<TargetT>
 {
 public:
 

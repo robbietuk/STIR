@@ -78,16 +78,16 @@ START_NAMESPACE_STIR
 */
 template <typename elemT>
 class QuadraticPrior:  public  
-                       RegisteredParsingObject< QuadraticPrior<elemT>,
-                                                GeneralisedPrior<DiscretisedDensity<3,elemT> >,
-                                                PriorWithParabolicSurrogate<DiscretisedDensity<3,elemT> >
-                                              >,
-                       public GeneralisedConvexPrior<DiscretisedDensity<3, elemT> >
+        RegisteredParsingObject<
+          QuadraticPrior<elemT>,
+          GeneralisedPrior<DiscretisedDensity<3, elemT> >,
+          GeneralisedConvexPrior<DiscretisedDensity<3, elemT> > >,
+        PriorWithParabolicSurrogate<DiscretisedDensity<3, elemT> >
 {
  private:
   typedef
     RegisteredParsingObject< QuadraticPrior<elemT>,
-                             GeneralisedPrior<DiscretisedDensity<3,elemT> >,
+                             GeneralisedConvexPrior<DiscretisedDensity<3,elemT> >,
                              PriorWithParabolicSurrogate<DiscretisedDensity<3,elemT> > >
     base_type;
 
