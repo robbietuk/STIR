@@ -80,12 +80,17 @@ void randoms_from_singles(ProjData& proj_data, const SinglesRates& singles,
     const double double_decay_corr_factor = decay_correction_factor(0.5*isotope_halflife, 0., duration);
     const double corr_factor = square(decay_corr_factor) / double_decay_corr_factor / duration;
 
-    info(boost::format("Isotope half-life: %1%\n"
-                       "RFS: decay correction factor: %2%,\n"
-                       "time frame duration: %3%.\n"
-                       "total correction factor from (singles_totals)^2 to randoms_totals: %4%.\n")
-         % isotope_halflife % decay_corr_factor % duration % (1/corr_factor),
-         2);
+    info(boost::format("Isotope half-life: %1% (s)\n"
+                       "Coincidence time window: %2% (s)\n"
+                       "RFS: decay correction factor: %3%,\n"
+                       "time frame duration: %4%.\n"
+                       "total correction factor from (singles_totals)^2 to randoms_totals: %5%.\n")
+                       /*1*/% isotope_halflife
+                       /*2*/% coincidence_time_window
+                       /*3*/% decay_corr_factor
+                       /*4*/% duration
+                       /*5*/% (1/corr_factor),
+         1);
 
     multiply_crystal_factors(proj_data, total_singles,
                              static_cast<float>(coincidence_time_window*corr_factor));
