@@ -19,6 +19,7 @@
   
 #include "stir/RunTests.h"
 #include "stir/numerics/erf.h"
+#include "stir/numerics/erfMapping.h"
 #include <vector>
 
 START_NAMESPACE_STIR
@@ -33,14 +34,23 @@ public:
   erfTests() 
   {}
   void run_tests();
+  void test_stir_erf();
+  void test_erfMapping();
 private:
   //istream& in;
 };
 
 
 void erfTests::run_tests()
-{  
+{
   std::cerr << "Testing Error Functions..." << std::endl;
+  test_stir_erf();
+  test_erfMapping();
+}
+
+void erfTests::test_stir_erf()
+{
+  std::cerr << "  Testing stir error functions..." << std::endl;
 
   set_tolerance(0.000000000000001);
  
@@ -104,6 +114,27 @@ void erfTests::run_tests()
       check_if_equal(1.0, (*cur_iter_STIR_c) + (*cur_iter_STIR),
                      "check erfc() and erf() results");    		  
   }	
+}
+
+void
+erfTests::test_erfMapping()
+{
+  std::cerr << "  Testing stir erfMapping ..." << std::endl;
+
+  set_tolerance(0.0000001);
+
+  double lower_bound = -4;
+  double upper_bound = 4;
+  erfMapping e(10000);
+  e.set_range(lower_bound, upper_bound);
+  e.setup();
+
+  double xp_values[] = { 0, 1, 2, 3, 4, 5};
+  for ( double xp : xp_values )
+    {
+      check_if_equal(e.get_erf(xp), erf(xp));
+//      std::cerr << xp << '\t' << e.get_erf(xp) << '\t' << erf(xp) << '\n';
+    }
 }
 
 END_NAMESPACE_STIR
