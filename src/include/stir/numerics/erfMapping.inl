@@ -13,50 +13,58 @@ inline void
 erfMapping::
 setup()
 {
-  map.clear();
-  MappingTable entry{};
-  double interval = (upper_range - lower_range) / get_num_entires();
-  for (double x = lower_range; x <= upper_range; x = x + interval)
+  std::vector<double> vec;
+  double interval = (maximum_sample_value) / get_num_samples();
+  for (auto x = 0.0; x <= maximum_sample_value; x = x + interval)
   {
-    entry.x = x;
-    entry.y = erf(x);
-    map.push_back(entry);
+    vec.push_back(erf(x));
   }
+  // TODO: Add BSplines
 }
 
 
 inline void
-erfMapping::set_range(double l, double u)
+erfMapping::set_maximum_sample_value(double v)
 {
-  this->lower_range = l;
-  this->upper_range = u;
+  this->maximum_sample_value = v;
 }
-
-//inline
-//int
-//erfMapping::get_size()
-//{
-//  return this->map.size();
-//}
 
 inline double
 erfMapping::get_erf(double xp) const
 {
-  return interpolate(this->map, &MappingTable::x, &MappingTable::y, xp);
+#if 0
+//  return interpolate(this->map, &MappingTable::x, &MappingTable::y, xp);
+#endif
+  assert(xp <= maximum_sample_value);
+
+
+  //TODO Rescale xp [0, max_sample) to [0,num_samples)
+
+  // erf() is odd and erf(0) = 0
+  // Use erf(x) = -erf(-x) for increased sampling
+  if (xp >= 0.0)
+  {
+    //return erf(xp)
+  }
+  else
+  {
+    //return -erf(-xp)
+  }
+  return 0.0; //TODO Complete this
 }
 
 inline void
-erfMapping::set_num_entires(const int n)
+erfMapping::set_num_samples(const int n)
 {
-  this->num_entries = n;
+  this->num_samples = n;
 }
 
 
 inline
 int
-erfMapping::get_num_entires() const
+erfMapping::get_num_samples() const
 {
-  return this->num_entries;
+  return this->num_samples;
 }
 
 END_NAMESPACE_STIR

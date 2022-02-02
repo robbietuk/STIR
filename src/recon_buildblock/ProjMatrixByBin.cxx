@@ -164,9 +164,8 @@ set_up(
     }
 
   // Setup the custom erf code
-  my_erf.set_range(-5.0, 5.0);
-  my_erf.set_num_entires(1000);
-//  my_erf(1000, -5.0, 5.0);
+  my_erf.set_maximum_sample_value(5.0);
+  my_erf.set_num_samples(1000);
   my_erf.setup();
 }
 

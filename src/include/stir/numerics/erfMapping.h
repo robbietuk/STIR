@@ -29,12 +29,16 @@ class erfMapping
 {
 private:
 
+#if 0
   struct MappingTable
   {
     double x;
     double y;
   };
 
+#endif
+
+#if 0
   double interpolate( const std::vector<MappingTable> &data, double MappingTable::*x, double MappingTable::*y, double xValue ) const
   {
     auto ip = lower_bound( data.begin(), data.end(), xValue, [ x ]( MappingTable a, double b ){ return a.*x < b; } );
@@ -54,39 +58,35 @@ private:
     double slope = ( (*ip).*y - (*im).*y ) / ( (*ip).*x - (*im).*x );      // dY/dX
     return (*im).*y + slope * ( xValue - (*im).*x );                       // Y0 + (dY/dX) * ( X - X0 )
   }
+#endif
 
-  int num_entries;
-  double lower_range;
-  double upper_range;
-  std::vector<MappingTable> map;
+  int num_samples;
+  double maximum_sample_value;
 
 public:
-  erfMapping ()       //constructor 1 with no arguments
+//  erfMapping ()       //constructor 1 with no arguments
+//  {
+//    this->num_samples = 1;
+//    this->lower_range = 0;
+//    this->maximum_sample_value = 5;
+//  }
+  explicit erfMapping(int n)    //constructor 1 with one argument
   {
-    this->num_entries = 1;
-    this->lower_range = 0;
-    this->upper_range = 5;
+    this->num_samples = n;
+    this->maximum_sample_value = 5;
   }
-  erfMapping(int n)    //constructor 2 with one argument
+  erfMapping(int n, double u)    //constructor 2 with three argument
   {
-    this->num_entries = n;
-    this->lower_range = 0;
-    this->upper_range = 5;
-  }
-  erfMapping(int n, double l, double u)    //constructor 3 with three argument
-  {
-    this->num_entries = n;
-    this->lower_range = l;
-    this->upper_range = u;
+    this->num_samples = n;
+    this->maximum_sample_value = u;
   }
 
-  inline int get_num_entires() const;
-  inline void set_num_entires(const int n);
+  inline int get_num_samples() const;
+  inline void set_num_samples(int n);
 
-  inline void set_range(double l, double u);
+  inline void set_maximum_sample_value(double v);
 
   inline void setup();
-//  inline int get_size();
   inline double get_erf(double xp) const;
 
 private:

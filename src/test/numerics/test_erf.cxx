@@ -123,10 +123,9 @@ erfTests::test_erfMapping()
 
   set_tolerance(0.0000001);
 
-  double lower_bound = -4;
   double upper_bound = 4;
   erfMapping e(10000);
-  e.set_range(lower_bound, upper_bound);
+  e.set_maximum_sample_value(upper_bound);
   e.setup();
 
   double xp_values[] = { 0, 1, 2, 3, 4, 5};
