@@ -162,6 +162,12 @@ set_up(
         omp_init_lock(&this->cache_locks[view_num][seg_num]);
 #endif
     }
+
+  // Setup the custom erf code
+  my_erf.set_range(-5.0, 5.0);
+  my_erf.set_num_entires(1000);
+//  my_erf(1000, -5.0, 5.0);
+  my_erf.setup();
 }
 
 

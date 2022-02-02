@@ -7,7 +7,6 @@ set (dir_LIB_SOURCES ${dir}_LIB_SOURCES)
 set(${dir_LIB_SOURCES}
   fourier.cxx
   determinant.cxx
-  erfMapping.cxx
 )
 
 #$(dir)_REGISTRY_SOURCES:= $(dir)_registries.cxx

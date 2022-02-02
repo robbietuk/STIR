@@ -33,6 +33,7 @@
 #include "stir/VectorWithOffset.h"
 #include "stir/TimedObject.h"
 #include "stir/VoxelsOnCartesianGrid.h"
+#include "stir/numerics/erfMapping.h"
 #include <boost/cstdint.hpp>
 //#include <map>
 #include <boost/unordered_map.hpp>
@@ -260,7 +261,10 @@ private:
 
 
   //! Get the interal value erf(m - v_j) - erf(m -v_j)
-  inline void get_tof_value(const float d1, const float d2, float& val) const;
+  inline float get_tof_value(const float d1, const float d2) const;
+
+  //! erf map
+  erfMapping my_erf;
 
 };
 
