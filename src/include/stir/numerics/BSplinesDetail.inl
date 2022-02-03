@@ -17,6 +17,8 @@
 */
 #include "stir/assign.h"
 
+#ifndef BSPLINESDETAIL_H
+#define BSPLINESDETAIL_H
 START_NAMESPACE_STIR
 
 namespace BSpline {
@@ -343,3 +345,4 @@ namespace BSpline {
 } // end of namespace BSpline
 
 END_NAMESPACE_STIR
+#endif
