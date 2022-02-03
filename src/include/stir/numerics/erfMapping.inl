@@ -1,70 +1,74 @@
 
 
 #include "erfMapping.h"
+#include "BSplines1DRegularGrid.h"
 
 START_NAMESPACE_STIR
-
-
-
-
-
 
 inline void
 erfMapping::
 setup()
 {
-  std::vector<double> vec;
-  double interval = (maximum_sample_value) / get_num_samples();
-  for (auto x = 0.0; x <= maximum_sample_value; x = x + interval)
-  {
-    vec.push_back(erf(x));
-  }
-  // TODO: Add BSplines
-}
+  this->_sampling_period = (this->maximum_sample_value) / this->get_num_samples();
+  std::vector<double> erf_values;
 
+  //Compute a vector of erf values
+  for (int i=0; i<this->get_num_samples() ; ++i)
+    erf_values.push_back(erf(i * this->_sampling_period));
 
-inline void
-erfMapping::set_maximum_sample_value(double v)
-{
-  this->maximum_sample_value = v;
+  // Setup BSplines
+  BSpline::BSplines1DRegularGrid<double, double> spline(erf_values, BSpline::linear);
+  this->spline = spline;
+//  this->_is_setup = true;
 }
 
 inline double
 erfMapping::get_erf(double xp) const
 {
-#if 0
-//  return interpolate(this->map, &MappingTable::x, &MappingTable::y, xp);
-#endif
-  assert(xp <= maximum_sample_value);
+  // BSplines cannot handle cases when (xp > 2*maximum_sample_value-4)
+  // Assume erf(xp) = 1 or -1
 
+  if (xp > this->maximum_sample_value)
+    return 1.0;
 
-  //TODO Rescale xp [0, max_sample) to [0,num_samples)
+  else if (xp < -this->maximum_sample_value)
+    return -1.0;
 
   // erf() is odd and erf(0) = 0
   // Use erf(x) = -erf(-x) for increased sampling
   if (xp >= 0.0)
   {
-    //return erf(xp)
+    return this->spline.BSplines(xp / this->_sampling_period);
   }
   else
   {
-    //return -erf(-xp)
+    return -this->spline.BSplines(-xp / this->_sampling_period);
   }
-  return 0.0; //TODO Complete this
 }
 
 inline void
-erfMapping::set_num_samples(const int n)
+erfMapping::set_num_samples(const int num_samples)
 {
-  this->num_samples = n;
+  this->_num_samples = num_samples;
 }
-
 
 inline
 int
 erfMapping::get_num_samples() const
 {
-  return this->num_samples;
+  return this->_num_samples;
+}
+
+int
+erfMapping::get_maximum_sample_value() const
+{
+  return this->maximum_sample_value;
+}
+
+void
+erfMapping::set_maximum_sample_value(double maximum_sample_value)
+{
+  this->maximum_sample_value = maximum_sample_value;
 }
 
 END_NAMESPACE_STIR
