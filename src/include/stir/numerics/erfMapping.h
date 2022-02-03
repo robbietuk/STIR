@@ -13,7 +13,7 @@
     See STIR/LICENSE.txt for details
 */
 
-#include "BSplines1DRegularGrid.h"
+#include "stir/numerics/BSplines1DRegularGrid.h"
 
 #ifndef ERFMAPPING_H
 #define ERFMAPPING_H

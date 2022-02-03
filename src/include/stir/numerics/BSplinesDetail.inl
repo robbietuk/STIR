@@ -17,8 +17,8 @@
 */
 #include "stir/assign.h"
 
-#ifndef BSPLINESDETAIL_H
-#define BSPLINESDETAIL_H
+#ifndef __stir_numerics_BSplinesDetail_inl_
+#define __stir_numerics_BSplinesDetail_inl_
 START_NAMESPACE_STIR
 
 namespace BSpline {
