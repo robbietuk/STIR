@@ -21,6 +21,7 @@
 #include "stir/numerics/erf.h"
 #include "stir/numerics/erfMapping.h"
 #include <vector>
+#include <math.h>
 
 START_NAMESPACE_STIR
 
@@ -36,8 +37,6 @@ public:
   void run_tests();
   void test_stir_erf();
   void test_erfMapping();
-private:
-  //istream& in;
 };
 
 
@@ -121,19 +120,22 @@ erfTests::test_erfMapping()
 {
   std::cerr << "  Testing stir erfMapping ..." << std::endl;
 
-  set_tolerance(0.0000001);
+  set_tolerance(0.00001);
+  double sample_period = M_PI/ 10000;  // Needed a number that wasn't regular like , this seems to be interesting
 
-  double upper_bound = 4;
-  erfMapping e(10000);
-  e.set_maximum_sample_value(upper_bound);
+  erfMapping e(1000);
   e.setup();
 
-  double xp_values[] = { 0, 1, 2, 3, 4, 5};
-  for ( double xp : xp_values )
-    {
-      check_if_equal(e.get_erf(xp), erf(xp));
-//      std::cerr << xp << '\t' << e.get_erf(xp) << '\t' << erf(xp) << '\n';
+  for (double xp = -(2* e.get_maximum_sample_value()); xp < (2* e.get_maximum_sample_value() + 1.0); xp += sample_period)
+  {
+    check_if_equal(e.get_erf(xp), erf(xp));
+    if (!this->is_everything_ok()){
+      std::cerr << "xp = " << xp
+                << "\terfMapping.get_erf(xp) = " << e.get_erf(xp)
+                << "\terf(xp) = " << erf(xp) << "\n";
+      break;
     }
+  }
 }
 
 END_NAMESPACE_STIR
