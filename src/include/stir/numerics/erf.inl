@@ -419,9 +419,6 @@ erfc(double x)
 }
 
 
-
-
-
 #undef TRUNC
 #undef _IEEE
 END_NAMESPACE_STIR
