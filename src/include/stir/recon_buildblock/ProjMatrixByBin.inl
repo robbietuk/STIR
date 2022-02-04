@@ -191,7 +191,7 @@ ProjMatrixByBin::
 get_tof_value(const float d1, const float d2) const
 {
 //    val = 0.5f * (erf(d2) - erf(d1));
-    return 0.5f * (erf_interpolation.get_erf_linear(d2) - erf_interpolation.get_erf_linear(d1));
+    return 0.5f * (erf_interpolation.get_erf_linear_interpolation(d2) - erf_interpolation.get_erf_linear_interpolation(d1));
 }
 
 END_NAMESPACE_STIR

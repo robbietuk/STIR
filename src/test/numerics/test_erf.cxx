@@ -130,28 +130,28 @@ erfTests::test_erfMapping()
   {
 
     //BSPlines
-    check_if_equal(e.get_erf(xp), erf(xp));
+    check_if_equal(e.get_erf_BSplines_interpolation(xp), erf(xp));
     if (!this->is_everything_ok()){
       std::cerr << "xp = " << xp
-                << "\terfMapping.get_erf(xp) = " << e.get_erf(xp)
+                << "\terfMapping.get_erf_BSplines_interpolation(xp) = " << e.get_erf_BSplines_interpolation(xp)
                 << "\terf(xp) = " << erf(xp) << "\n";
       break;
     }
     // Linear
-    check_if_equal(e.get_erf_linear(xp), erf(xp));
+    check_if_equal(e.get_erf_linear_interpolation(xp), erf(xp));
     if (!this->is_everything_ok()){
       std::cerr << "linear xp = " << xp
-                << "\terfMapping.get_erf_linear(xp) = " << e.get_erf_linear(xp)
+                << "\terfMapping.get_erf_linear_interpolation(xp) = " << e.get_erf_linear_interpolation(xp)
                 << "\terf(xp) = " << erf(xp) << "\n";
       break;
     }
 
 
     //NN
-    check_if_equal(e.get_erf_nn(xp), erf(xp));
+    check_if_equal(e.get_erf_nearest_neighbour_interpolation(xp), erf(xp));
     if (!this->is_everything_ok()){
       std::cerr << "NN xp = " << xp
-                << "\terfMapping.get_erf_nn(xp) = " << e.get_erf_nn(xp)
+                << "\terfMapping.get_erf_nearest_neighbour_interpolation(xp) = " << e.get_erf_nearest_neighbour_interpolation(xp)
                 << "\terf(xp) = " << erf(xp) << "\n";
       break;
     }

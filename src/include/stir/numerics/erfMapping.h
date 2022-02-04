@@ -74,11 +74,11 @@ public:
  * @param xp input argument for erf(xp)
  * @return interpolated approximation of erf(xp)
  */
-inline double get_erf(double xp) const;
+inline double get_erf_BSplines_interpolation(double xp) const;
 
-inline double get_erf_linear(double xp) const;
+inline double get_erf_linear_interpolation(double xp) const;
 
-inline double get_erf_nn(double xp) const;
+inline double get_erf_nearest_neighbour_interpolation(double xp) const;
 
 };
 

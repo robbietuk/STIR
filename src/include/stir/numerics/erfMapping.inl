@@ -24,7 +24,7 @@ setup()
 }
 
 inline double
-erfMapping::get_erf(double xp) const
+erfMapping::get_erf_BSplines_interpolation(double xp) const
 {
 #if 1
     xp = std::clamp(xp,-this->maximum_sample_value, this->maximum_sample_value);
@@ -40,7 +40,8 @@ erfMapping::get_erf(double xp) const
 
 
 inline double
-erfMapping::get_erf_linear(double xp) const
+erfMapping::
+get_erf_linear_interpolation(double xp) const
 {
 #if 1
     xp = std::clamp(xp,-this->maximum_sample_value, this->maximum_sample_value);
@@ -59,7 +60,7 @@ erfMapping::get_erf_linear(double xp) const
 }
 
 inline double
-erfMapping::get_erf_nn(double xp) const
+erfMapping::get_erf_nearest_neighbour_interpolation(double xp) const
 {
 #if 1
   xp = std::clamp(xp,-this->maximum_sample_value, this->maximum_sample_value);
@@ -70,7 +71,7 @@ erfMapping::get_erf_nn(double xp) const
   else if (xp < -this->maximum_sample_value)
     return -1.0;
 #endif
-  // get_erf [nearest (ish)]
+  // get_erf_BSplines_interpolation [nearest (ish)]
     return erf_values_vec[static_cast<int>((xp + this->maximum_sample_value) / this->_sampling_period)];
 }
 
