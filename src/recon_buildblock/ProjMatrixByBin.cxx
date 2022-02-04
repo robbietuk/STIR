@@ -164,7 +164,7 @@ set_up(
     }
 
   // Setup the custom erf code
-  my_erf.set_num_samples(1000);
+  my_erf.set_num_samples(10000);
   my_erf.setup();
 }
 
