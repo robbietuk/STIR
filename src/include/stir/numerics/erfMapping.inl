@@ -9,9 +9,9 @@ erfMapping::
 setup()
 {
   this->_sampling_period = (2 * this->maximum_sample_value) / this->get_num_samples();
+  
+  // Add two samples for end cases and compute a vector of erf values
   std::vector<double> erf_values(this->get_num_samples() + 2);
-
-  //Compute a vector of erf values
   for (int i=0; i<this->get_num_samples() + 2; ++i)
     erf_values[i] = erf(i * this->_sampling_period - this->maximum_sample_value);
 
@@ -52,11 +52,14 @@ get_erf_linear_interpolation(double xp) const
   else if (xp < -this->maximum_sample_value)
     return -1.0;
 #endif
+  // Find xp in index sequence
+  double xp_in_index = ((xp + this->maximum_sample_value) / this->_sampling_period);
 
-  double my_point = ((xp + this->maximum_sample_value) / this->_sampling_period);
-  int lower = static_cast<int>(floor(my_point));
-  int upper = lower + 1;
-  return erf_values_vec[lower] + (my_point - lower) * (erf_values_vec[upper] - erf_values_vec[lower]);
+  // Find lower integer in index space
+  int lower = static_cast<int>(floor(xp_in_index));
+
+  // Linear interpolation of xp between vec[lower] and vec[lower + 1]
+  return erf_values_vec[lower] + (xp_in_index - lower) * (erf_values_vec[lower + 1] - erf_values_vec[lower]);
 }
 
 inline double
@@ -71,7 +74,7 @@ erfMapping::get_erf_nearest_neighbour_interpolation(double xp) const
   else if (xp < -this->maximum_sample_value)
     return -1.0;
 #endif
-  // get_erf_BSplines_interpolation [nearest (ish)]
+  // Selects index of the nearest neighbour via rounding
     return erf_values_vec[static_cast<int>((xp + this->maximum_sample_value) / this->_sampling_period)];
 }
 
