@@ -9,11 +9,11 @@ erfMapping::
 setup()
 {
   this->_sampling_period = (this->maximum_sample_value) / this->get_num_samples();
-  std::vector<double> erf_values;
+  std::vector<double> erf_values(this->_num_samples);
 
   //Compute a vector of erf values
   for (int i=0; i<this->get_num_samples() ; ++i)
-    erf_values.push_back(erf(i * this->_sampling_period));
+    erf_values[i] = erf(i * this->_sampling_period);
 
   // Setup BSplines
   BSpline::BSplines1DRegularGrid<double, double> spline(erf_values, BSpline::linear);
