@@ -120,21 +120,42 @@ erfTests::test_erfMapping()
 {
   std::cerr << "  Testing stir erfMapping ..." << std::endl;
 
-  set_tolerance(0.00001);
+  set_tolerance(0.0001);
   double sample_period = M_PI/ 10000;  // Needed a number that wasn't regular like , this seems to be interesting
 
-  erfMapping e(1000);
+  erfMapping e(200000);
   e.setup();
 
   for (double xp = -(2* e.get_maximum_sample_value()); xp < (2* e.get_maximum_sample_value() + 1.0); xp += sample_period)
   {
-    check_if_equal(e.get_erf(xp), erf(xp));
+
+    //BSPlines
+    check_if_equal(e.get_erf_BSplines_interpolation(xp), erf(xp));
     if (!this->is_everything_ok()){
       std::cerr << "xp = " << xp
-                << "\terfMapping.get_erf(xp) = " << e.get_erf(xp)
+                << "\terfMapping.get_erf_BSplines_interpolation(xp) = " << e.get_erf_BSplines_interpolation(xp)
                 << "\terf(xp) = " << erf(xp) << "\n";
       break;
     }
+    // Linear
+    check_if_equal(e.get_erf_linear_interpolation(xp), erf(xp));
+    if (!this->is_everything_ok()){
+      std::cerr << "linear xp = " << xp
+                << "\terfMapping.get_erf_linear_interpolation(xp) = " << e.get_erf_linear_interpolation(xp)
+                << "\terf(xp) = " << erf(xp) << "\n";
+      break;
+    }
+
+
+    //NN
+    check_if_equal(e.get_erf_nearest_neighbour_interpolation(xp), erf(xp));
+    if (!this->is_everything_ok()){
+      std::cerr << "NN xp = " << xp
+                << "\terfMapping.get_erf_nearest_neighbour_interpolation(xp) = " << e.get_erf_nearest_neighbour_interpolation(xp)
+                << "\terf(xp) = " << erf(xp) << "\n";
+      break;
+    }
+
   }
 }
 

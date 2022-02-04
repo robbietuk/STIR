@@ -264,7 +264,7 @@ private:
   inline float get_tof_value(const float d1, const float d2) const;
 
   //! erf map
-  erfMapping my_erf;
+  erfMapping erf_interpolation;
 
 };
 

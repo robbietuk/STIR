@@ -8,41 +8,74 @@ inline void
 erfMapping::
 setup()
 {
-  this->_sampling_period = (this->maximum_sample_value) / this->get_num_samples();
-  std::vector<double> erf_values;
-
-  //Compute a vector of erf values
-  for (int i=0; i<this->get_num_samples() ; ++i)
-    erf_values.push_back(erf(i * this->_sampling_period));
+  this->_sampling_period = (2 * this->maximum_sample_value) / this->get_num_samples();
+  
+  // Add two samples for end cases and compute a vector of erf values
+  std::vector<double> erf_values(this->get_num_samples() + 2);
+  for (int i=0; i<this->get_num_samples() + 2; ++i)
+    erf_values[i] = erf(i * this->_sampling_period - this->maximum_sample_value);
 
   // Setup BSplines
   BSpline::BSplines1DRegularGrid<double, double> spline(erf_values, BSpline::linear);
   this->spline = spline;
+
+  erf_values_vec = erf_values;
 //  this->_is_setup = true;
 }
 
 inline double
-erfMapping::get_erf(double xp) const
+erfMapping::get_erf_BSplines_interpolation(double xp) const
 {
-  // BSplines cannot handle cases when (xp > 2*maximum_sample_value-4)
-  // Assume erf(xp) = 1 or -1
-
+#if 1
+    xp = std::clamp(xp,-this->maximum_sample_value, this->maximum_sample_value);
+#else
   if (xp > this->maximum_sample_value)
     return 1.0;
 
   else if (xp < -this->maximum_sample_value)
     return -1.0;
+#endif
+  return this->spline.BSplines((xp + this->maximum_sample_value) / this->_sampling_period);
+}
 
-  // erf() is odd and erf(0) = 0
-  // Use erf(x) = -erf(-x) for increased sampling
-  if (xp >= 0.0)
-  {
-    return this->spline.BSplines(xp / this->_sampling_period);
-  }
-  else
-  {
-    return -this->spline.BSplines(-xp / this->_sampling_period);
-  }
+
+inline double
+erfMapping::
+get_erf_linear_interpolation(double xp) const
+{
+#if 1
+    xp = std::clamp(xp,-this->maximum_sample_value, this->maximum_sample_value);
+#else
+  if (xp > this->maximum_sample_value)
+    return 1.0;
+
+  else if (xp < -this->maximum_sample_value)
+    return -1.0;
+#endif
+  // Find xp in index sequence
+  double xp_in_index = ((xp + this->maximum_sample_value) / this->_sampling_period);
+
+  // Find lower integer in index space
+  int lower = static_cast<int>(floor(xp_in_index));
+
+  // Linear interpolation of xp between vec[lower] and vec[lower + 1]
+  return erf_values_vec[lower] + (xp_in_index - lower) * (erf_values_vec[lower + 1] - erf_values_vec[lower]);
+}
+
+inline double
+erfMapping::get_erf_nearest_neighbour_interpolation(double xp) const
+{
+#if 1
+  xp = std::clamp(xp,-this->maximum_sample_value, this->maximum_sample_value);
+#else
+  if (xp > this->maximum_sample_value)
+    return 1.0;
+
+  else if (xp < -this->maximum_sample_value)
+    return -1.0;
+#endif
+  // Selects index of the nearest neighbour via rounding
+    return erf_values_vec[static_cast<int>((xp + this->maximum_sample_value) / this->_sampling_period)];
 }
 
 inline void

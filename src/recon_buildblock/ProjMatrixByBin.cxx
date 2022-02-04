@@ -164,8 +164,8 @@ set_up(
     }
 
   // Setup the custom erf code
-  my_erf.set_num_samples(10000);
-  my_erf.setup();
+  erf_interpolation.set_num_samples(200000); //200,000 =~12.8MB
+  erf_interpolation.setup();
 }
 
 
