@@ -18,6 +18,8 @@ setup()
   // Setup BSplines
   BSpline::BSplines1DRegularGrid<double, double> spline(erf_values, BSpline::linear);
   this->spline = spline;
+
+  erf_values_vec = erf_values;
 //  this->_is_setup = true;
 }
 
@@ -42,6 +44,65 @@ erfMapping::get_erf(double xp) const
   else
   {
     return -this->spline.BSplines(-xp / this->_sampling_period);
+  }
+}
+
+
+inline double
+erfMapping::get_erf_linear(double xp) const
+{
+  // get_erf [linear]
+
+
+
+  if (xp > this->maximum_sample_value)
+    return 1.0;
+
+  else if (xp < -this->maximum_sample_value)
+    return -1.0;
+
+  // erf() is odd and erf(0) = 0
+  // Use erf(x) = -erf(-x) for increased sampling
+  if (xp >= 0.0)
+  {
+    double my_point = (xp / this->_sampling_period) - 1;
+    int lower = static_cast<int>(floor(my_point));
+    int upper = lower + 1;
+    return erf_values_vec[lower] + (my_point - lower) *
+                        (
+                            (erf_values_vec[upper] - erf_values_vec[lower])
+//                          / (upper - lower) // should equal 1
+    );  }
+  else
+  {
+    double my_point = (-xp / this->_sampling_period) - 1;
+    int lower = static_cast<int>(floor(my_point));
+    int upper = lower + 1;
+    return -(erf_values_vec[lower] + (my_point - lower) *
+                        (
+                            (erf_values_vec[upper] - erf_values_vec[lower])
+//                          / (upper - lower) // should equal 1
+                        )  );
+  }
+}
+
+inline double
+erfMapping::get_erf_nn(double xp) const
+{
+  if (xp > this->maximum_sample_value)
+    return 1.0;
+
+  else if (xp < -this->maximum_sample_value)
+    return -1.0;
+
+  // get_erf [nearest (ish)]
+  if (xp >= 0.0)
+    {
+      return erf_values_vec[static_cast<int>(xp / this->_sampling_period) - 1];
+    }
+
+  else {
+    return -erf_values_vec[static_cast<int>(-xp / this->_sampling_period)];
   }
 }
 

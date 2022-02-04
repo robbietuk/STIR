@@ -45,6 +45,8 @@ private:
   //! The maximum value x value of erf(x) we sample. Default erf(x=5) ~= 1
   double maximum_sample_value = 5;
 
+  std::vector<double> erf_values_vec;
+
 public:
 
   erfMapping(){}
@@ -73,6 +75,10 @@ public:
  * @return interpolated approximation of erf(xp)
  */
 inline double get_erf(double xp) const;
+
+inline double get_erf_linear(double xp) const;
+
+inline double get_erf_nn(double xp) const;
 
 };
 
