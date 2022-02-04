@@ -128,6 +128,8 @@ erfTests::test_erfMapping()
 
   for (double xp = -(2* e.get_maximum_sample_value()); xp < (2* e.get_maximum_sample_value() + 1.0); xp += sample_period)
   {
+
+    //BSPlines
     check_if_equal(e.get_erf(xp), erf(xp));
     if (!this->is_everything_ok()){
       std::cerr << "xp = " << xp
@@ -135,6 +137,25 @@ erfTests::test_erfMapping()
                 << "\terf(xp) = " << erf(xp) << "\n";
       break;
     }
+    // Linear
+    check_if_equal(e.get_erf_linear(xp), erf(xp));
+    if (!this->is_everything_ok()){
+      std::cerr << "linear xp = " << xp
+                << "\terfMapping.get_erf_linear(xp) = " << e.get_erf_linear(xp)
+                << "\terf(xp) = " << erf(xp) << "\n";
+      break;
+    }
+
+
+    //NN
+    check_if_equal(e.get_erf_nn(xp), erf(xp));
+    if (!this->is_everything_ok()){
+      std::cerr << "NN xp = " << xp
+                << "\terfMapping.get_erf_nn(xp) = " << e.get_erf_nn(xp)
+                << "\terf(xp) = " << erf(xp) << "\n";
+      break;
+    }
+
   }
 }
 
