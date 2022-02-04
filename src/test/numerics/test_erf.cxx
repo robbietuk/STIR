@@ -120,10 +120,10 @@ erfTests::test_erfMapping()
 {
   std::cerr << "  Testing stir erfMapping ..." << std::endl;
 
-  set_tolerance(0.00001);
+  set_tolerance(0.0001);
   double sample_period = M_PI/ 10000;  // Needed a number that wasn't regular like , this seems to be interesting
 
-  erfMapping e(1000);
+  erfMapping e(200000);
   e.setup();
 
   for (double xp = -(2* e.get_maximum_sample_value()); xp < (2* e.get_maximum_sample_value() + 1.0); xp += sample_period)
