@@ -195,7 +195,12 @@ ForwardProjectorByBin::forward_project(ProjData& proj_data,
                                          proj_data.get_min_segment_num(), proj_data.get_max_segment_num(),
                                          subset_num, num_subsets);
 #ifdef STIR_OPENMP
-#pragma omp parallel for  shared(proj_data, symmetries_sptr) schedule(dynamic)
+  #if _OPENMP <201107
+    #pragma omp parallel for  shared(proj_data, symmetries_sptr) schedule(dynamic)
+  #else
+    // OpenMP loop over both vs_nums_to_process and tof_pos_num
+    #pragma omp parallel for  shared(proj_data, symmetries_sptr) schedule(dynamic) collapse(2)
+  #endif
 #endif
     // note: older versions of openmp need an int as loop
   for (int i=0; i<static_cast<int>(vs_nums_to_process.size()); ++i)
