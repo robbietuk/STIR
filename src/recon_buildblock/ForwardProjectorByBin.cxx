@@ -205,11 +205,11 @@ ForwardProjectorByBin::forward_project(ProjData& proj_data,
     // note: older versions of openmp need an int as loop
   for (int i=0; i<static_cast<int>(vs_nums_to_process.size()); ++i)
     {
-      const ViewSegmentNumbers vs=vs_nums_to_process[i];
       for (int k=proj_data.get_proj_data_info_sptr()->get_min_tof_pos_num();
               k<=proj_data.get_proj_data_info_sptr()->get_max_tof_pos_num();
     		  ++k)
         {
+          const ViewSegmentNumbers vs=vs_nums_to_process[i];
           if (proj_data.get_proj_data_info_sptr()->is_tof_data())
             info(boost::format("Processing view %1% of segment %2% of TOF bin %3%") % vs.view_num() % vs.segment_num() % k);
     	  else
