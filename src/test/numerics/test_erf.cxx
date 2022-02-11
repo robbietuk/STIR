@@ -19,7 +19,7 @@
   
 #include "stir/RunTests.h"
 #include "stir/numerics/erf.h"
-#include "stir/numerics/erfMapping.h"
+#include "stir/numerics/FastErf.h"
 #include <vector>
 #include <math.h>
 
@@ -36,7 +36,7 @@ public:
   {}
   void run_tests();
   void test_stir_erf();
-  void test_erfMapping();
+  void test_FastErf();
 };
 
 
@@ -44,7 +44,7 @@ void erfTests::run_tests()
 {
   std::cerr << "Testing Error Functions..." << std::endl;
   test_stir_erf();
-  test_erfMapping();
+  test_FastErf();
 }
 
 void erfTests::test_stir_erf()
@@ -116,15 +116,15 @@ void erfTests::test_stir_erf()
 }
 
 void
-erfTests::test_erfMapping()
+erfTests::test_FastErf()
 {
-  std::cerr << "  Testing stir erfMapping ..." << std::endl;
+  std::cerr << "  Testing stir FastErf ..." << std::endl;
 
   set_tolerance(0.0001);
   double sample_period = M_PI/ 10000;  // Needed a number that wasn't regular like , this seems to be interesting
 
-  erfMapping e(200000);
-  e.setup();
+  FastErf e(200000);
+  e.set_up();
 
   for (double xp = -(2* e.get_maximum_sample_value()); xp < (2* e.get_maximum_sample_value() + 1.0); xp += sample_period)
   {
@@ -133,7 +133,7 @@ erfTests::test_erfMapping()
     check_if_equal(e.get_erf_BSplines_interpolation(xp), erf(xp));
     if (!this->is_everything_ok()){
       std::cerr << "xp = " << xp
-                << "\terfMapping.get_erf_BSplines_interpolation(xp) = " << e.get_erf_BSplines_interpolation(xp)
+                << "\tFastErf.get_erf_BSplines_interpolation(xp) = " << e.get_erf_BSplines_interpolation(xp)
                 << "\terf(xp) = " << erf(xp) << "\n";
       break;
     }
@@ -141,7 +141,7 @@ erfTests::test_erfMapping()
     check_if_equal(e.get_erf_linear_interpolation(xp), erf(xp));
     if (!this->is_everything_ok()){
       std::cerr << "linear xp = " << xp
-                << "\terfMapping.get_erf_linear_interpolation(xp) = " << e.get_erf_linear_interpolation(xp)
+                << "\tFastErf.get_erf_linear_interpolation(xp) = " << e.get_erf_linear_interpolation(xp)
                 << "\terf(xp) = " << erf(xp) << "\n";
       break;
     }
@@ -151,7 +151,7 @@ erfTests::test_erfMapping()
     check_if_equal(e.get_erf_nearest_neighbour_interpolation(xp), erf(xp));
     if (!this->is_everything_ok()){
       std::cerr << "NN xp = " << xp
-                << "\terfMapping.get_erf_nearest_neighbour_interpolation(xp) = " << e.get_erf_nearest_neighbour_interpolation(xp)
+                << "\tFastErf.get_erf_nearest_neighbour_interpolation(xp) = " << e.get_erf_nearest_neighbour_interpolation(xp)
                 << "\terf(xp) = " << erf(xp) << "\n";
       break;
     }

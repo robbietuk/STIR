@@ -33,7 +33,7 @@
 #include "stir/VectorWithOffset.h"
 #include "stir/TimedObject.h"
 #include "stir/VoxelsOnCartesianGrid.h"
-#include "stir/numerics/erfMapping.h"
+#include "stir/numerics/FastErf.h"
 #include <boost/cstdint.hpp>
 //#include <map>
 #include <boost/unordered_map.hpp>
@@ -264,7 +264,7 @@ private:
   inline float get_tof_value(const float d1, const float d2) const;
 
   //! erf map
-  erfMapping erf_interpolation;
+  FastErf erf_interpolation;
 
 };
 

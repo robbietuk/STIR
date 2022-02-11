@@ -5,8 +5,8 @@
 START_NAMESPACE_STIR
 
 inline void
-erfMapping::
-setup()
+FastErf::
+set_up()
 {
   this->_sampling_period = (2 * this->maximum_sample_value) / this->get_num_samples();
   
@@ -24,7 +24,7 @@ setup()
 }
 
 inline double
-erfMapping::get_erf_BSplines_interpolation(double xp) const
+FastErf::get_erf_BSplines_interpolation(double xp) const
 {
 #if 1
     xp = std::clamp(xp,-this->maximum_sample_value, this->maximum_sample_value);
@@ -40,7 +40,7 @@ erfMapping::get_erf_BSplines_interpolation(double xp) const
 
 
 inline double
-erfMapping::
+FastErf::
 get_erf_linear_interpolation(double xp) const
 {
 #if 1
@@ -63,7 +63,7 @@ get_erf_linear_interpolation(double xp) const
 }
 
 inline double
-erfMapping::get_erf_nearest_neighbour_interpolation(double xp) const
+FastErf::get_erf_nearest_neighbour_interpolation(double xp) const
 {
 #if 1
   xp = std::clamp(xp,-this->maximum_sample_value, this->maximum_sample_value);
@@ -79,26 +79,26 @@ erfMapping::get_erf_nearest_neighbour_interpolation(double xp) const
 }
 
 inline void
-erfMapping::set_num_samples(const int num_samples)
+FastErf::set_num_samples(const int num_samples)
 {
   this->_num_samples = num_samples;
 }
 
 inline
 int
-erfMapping::get_num_samples() const
+FastErf::get_num_samples() const
 {
   return this->_num_samples;
 }
 
 int
-erfMapping::get_maximum_sample_value() const
+FastErf::get_maximum_sample_value() const
 {
   return this->maximum_sample_value;
 }
 
 void
-erfMapping::set_maximum_sample_value(double maximum_sample_value)
+FastErf::set_maximum_sample_value(double maximum_sample_value)
 {
   this->maximum_sample_value = maximum_sample_value;
 }

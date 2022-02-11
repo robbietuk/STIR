@@ -1,7 +1,7 @@
 
 /*!
   \file
-  \ingroup erfMapping
+  \ingroup FastErf
   \brief Implementation of an erf interpolation
 
   \author Robert Twyman
@@ -22,12 +22,12 @@ START_NAMESPACE_STIR
 
 
 /*! \ingroup numerics
-   \name erfMapping
+   \name FastErf
    \brief The class acts as a potentially faster way to compute many erf values by precomputing the function at
    regularly spaced intervals. [BSplines, linear, nearest neighbour] interpolation methods are available.
    Note, nearest neighbour is fastest and BSplines slowest method.
 */
-class erfMapping
+class FastErf
 {
 private:
 
@@ -52,10 +52,9 @@ private:
   std::vector<double> erf_values_vec;
 
 public:
+  FastErf(){}
 
-  erfMapping(){}
-
-  explicit erfMapping(int num_samples)
+  explicit FastErf(int num_samples)
   {
     this->_num_samples = num_samples;
   }
@@ -71,7 +70,7 @@ public:
   inline void set_maximum_sample_value(double maximum_sample_value);
 
   /*! \brief Computes the erf() values, sets up BSplines and sets up interpolation vectors.  */
-  inline void setup();
+  inline void set_up();
 
 /*! \brief Uses BSplines to interpolate the value of erf(xp)
  * If xp out of range (-\cmaximum_sample_value \cmaximum_sample_value) then outputs -1 or 1
@@ -96,6 +95,6 @@ inline double get_erf_nearest_neighbour_interpolation(double xp) const;
 
 END_NAMESPACE_STIR
 
-#include "stir/numerics/erfMapping.inl"
+#include "stir/numerics/FastErf.inl"
 
 #endif // ERFMAPPING_H
