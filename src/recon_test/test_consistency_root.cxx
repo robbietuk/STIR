@@ -96,7 +96,7 @@ private:
         const BasicCoordinate<3, float>& grid_spacing);
 
 	//! Modified version of check_if_equal for this test
-	bool check_if_almost_equal(const double a, const double b, const std::string& str, const double tolerance);
+	bool check_if_almost_equal(const double a, const double b, const std::string str, const double tolerance);
 
 	std::string root_header_filename;
 	std::string image_filename;
@@ -267,7 +267,7 @@ void ROOTconsistency_Tests::compare_original_and_calculated_coordinates(const Ca
 }
 
 bool
-ROOTconsistency_Tests::check_if_almost_equal(const double a, const double b, std::string str, const double tolerance)
+ROOTconsistency_Tests::check_if_almost_equal(const double a, const double b, const std::string str, const double tolerance)
 {
   if ((fabs(a-b) > tolerance))
   {
