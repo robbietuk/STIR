@@ -35,7 +35,13 @@ public:
   erfTests() 
   {}
   void run_tests();
+
+  /*!\brief Tests STIR's erf(x) function against known values */
   void test_stir_erf();
+
+  /*!\brief Tests the FastErf object and its interpolation methods.
+   * This test will construct a FastErf object and compute a range of erf values and compare to erf(x)
+    */
   void test_FastErf();
 };
 
@@ -119,16 +125,19 @@ void
 erfTests::test_FastErf()
 {
   std::cerr << "  Testing stir FastErf ..." << std::endl;
-
   set_tolerance(0.0001);
-  double sample_period = M_PI/ 10000;  // Needed a number that wasn't regular like , this seems to be interesting
 
   FastErf e(200000);
   e.set_up();
 
-  for (double xp = -(2* e.get_maximum_sample_value()); xp < (2* e.get_maximum_sample_value() + 1.0); xp += sample_period)
+  const float upper_samle_limit = 2 * e.get_maximum_sample_value() + 1;
+  const float lower_samle_limit = -(upper_samle_limit);
+  double sample_period = M_PI/ 10000;  // Needed a number that wasn't regular and this worked...
+  // Test the FastErf interpolations 2* beyond the maximum_sample_value.
+  // The while (-maximum_sample_value > xp) or (maximum_sample_value < xp),
+  // xp is clamped to -maximum_sample_value or maximum_sample_value
+  for (double xp = lower_samle_limit; xp < upper_samle_limit; xp += sample_period)
   {
-
     //BSPlines
     check_if_equal(e.get_erf_BSplines_interpolation(xp), erf(xp));
     if (!this->is_everything_ok()){
@@ -146,7 +155,6 @@ erfTests::test_FastErf()
       break;
     }
 
-
     //NN
     check_if_equal(e.get_erf_nearest_neighbour_interpolation(xp), erf(xp));
     if (!this->is_everything_ok()){
@@ -155,7 +163,6 @@ erfTests::test_FastErf()
                 << "\terf(xp) = " << erf(xp) << "\n";
       break;
     }
-
   }
 }
 

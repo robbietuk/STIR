@@ -250,8 +250,6 @@ private:
   //! 1/(2*sigma_in_mm)
   float r_sqrt2_gauss_sigma;
 
-  Array<1, float> cache_erf;
-
   //! The function which actually applies the TOF kernel on the LOR.
   inline void apply_tof_kernel_and_symm_transformation(ProjMatrixElemsForOneBin& probabilities,
                                const CartesianCoordinate3D<float>& point1,

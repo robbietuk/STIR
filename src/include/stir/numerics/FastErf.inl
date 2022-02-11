@@ -76,7 +76,7 @@ FastErf::get_erf_nearest_neighbour_interpolation(double xp) const
     return -1.0;
 #endif
   // Selects index of the nearest neighbour via rounding
-    return erf_values_vec[static_cast<int>((xp + this->maximum_sample_value) / this->_sampling_period)];
+    return erf_values_vec[static_cast<int>(std::round((xp + this->maximum_sample_value) / this->_sampling_period))];
 }
 
 inline void
