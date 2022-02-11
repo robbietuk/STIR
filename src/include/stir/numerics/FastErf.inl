@@ -1,6 +1,7 @@
 
 
 #include "stir/numerics/BSplines1DRegularGrid.h"
+#include "stir/numerics/erf.h"
 
 START_NAMESPACE_STIR
 

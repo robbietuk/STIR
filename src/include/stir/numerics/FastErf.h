@@ -15,8 +15,8 @@
 
 #include "stir/numerics/BSplines1DRegularGrid.h"
 
-#ifndef ERFMAPPING_H
-#define ERFMAPPING_H
+#ifndef __stir_numerics_FastErf__H__
+#define __stir_numerics_FastErf__H__
 
 START_NAMESPACE_STIR
 
@@ -97,4 +97,4 @@ END_NAMESPACE_STIR
 
 #include "stir/numerics/FastErf.inl"
 
-#endif // ERFMAPPING_H
+#endif // __stir_numerics_FastErf__H__
