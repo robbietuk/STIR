@@ -104,4 +104,10 @@ FastErf::set_maximum_sample_value(double maximum_sample_value)
   this->maximum_sample_value = maximum_sample_value;
 }
 
+const double
+FastErf::operator() (const double xp) const
+{
+  return get_erf_linear_interpolation(xp);
+}
+
 END_NAMESPACE_STIR

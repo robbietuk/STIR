@@ -91,6 +91,9 @@ inline double get_erf_linear_interpolation(double xp) const;
  */
 inline double get_erf_nearest_neighbour_interpolation(double xp) const;
 
+  //! Wraps get_erf_linear_interpolation as a () operator
+  inline const double operator() (const double xp) const;
+
 };
 
 END_NAMESPACE_STIR

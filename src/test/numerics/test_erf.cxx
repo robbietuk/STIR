@@ -192,6 +192,14 @@ void erfTests::actual_test_FastErf(const float xp)
               << "\tFastErf.get_erf_nearest_neighbour_interpolation(xp) = " << e.get_erf_nearest_neighbour_interpolation(xp)
               << "\terf(xp) = " << erf(xp) << "\n";
   }
+
+  // Operator () - This acts as a wrapper for e.get_erf_linear_interpolation(xp)
+  check_if_equal(e(xp), erf(xp));
+  if (!this->is_everything_ok()){
+    std::cerr << "NN xp = " << xp
+              << "\tFastErf(xp) = " << e(xp)
+              << "\terf(xp) = " << erf(xp) << "\n";
+  }
 }
 
 END_NAMESPACE_STIR
