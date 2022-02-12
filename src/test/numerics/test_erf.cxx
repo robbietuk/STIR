@@ -43,6 +43,12 @@ public:
    * This test will construct a FastErf object and compute a range of erf values and compare to erf(x)
     */
   void test_FastErf();
+
+private:
+  //! Executes all the FastErf interpolation methods for a given xp
+  void actual_test_FastErf(const float xp);
+
+  FastErf e;
 };
 
 
@@ -127,7 +133,7 @@ erfTests::test_FastErf()
   std::cerr << "  Testing stir FastErf ..." << std::endl;
   set_tolerance(0.0001);
 
-  FastErf e(200000);
+  e.set_num_samples(200000);
   e.set_up();
 
   const float upper_samle_limit = 2 * e.get_maximum_sample_value() + 1;
@@ -137,32 +143,54 @@ erfTests::test_FastErf()
   // The while (-maximum_sample_value > xp) or (maximum_sample_value < xp),
   // xp is clamped to -maximum_sample_value or maximum_sample_value
   for (double xp = lower_samle_limit; xp < upper_samle_limit; xp += sample_period)
-  {
-    //BSPlines
-    check_if_equal(e.get_erf_BSplines_interpolation(xp), erf(xp));
-    if (!this->is_everything_ok()){
-      std::cerr << "xp = " << xp
-                << "\tFastErf.get_erf_BSplines_interpolation(xp) = " << e.get_erf_BSplines_interpolation(xp)
-                << "\terf(xp) = " << erf(xp) << "\n";
-      break;
-    }
-    // Linear
-    check_if_equal(e.get_erf_linear_interpolation(xp), erf(xp));
-    if (!this->is_everything_ok()){
-      std::cerr << "linear xp = " << xp
-                << "\tFastErf.get_erf_linear_interpolation(xp) = " << e.get_erf_linear_interpolation(xp)
-                << "\terf(xp) = " << erf(xp) << "\n";
-      break;
+    {
+      this->actual_test_FastErf(xp);
+      if (!this->everything_ok)
+        break;
     }
 
-    //NN
-    check_if_equal(e.get_erf_nearest_neighbour_interpolation(xp), erf(xp));
-    if (!this->is_everything_ok()){
-      std::cerr << "NN xp = " << xp
-                << "\tFastErf.get_erf_nearest_neighbour_interpolation(xp) = " << e.get_erf_nearest_neighbour_interpolation(xp)
-                << "\terf(xp) = " << erf(xp) << "\n";
-      break;
+  // Test cases where x is just smaller or larger than the lower or upper limits of FastErf
+  // This is an additional sanity check ensure there are no rounding or out of limit errors.
+  const float epsilon = sample_period/100;
+  std::vector<float> extremity_test_xps(4);
+  extremity_test_xps[0] = e.get_maximum_sample_value() + epsilon; // above max
+  extremity_test_xps[1] = e.get_maximum_sample_value() - epsilon; // under max
+  extremity_test_xps[2] = -e.get_maximum_sample_value() + epsilon;  // above min
+  extremity_test_xps[3] = -e.get_maximum_sample_value() - epsilon;  // under min
+
+  for (float xp : extremity_test_xps)
+    {
+      this->actual_test_FastErf(xp);
+      if (!this->everything_ok)
+        break;
     }
+}
+
+
+
+void erfTests::actual_test_FastErf(const float xp)
+{
+  //BSPlines
+  check_if_equal(e.get_erf_BSplines_interpolation(xp), erf(xp));
+  if (!this->is_everything_ok()){
+    std::cerr << "xp = " << xp
+              << "\tFastErf.get_erf_BSplines_interpolation(xp) = " << e.get_erf_BSplines_interpolation(xp)
+              << "\terf(xp) = " << erf(xp) << "\n";
+  }
+  // Linear
+  check_if_equal(e.get_erf_linear_interpolation(xp), erf(xp));
+  if (!this->is_everything_ok()){
+    std::cerr << "linear xp = " << xp
+              << "\tFastErf.get_erf_linear_interpolation(xp) = " << e.get_erf_linear_interpolation(xp)
+              << "\terf(xp) = " << erf(xp) << "\n";
+  }
+
+  //NN
+  check_if_equal(e.get_erf_nearest_neighbour_interpolation(xp), erf(xp));
+  if (!this->is_everything_ok()){
+    std::cerr << "NN xp = " << xp
+              << "\tFastErf.get_erf_nearest_neighbour_interpolation(xp) = " << e.get_erf_nearest_neighbour_interpolation(xp)
+              << "\terf(xp) = " << erf(xp) << "\n";
   }
 }
 
