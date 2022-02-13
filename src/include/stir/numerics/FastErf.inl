@@ -27,14 +27,10 @@ set_up()
 inline double
 FastErf::get_erf_BSplines_interpolation(double xp) const
 {
-#if 1
+#if 0
     xp = std::clamp(xp,-this->maximum_sample_value, this->maximum_sample_value);
 #else
-  if (xp > this->maximum_sample_value)
-    return 1.0;
-
-  else if (xp < -this->maximum_sample_value)
-    return -1.0;
+  xp = std::max(std::min(this->maximum_sample_value, xp), -this->maximum_sample_value);
 #endif
   return this->spline.BSplines((xp + this->maximum_sample_value) / this->_sampling_period);
 }
@@ -44,14 +40,10 @@ inline double
 FastErf::
 get_erf_linear_interpolation(double xp) const
 {
-#if 1
+#if 0
     xp = std::clamp(xp,-this->maximum_sample_value, this->maximum_sample_value);
 #else
-  if (xp > this->maximum_sample_value)
-    return 1.0;
-
-  else if (xp < -this->maximum_sample_value)
-    return -1.0;
+  xp = std::max(std::min(this->maximum_sample_value, xp), -this->maximum_sample_value);
 #endif
   // Find xp in index sequence
   double xp_in_index = ((xp + this->maximum_sample_value) / this->_sampling_period);
@@ -66,14 +58,10 @@ get_erf_linear_interpolation(double xp) const
 inline double
 FastErf::get_erf_nearest_neighbour_interpolation(double xp) const
 {
-#if 1
+#if 0
   xp = std::clamp(xp,-this->maximum_sample_value, this->maximum_sample_value);
 #else
-  if (xp > this->maximum_sample_value)
-    return 1.0;
-
-  else if (xp < -this->maximum_sample_value)
-    return -1.0;
+  xp = std::max(std::min(this->maximum_sample_value, xp), -this->maximum_sample_value);
 #endif
   // Selects index of the nearest neighbour via rounding
     return erf_values_vec[static_cast<int>(std::round((xp + this->maximum_sample_value) / this->_sampling_period))];
