@@ -13,6 +13,7 @@ Default number of arc-corrected bins     := 331
 Number of TOF time bins :=275
 Size of timing bin (ps) :=17.8
 Timing resolution (ps) :=75
+%TOF mashing factor := 1
 
 GATE scanner type := GATE_Cylindrical_PET
 GATE_Cylindrical_PET Parameters :=
