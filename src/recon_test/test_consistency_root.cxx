@@ -209,8 +209,8 @@ CartesianCoordinate3D<float> ROOTconsistency_Tests::compute_centre_of_mass()
 
   // creation of a file with all LOR maxima, to be able to plot them
   std::ofstream myfile;
-  std::string file_name = image_filename.substr(0,image_filename.size()-3) + ".txt";
-  myfile.open (file_name.c_str());
+  std::string max_lor_position_file_name = image_filename.substr(0,image_filename.size()-3) + "_lor_pos.txt";
+  myfile.open (max_lor_position_file_name.c_str());
 
   LORMax centreofmass;
 
@@ -258,12 +258,21 @@ CartesianCoordinate3D<float> ROOTconsistency_Tests::compute_centre_of_mass()
 void ROOTconsistency_Tests::compare_original_and_calculated_coordinates(const CartesianCoordinate3D<float>& original_coords,
     const CartesianCoordinate3D<float>& centre_of_mass, const BasicCoordinate<3, float>& grid_spacing)
 {
+  cerr << "Original coordinates:: \t[x] " << original_coords.x() <<"\t[y] "
+       << original_coords.y() << "\t[z] " << original_coords.z() << std::endl;
+
   check_if_almost_equal(static_cast<double>(original_coords.x()),static_cast<double>(centre_of_mass.x()),"x",grid_spacing[1]);
   check_if_almost_equal(static_cast<double>(original_coords.y()),static_cast<double>(centre_of_mass.y()),"y",grid_spacing[2]);
   check_if_almost_equal(static_cast<double>(original_coords.z()),static_cast<double>(centre_of_mass.z()),"z",grid_spacing[3]);
 
-  cerr << "Original coordinates: " << original_coords.x() << " "
-      << original_coords.y() << " " << original_coords.z() << std::endl;
+
+  // Save the origin and Center of mass data to a separate file.
+  std::ofstream myfile;
+  std::string origin_and_COM_file_name = image_filename.substr(0,image_filename.size()-3) + "_ORIG_and_COM.txt";
+  myfile.open (origin_and_COM_file_name.c_str());
+  myfile << original_coords.x() << " " << original_coords.y() << " " << original_coords.z() << std::endl;
+  myfile << centre_of_mass.x() << " " << centre_of_mass.y() << " " << centre_of_mass.z() << std::endl;
+  myfile.close();
 }
 
 bool
