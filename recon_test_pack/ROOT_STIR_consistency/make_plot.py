@@ -108,14 +108,14 @@ def make_scatter_plot(coord_data, hide_lor_pos=False):
     plt.legend(legend)
     plt.show()
     
-def threshold_values(xsource,ysource,zsource,listcont):
-    distance=[]
-    boollist=[]
-    for x in listcont:
-        distance.append(npy.sqrt(npy.power(float(x[0])-xsource,2)+npy.power(float(x[1])-ysource,2)+npy.power(float(x[2])-zsource,2)))
-    for d in distance:
-        boollist.append(d > 45)
-    return boollist
+# def threshold_values(xsource,ysource,zsource,listcont):
+#     distance=[]
+#     boollist=[]
+#     for x in listcont:
+#         distance.append(npy.sqrt(npy.power(float(x[0])-xsource,2)+npy.power(float(x[1])-ysource,2)+npy.power(float(x[2])-zsource,2)))
+#     for d in distance:
+#         boollist.append(d > 45)
+#     return boollist
 
 def make_plots(coord_data):
     make_scatter_plot(coord_data, hide_lor_pos=True)

@@ -182,6 +182,8 @@ ROOTconsistency_Tests::compute_max_lor_position_for_proj_matrix_row(
       maxLOR = element_ptr->get_value();
       voxel_centre =
               test_discretised_density_sptr->get_physical_coordinates_for_indices(element_ptr->get_coords());
+
+//      std::cerr << "x: "<<  voxel_centre.x() << "\ty: " << voxel_centre.y() << "\tz: " << voxel_centre.z() << "\n";
       LORMax tmp;
       tmp.value = element_ptr->get_value();
       tmp.voxel_centre = voxel_centre;
@@ -246,8 +248,8 @@ CartesianCoordinate3D<float> ROOTconsistency_Tests::compute_centre_of_mass()
     centreofmass.voxel_centre.z()=0;
   }
 
-  cerr << "Centre of gravity coordinates: " << centreofmass.voxel_centre.x() << " "
-      << centreofmass.voxel_centre.y() << " " << centreofmass.voxel_centre.z() << std::endl;
+  cerr << "Centre of gravity coordinates: \t[x] " << centreofmass.voxel_centre.x() <<"\t[y] "
+      << centreofmass.voxel_centre.y() << "\t[z] " << centreofmass.voxel_centre.z() << std::endl;
 
   myfile.close();
 
@@ -259,7 +261,7 @@ CartesianCoordinate3D<float> ROOTconsistency_Tests::compute_centre_of_mass()
 void ROOTconsistency_Tests::compare_original_and_calculated_coordinates(const CartesianCoordinate3D<float>& original_coords,
     const CartesianCoordinate3D<float>& centre_of_mass, const BasicCoordinate<3, float>& grid_spacing)
 {
-  cerr << "Original coordinates:: \t[x] " << original_coords.x() <<"\t[y] "
+  cerr << "Original coordinates: \t\t\t[x] " << original_coords.x() <<"\t[y] "
        << original_coords.y() << "\t[z] " << original_coords.z() << std::endl;
 
   check_if_almost_equal(static_cast<double>(original_coords.x()),static_cast<double>(centre_of_mass.x()),"x",grid_spacing[1]);
