@@ -83,7 +83,7 @@ private:
 	    const shared_ptr<DiscretisedDensity<3, float> >& test_discretised_density_sptr);
 	
 	//! Selects and stores the highest probability elements of ProjMatrixElemsForOneBin.
-	void get_LOR_of_max(const ProjMatrixElemsForOneBin& probabilities,
+	void compute_max_lor_position_for_proj_matrix_row(const ProjMatrixElemsForOneBin& probabilities,
 	    const shared_ptr<DiscretisedDensity<3, float> >& test_discretised_density_sptr);
 
 	//! Given a vector::LORMax, computes the centre of mass.
@@ -154,7 +154,7 @@ construct_list_of_LOR_max(const shared_ptr<DiscretisedDensity<3, float> >& discr
                   // computes the TOF probabilities along the bin LOR
                   proj_matrix_sptr->get_proj_matrix_elems_for_one_bin(proj_matrix_row, bin);
                   // adds coordinates and weights of the elements with highest probability along LOR
-                  get_LOR_of_max(proj_matrix_row, discretised_density_sptr);
+                  compute_max_lor_position_for_proj_matrix_row(proj_matrix_row, discretised_density_sptr);
                 }
 	        }
 	    }
@@ -163,8 +163,9 @@ construct_list_of_LOR_max(const shared_ptr<DiscretisedDensity<3, float> >& discr
 }
 
 void
-ROOTconsistency_Tests::get_LOR_of_max(const ProjMatrixElemsForOneBin& probabilities, const shared_ptr<DiscretisedDensity<3,
-    float> >& test_discretised_density_sptr)
+ROOTconsistency_Tests::compute_max_lor_position_for_proj_matrix_row(
+    const ProjMatrixElemsForOneBin& probabilities,
+    const shared_ptr<DiscretisedDensity<3, float> >& test_discretised_density_sptr)
 {
   std::stack<LORMax> tmp_max_lor;
 
