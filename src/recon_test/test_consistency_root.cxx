@@ -69,10 +69,15 @@ public:
     // used to calculate the centre of gravity (see below).
     class LORMax{
     public:
-      LORMax() : voxel_centre(CartesianCoordinate3D<float>(0.f,0.f,0.f)), value(0.f)
+      LORMax() : voxel_centre(CartesianCoordinate3D<float>(0.f,0.f,0.f)), value(0.f),
+            weighted_standard_deviation(0.f, 0.f, 0.f)
       {}
-        CartesianCoordinate3D<float> voxel_centre;
-        float value;
+      //! Center of mass position in mm
+      CartesianCoordinate3D<float> voxel_centre;
+      //! Mass of all weights
+      float value;
+      //! COM standard deviation.
+      CartesianCoordinate3D<float> weighted_standard_deviation;
     };
 
 private:
@@ -86,21 +91,24 @@ private:
 	void compute_max_lor_position_for_proj_matrix_row(const ProjMatrixElemsForOneBin& probabilities,
 	    const shared_ptr<DiscretisedDensity<3, float> >& test_discretised_density_sptr);
 
-	//! Given a vector::LORMax, computes the centre of mass.
-	CartesianCoordinate3D<float> compute_centre_of_mass();
+	//! Given a vector::LORMax, computes the centre of mass (weighted mean). Also saves the max_lor data to file
+        void compute_COM();
 
-	//! Checks if original and calculated coordinates are close enough.
-	void compare_original_and_calculated_coordinates(
-	    const CartesianCoordinate3D<float>& original_coords,
-        const CartesianCoordinate3D<float>& centre_of_mass,
-        const BasicCoordinate<3, float>& grid_spacing);
+        //! Computes the Center Of Mass stddev (weighted standard deviation)
+        void compute_COM_weighted_stddev();
+
+	//! Checks if original and calculated coordinates are close enough and saves data to file.
+        void compare_original_and_calculated_coordinates(const CartesianCoordinate3D<float>& original_coords,
+                                                         const BasicCoordinate<3, float>& grid_spacing);
 
 	//! Modified version of check_if_equal for this test
-	bool check_if_almost_equal(const double a, const double b, const std::string str, const double tolerance);
+	bool check_if_almost_equal(const float a, const float b, const std::string str, const float tolerance);
 
 	std::string root_header_filename;
 	std::string image_filename;
-    std::vector<LORMax> max_lor;
+        std::vector<LORMax> max_lor;
+        LORMax max_lor_COM;
+
 };
 
 void
@@ -117,9 +125,9 @@ ROOTconsistency_Tests::run_tests()
 
     construct_list_of_LOR_max(discretised_density_sptr);
 
-    CartesianCoordinate3D<float> centreofmass = compute_centre_of_mass();
+    compute_COM();
 
-    compare_original_and_calculated_coordinates(original_coords,centreofmass,discretised_cartesian_grid.get_grid_spacing());
+    compare_original_and_calculated_coordinates(original_coords, discretised_cartesian_grid.get_grid_spacing());
 }
 
 void
@@ -162,10 +170,9 @@ construct_list_of_LOR_max(const shared_ptr<DiscretisedDensity<3, float> >& discr
 
 }
 
-void
-ROOTconsistency_Tests::compute_max_lor_position_for_proj_matrix_row(
-    const ProjMatrixElemsForOneBin& probabilities,
-    const shared_ptr<DiscretisedDensity<3, float> >& test_discretised_density_sptr)
+void ROOTconsistency_Tests::
+    compute_max_lor_position_for_proj_matrix_row(const ProjMatrixElemsForOneBin& probabilities,
+                                                 const shared_ptr<DiscretisedDensity<3, float> >& test_discretised_density_sptr)
 {
   std::stack<LORMax> tmp_max_lor;
 
@@ -207,7 +214,8 @@ ROOTconsistency_Tests::compute_max_lor_position_for_proj_matrix_row(
   }
 }
 
-CartesianCoordinate3D<float> ROOTconsistency_Tests::compute_centre_of_mass()
+void
+ROOTconsistency_Tests::compute_COM()
 {
 
   // creation of a file with all LOR maxima, to be able to plot them
@@ -215,16 +223,24 @@ CartesianCoordinate3D<float> ROOTconsistency_Tests::compute_centre_of_mass()
   std::string max_lor_position_file_name = image_filename.substr(0,image_filename.size()-3) + "_lor_pos.txt";
   myfile.open (max_lor_position_file_name.c_str());
 
-  LORMax centreofmass;
+  // Reset all COM values to 0.f
+  max_lor_COM.value = 0.f;
+  max_lor_COM.voxel_centre.x() = 0.f;
+  max_lor_COM.voxel_centre.x() = 0.f;
+  max_lor_COM.voxel_centre.z() = 0.f;
+  max_lor_COM.weighted_standard_deviation.x() = 0.f;
+  max_lor_COM.weighted_standard_deviation.y() = 0.f;
+  max_lor_COM.weighted_standard_deviation.z() = 0.f;
 
-  // computes centre of mass
+
+  // computes centre of mass (weighted mean value)
   for (std::vector<LORMax>::iterator lor_element_ptr=max_lor.begin();
           lor_element_ptr != max_lor.end();++lor_element_ptr)
   {
-    centreofmass.voxel_centre.x() += lor_element_ptr->voxel_centre.x()*lor_element_ptr->value;
-    centreofmass.voxel_centre.y() += lor_element_ptr->voxel_centre.y()*lor_element_ptr->value;
-    centreofmass.voxel_centre.z() += lor_element_ptr->voxel_centre.z()*lor_element_ptr->value;
-    centreofmass.value += lor_element_ptr->value;
+    max_lor_COM.voxel_centre.x() += lor_element_ptr->voxel_centre.x()*lor_element_ptr->value;
+    max_lor_COM.voxel_centre.y() += lor_element_ptr->voxel_centre.y()*lor_element_ptr->value;
+    max_lor_COM.voxel_centre.z() += lor_element_ptr->voxel_centre.z()*lor_element_ptr->value;
+    max_lor_COM.value += lor_element_ptr->value;
 
     myfile << lor_element_ptr->voxel_centre.x() << " "
            << lor_element_ptr->voxel_centre.y() << " "
@@ -232,54 +248,108 @@ CartesianCoordinate3D<float> ROOTconsistency_Tests::compute_centre_of_mass()
            << lor_element_ptr->value << std::endl;
 
   }
+  myfile.close();
 
   // needs to divide by the weights
-  if (centreofmass.value != 0)
+  if (max_lor_COM.value != 0)
   {
-    centreofmass.voxel_centre.x()=centreofmass.voxel_centre.x()/centreofmass.value;
-    centreofmass.voxel_centre.y()=centreofmass.voxel_centre.y()/centreofmass.value;
-    centreofmass.voxel_centre.z()=centreofmass.voxel_centre.z()/centreofmass.value;
+    max_lor_COM.voxel_centre.x()= max_lor_COM.voxel_centre.x()/ max_lor_COM.value;
+    max_lor_COM.voxel_centre.y()= max_lor_COM.voxel_centre.y()/ max_lor_COM.value;
+    max_lor_COM.voxel_centre.z()= max_lor_COM.voxel_centre.z()/ max_lor_COM.value;
   }
   else
   {
     warning("Total weight of the centre of mass equal to 0. Please check your data.");
-    centreofmass.voxel_centre.x()=0;
-    centreofmass.voxel_centre.y()=0;
-    centreofmass.voxel_centre.z()=0;
+    max_lor_COM.voxel_centre.x()=0;
+    max_lor_COM.voxel_centre.y()=0;
+    max_lor_COM.voxel_centre.z()=0;
   }
 
-  cerr << "Centre of gravity coordinates: \t[x] " << centreofmass.voxel_centre.x() <<"\t[y] "
-      << centreofmass.voxel_centre.y() << "\t[z] " << centreofmass.voxel_centre.z() << std::endl;
-
-  myfile.close();
-
-  return centreofmass.voxel_centre;
-
+  compute_COM_weighted_stddev();
 }
 
-// TODO change this
-void ROOTconsistency_Tests::compare_original_and_calculated_coordinates(const CartesianCoordinate3D<float>& original_coords,
-    const CartesianCoordinate3D<float>& centre_of_mass, const BasicCoordinate<3, float>& grid_spacing)
+void ROOTconsistency_Tests::
+    compute_COM_weighted_stddev()
 {
-  cerr << "Original coordinates: \t\t\t[x] " << original_coords.x() <<"\t[y] "
+  // Compute the weighted standard deviation https://stats.stackexchange.com/a/6536
+  for (std::vector<LORMax>::iterator lor_element_ptr=max_lor.begin();
+       lor_element_ptr != max_lor.end();++lor_element_ptr)
+  {
+    CartesianCoordinate3D<float> diff = lor_element_ptr->voxel_centre - max_lor_COM.voxel_centre;
+    max_lor_COM.weighted_standard_deviation.x() += lor_element_ptr->value * pow(diff.x(),2);
+    max_lor_COM.weighted_standard_deviation.y() += lor_element_ptr->value * pow(diff.y(), 2);
+    max_lor_COM.weighted_standard_deviation.z() += lor_element_ptr->value * pow(diff.z(), 2);
+  }
+
+  float M = static_cast<float>(max_lor.size());
+  const float weighted_stddev_scalar = (M-1)/M * max_lor_COM.value;
+  max_lor_COM.weighted_standard_deviation.x() = sqrt(max_lor_COM.weighted_standard_deviation.x()/weighted_stddev_scalar);
+  max_lor_COM.weighted_standard_deviation.y() = sqrt(max_lor_COM.weighted_standard_deviation.y()/weighted_stddev_scalar);
+  max_lor_COM.weighted_standard_deviation.z() = sqrt(max_lor_COM.weighted_standard_deviation.z()/weighted_stddev_scalar);
+}
+
+void
+ROOTconsistency_Tests::
+    compare_original_and_calculated_coordinates(const CartesianCoordinate3D<float>& original_coords,
+                                                const BasicCoordinate<3, float>& grid_spacing)
+{
+  cerr << "Original coordinates: \t\t\t\t\t[x] " << original_coords.x() <<"\t[y] "
        << original_coords.y() << "\t[z] " << original_coords.z() << std::endl;
 
-  check_if_almost_equal(static_cast<double>(original_coords.x()),static_cast<double>(centre_of_mass.x()),"x",grid_spacing[1]);
-  check_if_almost_equal(static_cast<double>(original_coords.y()),static_cast<double>(centre_of_mass.y()),"y",grid_spacing[2]);
-  check_if_almost_equal(static_cast<double>(original_coords.z()),static_cast<double>(centre_of_mass.z()),"z",grid_spacing[3]);
+  cerr << "Centre of gravity coordinates: \t\t\t[x] " << max_lor_COM.voxel_centre.x() <<"\t[y] "
+       << max_lor_COM.voxel_centre.y() << "\t[z] " << max_lor_COM.voxel_centre.z() << std::endl;
+
+  cerr << "Centre of gravity coordinates (stddev): [x] " << max_lor_COM.weighted_standard_deviation.x() <<"\t[y] "
+       << max_lor_COM.weighted_standard_deviation.y() << "\t[z] " << max_lor_COM.weighted_standard_deviation.z() << "\n\n"<< std::endl;
+
+
+  // Check if max_lor_COM is within grid spacing tolerance with the original coordinates
+  check_if_almost_equal(original_coords.x(), max_lor_COM.voxel_centre.x(),
+                        "COM not within grid spacing (x) of Original",grid_spacing[1]);
+  check_if_almost_equal(original_coords.y(), max_lor_COM.voxel_centre.y(),
+                        "COM not within grid spacing (y) of Original",grid_spacing[2]);
+  check_if_almost_equal(original_coords.z(), max_lor_COM.voxel_centre.z(),
+                        "COM not within grid spacing (z) of Original",grid_spacing[3]);
+
+  // Check if max_lor_COM is within max_lor weighted standard deviation tolerance with the original coordinates
+  check_if_almost_equal(original_coords.x(), max_lor_COM.voxel_centre.x(),
+                        "COM not within weighted stddev (x) of Original",max_lor_COM.weighted_standard_deviation.x());
+  check_if_almost_equal(original_coords.y(), max_lor_COM.voxel_centre.y(),
+                        "COM not within weighted stddev (y) of Original",max_lor_COM.weighted_standard_deviation.y());
+  check_if_almost_equal(original_coords.z(), max_lor_COM.voxel_centre.z(),
+                        "COM not within weighted stddev (z) of Original",max_lor_COM.weighted_standard_deviation.z());
+
+  // Check if weighted standard deviation is less than grid_spacing
+  check_if_less(max_lor_COM.weighted_standard_deviation.x(), grid_spacing[1],
+                "COM weighted stddev[x] is greater than grid spacing[x]");
+  check_if_less(max_lor_COM.weighted_standard_deviation.y(), grid_spacing[2],
+                "COM weighted stddev[x] is greater than grid spacing[y]");
+  check_if_less(max_lor_COM.weighted_standard_deviation.z(), grid_spacing[3],
+                "COM weighted stddev[x] is greater than grid spacing[z]");
 
 
   // Save the origin and Center of mass data to a separate file.
   std::ofstream myfile;
   std::string origin_and_COM_file_name = image_filename.substr(0,image_filename.size()-3) + "_ORIG_and_COM.txt";
   myfile.open (origin_and_COM_file_name.c_str());
-  myfile << original_coords.x() << " " << original_coords.y() << " " << original_coords.z() << std::endl;
-  myfile << centre_of_mass.x() << " " << centre_of_mass.y() << " " << centre_of_mass.z() << std::endl;
+  // Original coordinates
+  myfile << original_coords.x() << " "
+         << original_coords.y() << " "
+         << original_coords.z() << std::endl;
+  // max LOR mean coordinates
+  myfile << max_lor_COM.voxel_centre.x() << " "
+         << max_lor_COM.voxel_centre.y() << " "
+         << max_lor_COM.voxel_centre.z() << std::endl;
+  // max LOR weighted stddev
+  myfile << max_lor_COM.weighted_standard_deviation.x() << " "
+         << max_lor_COM.weighted_standard_deviation.y() << " "
+         << max_lor_COM.weighted_standard_deviation.z() << std::endl;
+
   myfile.close();
 }
 
-bool
-ROOTconsistency_Tests::check_if_almost_equal(const double a, const double b, const std::string str, const double tolerance)
+bool ROOTconsistency_Tests::
+    check_if_almost_equal(const float a, const float b, const std::string str, const float tolerance)
 {
   if ((fabs(a-b) > tolerance))
   {
