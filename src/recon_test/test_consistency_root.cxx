@@ -109,6 +109,9 @@ private:
         std::vector<LORMax> max_lor;
         LORMax max_lor_COM;
 
+        //! A copy of the scanner timing resolution in mm
+        float gauss_sigma_in_mm;
+
 };
 
 void
@@ -141,6 +144,9 @@ construct_list_of_LOR_max(const shared_ptr<DiscretisedDensity<3, float> >& discr
 	proj_matrix_sptr.get()->set_up(lm_data_sptr->get_proj_data_info_sptr(),
 	        discretised_density_sptr);
     proj_matrix_sptr->enable_tof(lm_data_sptr->get_proj_data_info_sptr());
+
+    // Set the scanner's time resolution in mm. Used later in the tests
+    gauss_sigma_in_mm = ProjDataInfo::tof_delta_time_to_mm(lm_data_sptr->get_proj_data_info_sptr()->get_scanner_ptr()->get_timing_resolution()) / 2.355f;
 
     ProjMatrixElemsForOneBin proj_matrix_row;
 
@@ -305,27 +311,19 @@ ROOTconsistency_Tests::
 
   // Check if max_lor_COM is within grid spacing tolerance with the original coordinates
   check_if_almost_equal(original_coords.x(), max_lor_COM.voxel_centre.x(),
-                        "COM not within grid spacing (x) of Original",grid_spacing[1]);
+                        "COM not within grid spacing (x) of Original",grid_spacing[3]);
   check_if_almost_equal(original_coords.y(), max_lor_COM.voxel_centre.y(),
                         "COM not within grid spacing (y) of Original",grid_spacing[2]);
   check_if_almost_equal(original_coords.z(), max_lor_COM.voxel_centre.z(),
-                        "COM not within grid spacing (z) of Original",grid_spacing[3]);
+                        "COM not within grid spacing (z) of Original",grid_spacing[1]);
 
-  // Check if max_lor_COM is within max_lor weighted standard deviation tolerance with the original coordinates
-  check_if_almost_equal(original_coords.x(), max_lor_COM.voxel_centre.x(),
-                        "COM not within weighted stddev (x) of Original",max_lor_COM.weighted_standard_deviation.x());
-  check_if_almost_equal(original_coords.y(), max_lor_COM.voxel_centre.y(),
-                        "COM not within weighted stddev (y) of Original",max_lor_COM.weighted_standard_deviation.y());
-  check_if_almost_equal(original_coords.z(), max_lor_COM.voxel_centre.z(),
-                        "COM not within weighted stddev (z) of Original",max_lor_COM.weighted_standard_deviation.z());
-
-  // Check if weighted standard deviation is less than grid_spacing
-  check_if_less(max_lor_COM.weighted_standard_deviation.x(), grid_spacing[1],
-                "COM weighted stddev[x] is greater than grid spacing[x]");
-  check_if_less(max_lor_COM.weighted_standard_deviation.y(), grid_spacing[2],
-                "COM weighted stddev[y] is greater than grid spacing[y]");
-  check_if_less(max_lor_COM.weighted_standard_deviation.z(), grid_spacing[3],
-                "COM weighted stddev[z] is greater than grid spacing[z]");
+  // Check if weighted standard deviation is less than 2x the tof timing resolution
+  check_if_less(max_lor_COM.weighted_standard_deviation.x(), 2*gauss_sigma_in_mm,
+                "COM weighted stddev[x] is greater than 2x TOF timing resolution (mm)");
+  check_if_less(max_lor_COM.weighted_standard_deviation.y(), 2*gauss_sigma_in_mm,
+                "COM weighted stddev[y] is greater than 2x TOF timing resolution (mm)");
+  check_if_less(max_lor_COM.weighted_standard_deviation.z(), 2*gauss_sigma_in_mm,
+                "COM weighted stddev[z] is greater than 2x TOF timing resolution (mm)");
 
 
   // Save the origin and Center of mass data to a separate file.
