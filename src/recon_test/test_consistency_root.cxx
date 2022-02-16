@@ -323,9 +323,9 @@ ROOTconsistency_Tests::
   check_if_less(max_lor_COM.weighted_standard_deviation.x(), grid_spacing[1],
                 "COM weighted stddev[x] is greater than grid spacing[x]");
   check_if_less(max_lor_COM.weighted_standard_deviation.y(), grid_spacing[2],
-                "COM weighted stddev[x] is greater than grid spacing[y]");
+                "COM weighted stddev[y] is greater than grid spacing[y]");
   check_if_less(max_lor_COM.weighted_standard_deviation.z(), grid_spacing[3],
-                "COM weighted stddev[x] is greater than grid spacing[z]");
+                "COM weighted stddev[z] is greater than grid spacing[z]");
 
 
   // Save the origin and Center of mass data to a separate file.
