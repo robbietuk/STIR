@@ -140,7 +140,7 @@ BinNormalisationFromProjData::apply(RelatedViewgrams<float>& viewgrams) const
     const ViewSegmentTOFNumbers vs_num=viewgrams.get_basic_view_segment_num();
 	const int timing_pos_num = norm_proj_data_ptr->get_proj_data_info_sptr()->is_tof_data() ? viewgrams.get_basic_timing_pos_num() : 0;
     shared_ptr<DataSymmetriesForViewSegmentNumbers> symmetries_sptr(viewgrams.get_symmetries_ptr()->clone());
-    viewgrams *= norm_proj_data_ptr->get_related_viewgrams(vs_num,symmetries_sptr, false);
+    viewgrams *= norm_proj_data_ptr->get_related_viewgrams(vs_num, symmetries_sptr);
   }
 
 void 
@@ -151,7 +151,7 @@ undo(RelatedViewgrams<float>& viewgrams) const
     const ViewSegmentTOFNumbers vs_num=viewgrams.get_basic_view_segment_num();
 	const int timing_pos_num = norm_proj_data_ptr->get_proj_data_info_sptr()->is_tof_data() ? viewgrams.get_basic_timing_pos_num() : 0;
     shared_ptr<DataSymmetriesForViewSegmentNumbers> symmetries_sptr(viewgrams.get_symmetries_ptr()->clone());
-    viewgrams /= norm_proj_data_ptr->get_related_viewgrams(vs_num,symmetries_sptr, false);
+    viewgrams /= norm_proj_data_ptr->get_related_viewgrams(vs_num, symmetries_sptr);
 
   }
 

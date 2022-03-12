@@ -249,13 +249,11 @@ run() const
       
 		  // ** first fill in the data **      
 		  RelatedViewgrams<float> 
-			viewgrams = input_projdata.get_empty_related_viewgrams(view_seg_nums,symmetries_ptr,
-				false);
+			viewgrams = input_projdata.get_empty_related_viewgrams(view_seg_nums, symmetries_ptr);
 		  if (use_data_or_set_to_1)
 		  {
 			viewgrams += 
-			  input_projdata.get_related_viewgrams(view_seg_nums,
-							   symmetries_ptr,false);
+			  input_projdata.get_related_viewgrams(view_seg_nums, symmetries_ptr);
 		  }	  
 		  else
 		  {
@@ -272,15 +270,13 @@ run() const
 		  if (do_scatter && !apply_or_undo_correction)
 		  {
 			viewgrams += 
-			  scatter_projdata_ptr->get_related_viewgrams(view_seg_nums,
-													  symmetries_ptr,false);
+			  scatter_projdata_ptr->get_related_viewgrams(view_seg_nums, symmetries_ptr);
 		  }
 
 		  if (do_randoms && apply_or_undo_correction)
 		  {
 			viewgrams -= 
-			  randoms_projdata_ptr->get_related_viewgrams(view_seg_nums,
-													  symmetries_ptr,false);
+			  randoms_projdata_ptr->get_related_viewgrams(view_seg_nums, symmetries_ptr);
 		  }
 	#if 0
 		  if (frame_num==-1)
@@ -324,15 +320,13 @@ run() const
 		  if (do_scatter && apply_or_undo_correction)
 		  {
 			viewgrams -= 
-			  scatter_projdata_ptr->get_related_viewgrams(view_seg_nums,
-													  symmetries_ptr,false);
+			  scatter_projdata_ptr->get_related_viewgrams(view_seg_nums, symmetries_ptr);
 		  }
 
 		  if (do_randoms && !apply_or_undo_correction)
 		  {
 			viewgrams += 
-			  randoms_projdata_ptr->get_related_viewgrams(view_seg_nums,
-													  symmetries_ptr,false);
+			  randoms_projdata_ptr->get_related_viewgrams(view_seg_nums, symmetries_ptr);
 		  }
 
 		  if (do_arc_correction && apply_or_undo_correction)
@@ -349,9 +343,7 @@ run() const
 		// The trick relies on calling Array::operator+= instead of 
 		// RelatedViewgrams::operator=
 		RelatedViewgrams<float> 
-		  output_viewgrams = 
-		  output_projdata.get_empty_related_viewgrams(view_seg_nums,
-								symmetries_ptr,false);
+		  output_viewgrams = output_projdata.get_empty_related_viewgrams(view_seg_nums, symmetries_ptr);
 		  output_viewgrams += viewgrams;
 
 		  if (!(output_projdata.set_related_viewgrams(viewgrams) == Succeeded::yes))

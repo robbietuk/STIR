@@ -162,7 +162,7 @@ apply(ProjData& proj_data,
 #endif
 		  {
 			viewgrams =
-			  proj_data.get_related_viewgrams(vs, symmetries_sptr, false);
+			  proj_data.get_related_viewgrams(vs, symmetries_sptr);
 		  }
 
       this->apply(viewgrams);
@@ -205,7 +205,7 @@ undo(ProjData& proj_data,
 #endif
 		  {
 			viewgrams =
-                    proj_data.get_related_viewgrams(vs, symmetries_sptr, false);
+                    proj_data.get_related_viewgrams(vs, symmetries_sptr);
 		  }
 
       this->undo(viewgrams);
