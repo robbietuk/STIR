@@ -301,7 +301,7 @@ do_arc_correction(const RelatedViewgrams<float>& in) const
 {
   RelatedViewgrams<float> out =
     _arc_corr_proj_data_info_sptr->get_empty_related_viewgrams(in.get_basic_view_segment_num(),
-							       in.get_symmetries_sptr(), false);
+							       in.get_symmetries_sptr());
   do_arc_correction(out, in);
   return out;
 }

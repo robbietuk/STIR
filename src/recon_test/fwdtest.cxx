@@ -360,8 +360,7 @@ do_segments(const VoxelsOnCartesianGrid<float>& image,
 					<< " of timing position index " << timing_pos_num
 					<< endl;
 
-				RelatedViewgrams<float> viewgrams =
-					proj_data.get_empty_related_viewgrams(vs, symmetries_sptr, false);
+				RelatedViewgrams<float> viewgrams = proj_data.get_empty_related_viewgrams(vs, symmetries_sptr);
                 forw_projector.forward_project(viewgrams,
 					viewgrams.get_min_axial_pos_num(),
 					viewgrams.get_max_axial_pos_num(),

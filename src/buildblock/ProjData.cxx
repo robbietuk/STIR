@@ -267,14 +267,11 @@ ProjData::get_empty_segment_by_view(const int segment_num,
 }
 
 RelatedViewgrams<float> 
-ProjData::get_empty_related_viewgrams(const ViewSegmentTOFNumbers& view_segmnet_num,
-                   //const int view_num, const int segment_num,
-		   const shared_ptr<DataSymmetriesForViewSegmentNumbers>& symmetries_used,
-		   const bool make_num_tangential_poss_odd) const
+ProjData::get_empty_related_viewgrams(const ViewSegmentTOFNumbers& view_segment_num,
+                                      const shared_ptr<DataSymmetriesForViewSegmentNumbers>& symmetries_used,
+                                      const bool make_num_tangential_poss_odd) const
 {
-  return
-          proj_data_info_sptr->get_empty_related_viewgrams(view_segmnet_num, symmetries_used,
-                                                           make_num_tangential_poss_odd);
+  return proj_data_info_sptr->get_empty_related_viewgrams(view_segment_num, symmetries_used, make_num_tangential_poss_odd);
 }
 
 

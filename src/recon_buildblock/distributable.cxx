@@ -203,14 +203,14 @@ void get_viewgrams(shared_ptr<RelatedViewgrams<float> >& y,
   else
     {
       y.reset(new RelatedViewgrams<float>
-	      (proj_dat_ptr->get_empty_related_viewgrams(view_segment_num, symmetries_ptr, false)));
+	      (proj_dat_ptr->get_empty_related_viewgrams(view_segment_num, symmetries_ptr)));
     }
 
   // multiplicative correction
   if (!is_null_ptr(normalisation_sptr) && !normalisation_sptr->is_trivial())
     {
       mult_viewgrams_sptr.reset(
-				new RelatedViewgrams<float>(proj_dat_ptr->get_empty_related_viewgrams(view_segment_num, symmetries_ptr, false)));
+				new RelatedViewgrams<float>(proj_dat_ptr->get_empty_related_viewgrams(view_segment_num, symmetries_ptr)));
       mult_viewgrams_sptr->fill(1.F);
 #ifdef STIR_OPENMP
 #pragma omp critical(MULT)

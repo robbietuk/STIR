@@ -206,8 +206,7 @@ ForwardProjectorByBin::forward_project(ProjData& proj_data,
                   % vs.view_num() % vs.segment_num() % vs.tof_pos_num());
     	  else
             info(boost::format("Processing view %1% of segment %2%") % vs.view_num() % vs.segment_num());
-          RelatedViewgrams<float> viewgrams =
-            proj_data.get_empty_related_viewgrams(vs, symmetries_sptr, false);
+          RelatedViewgrams<float> viewgrams = proj_data.get_empty_related_viewgrams(vs, symmetries_sptr);
           forward_project(viewgrams);
 #ifdef STIR_OPENMP
 #pragma omp critical (FORWARDPROJ_SETVIEWGRAMS)
