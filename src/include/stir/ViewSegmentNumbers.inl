@@ -23,14 +23,15 @@
 
 START_NAMESPACE_STIR
 
-ViewSegmentTOFNumbers::ViewSegmentTOFNumbers()
-:segment(0),view(0)
-  {}
+ViewSegmentTOFNumbers::
+ViewSegmentTOFNumbers()
+:segment(0), view(0), tof(0)
+{}
 
-ViewSegmentTOFNumbers::ViewSegmentTOFNumbers( const int view_num,const int segment_num,
-                                        const int tof_num)
-    : segment(segment_num),view(view_num),tof(tof_num)
-  {}
+ViewSegmentTOFNumbers::
+ViewSegmentTOFNumbers(const int view_num, const int segment_num, const int tof_num)
+:segment(segment_num), view(view_num), tof(tof_num)
+{}
 
 int
 ViewSegmentTOFNumbers::segment_num() const

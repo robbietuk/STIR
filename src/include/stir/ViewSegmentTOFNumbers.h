@@ -48,9 +48,8 @@ public:
 
   //! an empty constructor (sets everything to 0)
   inline  ViewSegmentTOFNumbers();
-  //! constructor taking view and segment number as arguments
-  inline ViewSegmentTOFNumbers( const int view_num, const int segment_num,
-                             const int tof_num = 0);
+  //! constructor taking view, segment and tof number as arguments
+  inline ViewSegmentTOFNumbers( const int view_num, const int segment_num, const int tof_num=0);
 
   //! get segment number for const objects
   inline int segment_num() const;
