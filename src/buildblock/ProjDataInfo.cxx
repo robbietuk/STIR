@@ -438,10 +438,7 @@ ProjDataInfo::get_empty_related_viewgrams(const ViewSegmentTOFNumbers& view_segm
 		   const bool make_num_tangential_poss_odd) const
 {
   vector<ViewSegmentTOFNumbers> pairs;
-  symmetries_used->get_related_view_segment_numbers(
-                                                    pairs, 
-                                                    ViewSegmentTOFNumbers(view_segment_num.view_num(),view_segment_num.segment_num())
-    );
+  symmetries_used->get_related_view_segment_numbers(pairs, view_segment_num);
 
   vector<Viewgram<float> > viewgrams;
   viewgrams.reserve(pairs.size());
