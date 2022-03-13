@@ -173,15 +173,8 @@ void get_viewgrams(shared_ptr<RelatedViewgrams<float> >& y,
 #ifdef STIR_OPENMP
 #pragma omp critical(ADDSINO)
 #endif
-#if !defined(_MSC_VER) || _MSC_VER>1300
-      additive_binwise_correction_viewgrams.reset(
-        new RelatedViewgrams<float>
-        (binwise_correction->get_related_viewgrams(view_segment_num, symmetries_ptr, false)));
-#else
-      RelatedViewgrams<float> tmp(binwise_correction->
-                                  get_related_viewgrams(view_segment_num, symmetries_ptr, false, view_segment_num.tof_pos_num()));
-      additive_binwise_correction_viewgrams.reset(new RelatedViewgrams<float>(tmp));
-#endif
+    additive_binwise_correction_viewgrams.reset(
+          new RelatedViewgrams<float> (binwise_correction->get_related_viewgrams(view_segment_num, symmetries_ptr)));
     }
                         
   if (read_from_proj_dat)
@@ -189,15 +182,8 @@ void get_viewgrams(shared_ptr<RelatedViewgrams<float> >& y,
 #ifdef STIR_OPENMP
 #pragma omp critical(VIEW)
 #endif
-#if !defined(_MSC_VER) || _MSC_VER>1300
-      y.reset(new RelatedViewgrams<float>
-	      (proj_dat_ptr->get_related_viewgrams(view_segment_num, symmetries_ptr, false)));
-#else
-      // workaround VC++ 6.0 bug
-      RelatedViewgrams<float> tmp(proj_dat_ptr->
-                                  get_related_viewgrams(view_segment_num, symmetries_ptr, false, view_segment_num.tof_pos_num()));
-      y.reset(new RelatedViewgrams<float>(tmp));
-#endif        
+    y.reset(
+          new RelatedViewgrams<float> (proj_dat_ptr->get_related_viewgrams(view_segment_num, symmetries_ptr)));
     }
   else
     {
