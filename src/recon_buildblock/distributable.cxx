@@ -165,8 +165,7 @@ void get_viewgrams(shared_ptr<RelatedViewgrams<float> >& y,
                    const double start_time_of_frame,
                    const double end_time_of_frame,
                    const shared_ptr<DataSymmetriesForViewSegmentNumbers>& symmetries_ptr,
-                   const ViewSegmentTOFNumbers& view_segment_num,
-				   const int timing_pos_num
+                   const ViewSegmentTOFNumbers& view_segment_num
                    )
 {
   if (!is_null_ptr(binwise_correction))
@@ -448,7 +447,7 @@ void distributable_computation(
                       zero_seg0_end_planes,
                       binwise_correction,
                       normalisation_sptr, start_time_of_frame, end_time_of_frame,
-                      symmetries_ptr, view_segment_num, view_segment_num.tof_pos_num());
+                      symmetries_ptr, view_segment_num);
 #ifdef STIR_MPI     
 
           //send viewgrams, the slave will immediatelly start calculation
