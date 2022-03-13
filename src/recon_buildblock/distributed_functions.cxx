@@ -174,12 +174,13 @@ namespace distributed
 #endif
   }
 
-  void send_view_segment_numbers(const stir::ViewSegmentNumbers& vs_num, int tag, int destination)
+  void send_view_segment_numbers(const stir::ViewSegmentTOFNumbers& vs_num, int tag, int destination)
   {
-    int int_values[2];
+    int int_values[3];
     int_values[0]=vs_num.view_num();
     int_values[1]=vs_num.segment_num();    
-    distributed::send_int_values(int_values, 2, tag, destination);
+    int_values[2]=vs_num.tof_pos_num();
+    distributed::send_int_values(int_values, 3, tag, destination);
   }
 
   void send_image_parameters(const stir::DiscretisedDensity<3,float>* input_image_ptr, int tag, int destination)
@@ -532,12 +533,13 @@ namespace distributed
     return status;
   }
 
-  MPI_Status receive_view_segment_numbers(stir::ViewSegmentNumbers& vs_num, int tag)
+  MPI_Status receive_view_segment_numbers(stir::ViewSegmentTOFNumbers& vs_num, int tag)
   {
-    int int_values[2];
+    int int_values[3];
     const MPI_Status status = distributed::receive_int_values(int_values, 2, tag);
     vs_num.view_num() = int_values[0];
     vs_num.segment_num() = int_values[1];
+    vs_num.tof_pos_num() = int_values[2];
     return status;
   }
         
