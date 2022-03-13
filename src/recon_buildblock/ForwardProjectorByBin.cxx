@@ -264,7 +264,7 @@ forward_project(RelatedViewgrams<float>& viewgrams,
      iter != viewgrams.end();
      ++iter)
       {
-    ViewSegmentTOFNumbers vs(iter->get_view_num(), iter->get_segment_num());
+    ViewSegmentTOFNumbers vs(iter->get_view_num(), iter->get_segment_num(), iter->get_timing_pos_num());
     get_symmetries_used()->find_basic_view_segment_numbers(vs);
     if (vs != basic_vs)
       error("ForwardProjectByBin: forward_project called with incorrect related_viewgrams. Problem with symmetries!\n");
