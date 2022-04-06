@@ -1074,7 +1074,7 @@ actual_accumulate_sub_Hessian_times_input_without_penalty(TargetT& output,
     // Compute: final_viewgram * F(input) / ybar_sq_viewgram
     // final_viewgram starts as measured data
     RelatedViewgrams<float> final_viewgram = this->get_proj_data().get_related_viewgrams(vs_nums_to_process[i],
-                                                                                         symmetries_sptr, 0);
+                                                                                         symmetries_sptr);
     {
       // Mult input_viewgram
       final_viewgram *= input_viewgrams_vec[i];
