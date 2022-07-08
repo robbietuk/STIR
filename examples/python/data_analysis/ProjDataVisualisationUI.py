@@ -1,54 +1,20 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
+"""
+ProjDataVisualisationUI.py
+"""
 
-#############################################################################
-##
-## Copyright (C) 2013 Riverbank Computing Limited.
-## Copyright (C) 2010 Nokia Corporation and/or its subsidiary(-ies).
-## All rights reserved.
-##
-## This file is part of the examples of PyQt.
-##
-## $QT_BEGIN_LICENSE:BSD$
-## You may use this file under the terms of the BSD license as follows:
-##
-## "Redistribution and use in source and binary forms, with or without
-## modification, are permitted provided that the following conditions are
-## met:
-##   * Redistributions of source code must retain the above copyright
-##     notice, this list of conditions and the following disclaimer.
-##   * Redistributions in binary form must reproduce the above copyright
-##     notice, this list of conditions and the following disclaimer in
-##     the documentation and/or other materials provided with the
-##     distribution.
-##   * Neither the name of Nokia Corporation and its Subsidiary(-ies) nor
-##     the names of its contributors may be used to endorse or promote
-##     products derived from this software without specific prior written
-##     permission.
-##
-## THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-## "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-## LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-## A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-## OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-## SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-## LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-## DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-## THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-## (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-## OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE."
-## $QT_END_LICENSE$
-##
-#############################################################################
 import stir
 from PyQt5.QtCore import QDateTime, Qt, QTimer
 from PyQt5.QtWidgets import (QApplication, QCheckBox, QComboBox, QDateTimeEdit,
-        QDial, QDialog, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
-        QRadioButton, QPushButton, QScrollBar, QSizePolicy,
-        QSlider, QSpinBox, QStyleFactory, QTableWidget, QTabWidget, QTextEdit,
-        QVBoxLayout, QWidget)
+                             QDial, QDialog, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
+                             QRadioButton, QPushButton, QScrollBar, QSizePolicy,
+                             QSlider, QSpinBox, QStyleFactory, QTableWidget, QTabWidget, QTextEdit,
+                             QVBoxLayout, QWidget)
 
 from ProjDataVisualisationBackend import ProjDataVisualisationBackend
+
 
 class WidgetGallery(QDialog):
     def __init__(self, parent=None):
@@ -104,7 +70,6 @@ class WidgetGallery(QDialog):
         else:
             QApplication.setPalette(self.originalPalette)
 
-
     def createTopLeftGroupBox(self):
         self.topLeftGroupBox = QGroupBox("FileName")
 
@@ -149,24 +114,39 @@ class WidgetGallery(QDialog):
         layout.addStretch(1)
         self.topRightGroupBox.setLayout(layout)
 
-
     def createBottomLeftGroupBox(self):
         self.bottomLeftGroupBox = QGroupBox("Sinogram Positions")
 
         # lineEdit = QLineEdit('s3cRe7')
         # lineEdit.setEchoMode(QLineEdit.EchoMode.Password)
 
+        #### AXIAL POSITION ####
         max_axial_pos = self.stir_interface.proj_data.get_num_axial_poss(0) - 1
         axialPossSpinBoxLabel = QLabel(f"Axial position: {0, max_axial_pos}")
-        spinBoxAxialPoss = QSpinBox(self.bottomLeftGroupBox)
-        spinBoxAxialPoss.setRange(0, max_axial_pos)
-        spinBoxAxialPoss.setValue(max_axial_pos//2)
+        self.spinBoxAxialPoss = QSpinBox(self.bottomLeftGroupBox)
+        self.spinBoxAxialPoss.setRange(0, max_axial_pos)
+        self.spinBoxAxialPoss.setValue(max_axial_pos // 2)
+        self.spinBoxAxialPoss.valueChanged.connect(self.axialPossSpinBoxChanged)
 
-        max_axial_pos = self.stir_interface.proj_data.get_num_axial_poss(0) - 1
-        axialPossSpinBoxLabel = QLabel(f"Tangential position: {0, max_axial_pos}")
-        spinBoxAxialPoss = QSpinBox(self.bottomLeftGroupBox)
-        spinBoxAxialPoss.setRange(0, max_axial_pos)
-        spinBoxAxialPoss.setValue(max_axial_pos//2)
+        self.axial_poss_slider = QSlider(Qt.Orientation.Horizontal, self.bottomLeftGroupBox)
+        self.axial_poss_slider.setRange(0, max_axial_pos)
+        self.axial_poss_slider.setValue(self.spinBoxAxialPoss.value())
+        self.axial_poss_slider.setTickPosition(QSlider.TicksBelow)
+        self.axial_poss_slider.valueChanged.connect(self.axialPossSliderChanged)
+
+        #### TANGENTIAL POSITION ####
+        max_tangential_pos = self.stir_interface.proj_data.get_num_tangential_poss() - 1
+        self.tangentialPossSpinBoxLabel = QLabel(f"Tangential position: {0, max_tangential_pos}")
+        self.spinBoxTangentialPoss = QSpinBox(self.bottomLeftGroupBox)
+        self.spinBoxTangentialPoss.setRange(0, max_tangential_pos)
+        self.spinBoxTangentialPoss.setValue(max_tangential_pos // 2)
+        self.spinBoxTangentialPoss.valueChanged.connect(self.tangentialPossSpinBoxChanged)
+
+        self.tangential_poss_slider = QSlider(Qt.Orientation.Horizontal, self.bottomLeftGroupBox)
+        self.tangential_poss_slider.setRange(0, max_tangential_pos)
+        self.tangential_poss_slider.setValue(self.spinBoxTangentialPoss.value())
+        self.tangential_poss_slider.setTickPosition(QSlider.TicksBelow)
+        self.tangential_poss_slider.valueChanged.connect(self.tangentialPossSliderChanged)
 
         # dateTimeEdit = QDateTimeEdit(self.bottomLeftGroupBox)
         # dateTimeEdit.setDateTime(QDateTime.currentDateTime())
@@ -174,33 +154,38 @@ class WidgetGallery(QDialog):
         defaultPushButton = QPushButton("Show Sinogram")
         defaultPushButton.setDefault(True)
 
-        slider = QSlider(Qt.Orientation.Horizontal, self.bottomLeftGroupBox)
-        slider.setValue(40)
-
-        scrollBar = QScrollBar(Qt.Orientation.Horizontal, self.bottomLeftGroupBox)
-        scrollBar.setValue(60)
-
-        dial = QDial(self.bottomLeftGroupBox)
-        dial.setValue(30)
-        dial.setNotchesVisible(True)
-
+        ##### LAYOUT ####
         layout = QGridLayout()
         # layout.addWidget(lineEdit, 0, 0, 1, 2)
 
-        layout.addWidget(axialPossSpinBoxLabel)
-        layout.addWidget(spinBoxAxialPoss, 1, 0, 1, 1)
+        layout.addWidget(axialPossSpinBoxLabel, 0, 0, 1, 1)
+        layout.addWidget(self.axial_poss_slider, 1, 0, 1, 1)
+        layout.addWidget(self.spinBoxAxialPoss, 1, 1, 1, 1)
+
+        #
+        layout.addWidget(self.tangentialPossSpinBoxLabel, 2, 0, 1, 1)
+        layout.addWidget(self.tangential_poss_slider, 3, 0, 1, 1)
+        layout.addWidget(self.spinBoxTangentialPoss, 3, 1, 1, 1)
 
         layout.addWidget(defaultPushButton)
-        # layout.addWidget(dateTimeEdit, 2, 0, 1, 2)
-        layout.addWidget(slider, 3, 0)
-        layout.addWidget(scrollBar, 4, 0)
-        layout.addWidget(dial, 3, 1, 2, 1)
+
         layout.setRowStretch(5, 1)
         self.bottomLeftGroupBox.setLayout(layout)
 
+    def axialPossSliderChanged(self):
+        self.spinBoxAxialPoss.setValue(self.axial_poss_slider.value())
+
+    def axialPossSpinBoxChanged(self):
+        self.axial_poss_slider.setValue(self.spinBoxAxialPoss.value())
+
+    def tangentialPossSliderChanged(self):
+        self.spinBoxTangentialPoss.setValue(self.tangential_poss_slider.value())
+
+    def tangentialPossSpinBoxChanged(self):
+        self.tangential_poss_slider.setValue(self.spinBoxTangentialPoss.value())
+
 
 if __name__ == '__main__':
-
     import sys
 
     app = QApplication(sys.argv)
