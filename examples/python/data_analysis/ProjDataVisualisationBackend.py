@@ -104,3 +104,9 @@ class ProjDataVisualisationBackend:
             self.segment_number = segment_number
             self.segment_data = self.proj_data_stream.get_segment_by_view(segment_number)
         return self.segment_data
+
+    def as_numpy(self, data):
+        """
+        Converts a STIR data object to a numpy array.
+        """
+        return stirextra.to_numpy(data)

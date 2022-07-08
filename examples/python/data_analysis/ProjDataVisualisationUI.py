@@ -5,6 +5,7 @@
 ProjDataVisualisationUI.py
 """
 
+import numpy as np
 import stir
 from PyQt5.QtCore import QDateTime, Qt, QTimer
 from PyQt5.QtWidgets import (QApplication, QCheckBox, QComboBox, QDateTimeEdit,
@@ -12,8 +13,26 @@ from PyQt5.QtWidgets import (QApplication, QCheckBox, QComboBox, QDateTimeEdit,
                              QRadioButton, QPushButton, QScrollBar, QSizePolicy,
                              QSlider, QSpinBox, QStyleFactory, QTableWidget, QTabWidget, QTextEdit,
                              QVBoxLayout, QWidget)
+from PyQt5.QtGui import QPixmap, QImage
 
 from ProjDataVisualisationBackend import ProjDataVisualisationBackend
+
+
+def float32_to_uint8(image):
+    """
+    This function converts a float32 image to an uint8 image.
+    """
+    image = image.astype(np.float32)
+    if image.max() == image.min():
+        # Avoid division by zero
+        image = image.fill(1)
+    else:
+        # Normalize the image between int(0) and int(255)
+        image = (image - image.min()) / (image.max() - image.min())
+        image = image * 255
+
+    image = image.astype(np.uint8)
+    return image
 
 
 class WidgetGallery(QDialog):
@@ -59,6 +78,8 @@ class WidgetGallery(QDialog):
 
         self.changeStyle('Fusion')
 
+        self.updateDisplayImageLabel()
+
     def configure_backend(self):
         ### Backend ###
         self.stir_interface = ProjDataVisualisationBackend(sys.argv)
@@ -101,6 +122,9 @@ class WidgetGallery(QDialog):
     def createTopRightGroupBox(self):
         self.topRightGroupBox = QGroupBox("Group 2")
 
+        self.displayImageLabel = QLabel(f"Image goes here...")
+        self.displayImageLabel.resize(640, 400)
+
         defaultPushButton = QPushButton("Default Push Button")
         defaultPushButton.setDefault(True)
 
@@ -112,6 +136,7 @@ class WidgetGallery(QDialog):
         flatPushButton.setFlat(True)
 
         layout = QVBoxLayout()
+        layout.addWidget(self.displayImageLabel)
         layout.addWidget(defaultPushButton)
         layout.addWidget(togglePushButton)
         layout.addWidget(flatPushButton)
@@ -127,13 +152,13 @@ class WidgetGallery(QDialog):
         self.axialPossSpinBox = QSpinBox(self.bottomLeftGroupBox)
         self.axialPossSpinBox.setRange(0, max_axial_pos)
         self.axialPossSpinBox.setValue(max_axial_pos // 2)
-        self.axialPossSpinBox.valueChanged.connect(self.axialPossSpinBoxChanged)
+        self.axialPossSpinBox.valueChanged.connect(self.axialPossSpinBoxValueChanged)
 
         self.axialPossSlider = QSlider(Qt.Orientation.Horizontal, self.bottomLeftGroupBox)
         self.axialPossSlider.setRange(0, max_axial_pos)
         self.axialPossSlider.setValue(self.axialPossSpinBox.value())
         self.axialPossSlider.setTickPosition(QSlider.TicksBelow)
-        self.axialPossSlider.valueChanged.connect(self.axialPossSliderChanged)
+        self.axialPossSlider.valueChanged.connect(self.axialPossSliderValueChanged)
 
         if max_axial_pos == 0:
             self.axialPossSpinBox.setEnabled(False)
@@ -161,21 +186,21 @@ class WidgetGallery(QDialog):
         self.segmentNumberSpinBox = QSpinBox(self.bottomLeftGroupBox)
         self.segmentNumberSpinBox.setRange(min_segment_number, max_segment_number)
         self.segmentNumberSpinBox.setValue(0)
-        self.segmentNumberSpinBox.valueChanged.connect(self.segmentNumberSpinBoxChanged)
+        self.segmentNumberSpinBox.valueChanged.connect(self.segmentNumberSpinBoxValueChanged)
 
         self.segmentNumberSlider = QSlider(Qt.Orientation.Horizontal, self.bottomLeftGroupBox)
         self.segmentNumberSlider.setRange(min_segment_number, max_segment_number)
         self.segmentNumberSlider.setValue(self.segmentNumberSpinBox.value())
         self.segmentNumberSlider.setTickPosition(QSlider.TicksBelow)
-        self.segmentNumberSlider.valueChanged.connect(self.segmentNumberSliderChanged)
+        self.segmentNumberSlider.valueChanged.connect(self.segmentNumberSliderValueChanged)
 
         if max_segment_number == 0 and min_segment_number == 0:
             self.segmentNumberSpinBox.setEnabled(False)
             self.segmentNumberSlider.setEnabled(False)
             self.segmentNumberLabel.setEnabled(False)
 
-        self.showSinogramPushButton = QPushButton("Show Sinogram")
-        self.showSinogramPushButton.setDefault(True)
+        # self.showSinogramPushButton = QPushButton("Show Sinogram")
+        # self.showSinogramPushButton.setDefault(True)
 
         ##### LAYOUT ####
         layout = QGridLayout()
@@ -194,37 +219,63 @@ class WidgetGallery(QDialog):
         # layout.addWidget(self.tangentialPossSlider, 3, 0, 1, 1)
         # layout.addWidget(self.tangentialPossSpinBox, 3, 1, 1, 1)
 
-        layout.addWidget(self.showSinogramPushButton, 4, 0, 1, 2)
+        # layout.addWidget(self.showSinogramPushButton, 4, 0, 1, 2)
 
         layout.setRowStretch(5, 1)
         self.bottomLeftGroupBox.setLayout(layout)
 
-
-    def segmentNumberSliderChanged(self):
+    def segmentNumberSliderValueChanged(self):
+        """
+        This function is called when the user changes the segment number slider value.
+        """
         self.segmentNumberSpinBox.setValue(self.segmentNumberSlider.value())
         self.stir_interface.refresh_segment_data(self.segmentNumberSlider.value())
-        self.correctAxialPossUI()
+        self.updateAxialPossSpinBoxAndSliderUI()
+        self.updateDisplayImageLabel()
 
-    def segmentNumberSpinBoxChanged(self):
+    def segmentNumberSpinBoxValueChanged(self):
+        """
+        This function is called when the user changes the segment number spinbox value.
+        """
         self.segmentNumberSlider.setValue(self.segmentNumberSpinBox.value())
         self.stir_interface.refresh_segment_data(self.segmentNumberSpinBox.value())
-        self.correctAxialPossUI()
+        self.updateAxialPossSpinBoxAndSliderUI()
+        self.updateDisplayImageLabel()
 
-    def axialPossSliderChanged(self):
+    def axialPossSliderValueChanged(self):
+        """
+        This function is called when the user changes the axial position slider value.
+        """
         self.axialPossSpinBox.setValue(self.axialPossSlider.value())
+        self.updateDisplayImageLabel()
 
-    def axialPossSpinBoxChanged(self):
+    def axialPossSpinBoxValueChanged(self):
+        """
+        This function is called when the user changes the axial position spinbox value.
+        """
         self.axialPossSlider.setValue(self.axialPossSpinBox.value())
+        self.updateDisplayImageLabel()
 
-    def tangentialPossSliderChanged(self):
+    def tangentialPossSliderValueChanged(self):
+        """
+        This function is called when the user changes the tangential position slider value.
+        """
         self.tangentialPossSpinBox.setValue(self.tangentialPossSlider.value())
+        self.updateDisplayImageLabel()
 
-    def tangentialPossSpinBoxChanged(self):
+    def tangentialPossSpinBoxValueChanged(self):
+        """
+        This function is called when the user changes the tangential position spinbox value.
+        """
         self.tangentialPossSlider.setValue(self.tangentialPossSpinBox.value())
+        self.updateDisplayImageLabel()
 
-
-    def correctAxialPossUI(self):
-
+    def updateAxialPossSpinBoxAndSliderUI(self):
+        """
+        This function is called when the segment number is changed to automatically update the axial position slider
+        and spinbox.
+        Also, it updates the axial position value for both the slider and spinbox to keep within range.
+        """
         min_axial_pos = self.stir_interface.segment_data.get_min_axial_pos_num()
         max_axial_pos = self.stir_interface.segment_data.get_max_axial_pos_num()
         new_axial_value = min(max_axial_pos, max(self.axialPossSlider.value(), min_axial_pos))
@@ -233,6 +284,32 @@ class WidgetGallery(QDialog):
         self.axialPossSpinBox.setRange(min_axial_pos, max_axial_pos)
         self.axialPossSlider.setValue(new_axial_value)
         self.axialPossSpinBox.setValue(new_axial_value)
+
+    def updateDisplayImageLabel(self):
+        if True:
+            image = self.getSinogramImage()
+
+        image = float32_to_uint8(image)
+        # image.reshape(image.shape + (1,))≥
+        colour_map = QImage.Format_Grayscale8
+
+        qImg = QPixmap(
+            QImage(image,
+                   image.shape[1], image.shape[0],
+                   colour_map)
+        )
+
+        multiplicative_size_factor = 4
+        qImg = qImg.scaled(multiplicative_size_factor * qImg.size().width(),
+                           multiplicative_size_factor * qImg.size().height()
+                           )
+
+        self.displayImageLabel.setPixmap(qImg)
+
+    def getSinogramImage(self):
+        return self.stir_interface.as_numpy(
+            self.stir_interface.segment_data.get_sinogram(self.axialPossSpinBox.value())
+        )
 
 
 if __name__ == '__main__':
