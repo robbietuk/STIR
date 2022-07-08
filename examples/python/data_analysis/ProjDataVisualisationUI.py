@@ -22,8 +22,7 @@ class WidgetGallery(QDialog):
 
         self.originalPalette = QApplication.palette()
 
-        ### Backend ###
-        self.stir_interface = ProjDataVisualisationBackend(sys.argv)
+        self.configure_backend()
 
         styleComboBox = QComboBox()
         styleComboBox.addItems(QStyleFactory.keys())
@@ -59,6 +58,11 @@ class WidgetGallery(QDialog):
         self.setLayout(mainLayout)
 
         self.changeStyle('Fusion')
+
+    def configure_backend(self):
+        ### Backend ###
+        self.stir_interface = ProjDataVisualisationBackend(sys.argv)
+        self.stir_interface.refresh_segment_data(0)
 
     def changeStyle(self, styleName):
         QApplication.setStyle(QStyleFactory.create(styleName))
@@ -118,8 +122,8 @@ class WidgetGallery(QDialog):
         self.bottomLeftGroupBox = QGroupBox("Sinogram Positions")
 
         #### AXIAL POSITION ####
-        max_axial_pos = self.stir_interface.proj_data.get_num_axial_poss(0) - 1
-        self.axialPossSpinBoxLabel = QLabel(f"Axial position: {0, max_axial_pos}")
+        max_axial_pos = self.stir_interface.proj_data_stream.get_num_axial_poss(0) - 1
+        self.axialPossLabel = QLabel(f"Axial position: {0, max_axial_pos}")
         self.axialPossSpinBox = QSpinBox(self.bottomLeftGroupBox)
         self.axialPossSpinBox.setRange(0, max_axial_pos)
         self.axialPossSpinBox.setValue(max_axial_pos // 2)
@@ -133,7 +137,7 @@ class WidgetGallery(QDialog):
 
         if max_axial_pos == 0:
             self.axialPossSpinBox.setEnabled(False)
-            self.axialPossSpinBoxLabel.setEnabled(False)
+            self.axialPossLabel.setEnabled(False)
             self.axialPossSlider.setEnabled(False)
 
         # #### TANGENTIAL POSITION ####
@@ -151,8 +155,8 @@ class WidgetGallery(QDialog):
         # self.tangentialPossSlider.valueChanged.connect(self.tangentialPossSliderChanged)
 
         #### SEGMENT NUMBER ####
-        max_segment_number = self.stir_interface.proj_data.get_max_segment_num()  # TODO needs rework because this is actually variable
-        min_segment_number = self.stir_interface.proj_data.get_min_segment_num()
+        max_segment_number = self.stir_interface.proj_data_stream.get_max_segment_num()  # TODO needs rework because this is actually variable
+        min_segment_number = self.stir_interface.proj_data_stream.get_min_segment_num()
         self.segmentNumberLabel = QLabel(f"Segment Number: {min_segment_number, max_segment_number}")
         self.segmentNumberSpinBox = QSpinBox(self.bottomLeftGroupBox)
         self.segmentNumberSpinBox.setRange(min_segment_number, max_segment_number)
@@ -177,23 +181,34 @@ class WidgetGallery(QDialog):
         layout = QGridLayout()
         # layout.addWidget(lineEdit, 0, 0, 1, 2)
 
-        layout.addWidget(self.axialPossSpinBoxLabel, 0, 0, 1, 1)
-        layout.addWidget(self.axialPossSlider, 1, 0, 1, 1)
-        layout.addWidget(self.axialPossSpinBox, 1, 1, 1, 1)
+        layout.addWidget(self.segmentNumberLabel, 0, 0, 1, 1)
+        layout.addWidget(self.segmentNumberSlider, 1, 0, 1, 1)
+        layout.addWidget(self.segmentNumberSpinBox, 1, 1, 1, 1)
+
+        layout.addWidget(self.axialPossLabel, 2, 0, 1, 1)
+        layout.addWidget(self.axialPossSlider, 3, 0, 1, 1)
+        layout.addWidget(self.axialPossSpinBox, 3, 1, 1, 1)
 
         #
         # layout.addWidget(self.tangentialPossSpinBoxLabel, 2, 0, 1, 1)
         # layout.addWidget(self.tangentialPossSlider, 3, 0, 1, 1)
         # layout.addWidget(self.tangentialPossSpinBox, 3, 1, 1, 1)
 
-        layout.addWidget(self.segmentNumberLabel, 2, 0, 1, 1)
-        layout.addWidget(self.segmentNumberSlider, 3, 0, 1, 1)
-        layout.addWidget(self.segmentNumberSpinBox, 3, 1, 1, 1)
-
         layout.addWidget(self.showSinogramPushButton, 4, 0, 1, 2)
 
         layout.setRowStretch(5, 1)
         self.bottomLeftGroupBox.setLayout(layout)
+
+
+    def segmentNumberSliderChanged(self):
+        self.segmentNumberSpinBox.setValue(self.segmentNumberSlider.value())
+        self.stir_interface.refresh_segment_data(self.segmentNumberSlider.value())
+        self.correctAxialPossUI()
+
+    def segmentNumberSpinBoxChanged(self):
+        self.segmentNumberSlider.setValue(self.segmentNumberSpinBox.value())
+        self.stir_interface.refresh_segment_data(self.segmentNumberSpinBox.value())
+        self.correctAxialPossUI()
 
     def axialPossSliderChanged(self):
         self.axialPossSpinBox.setValue(self.axialPossSlider.value())
@@ -201,17 +216,23 @@ class WidgetGallery(QDialog):
     def axialPossSpinBoxChanged(self):
         self.axialPossSlider.setValue(self.axialPossSpinBox.value())
 
-    def segmentNumberSliderChanged(self):
-        self.segmentNumberSpinBox.setValue(self.segmentNumberSlider.value())
-
-    def segmentNumberSpinBoxChanged(self):
-        self.segmentNumberSlider.setValue(self.segmentNumberSpinBox.value())
-
     def tangentialPossSliderChanged(self):
         self.tangentialPossSpinBox.setValue(self.tangentialPossSlider.value())
 
     def tangentialPossSpinBoxChanged(self):
         self.tangentialPossSlider.setValue(self.tangentialPossSpinBox.value())
+
+
+    def correctAxialPossUI(self):
+
+        min_axial_pos = self.stir_interface.segment_data.get_min_axial_pos_num()
+        max_axial_pos = self.stir_interface.segment_data.get_max_axial_pos_num()
+        new_axial_value = min(max_axial_pos, max(self.axialPossSlider.value(), min_axial_pos))
+
+        self.axialPossSlider.setRange(min_axial_pos, max_axial_pos)
+        self.axialPossSpinBox.setRange(min_axial_pos, max_axial_pos)
+        self.axialPossSlider.setValue(new_axial_value)
+        self.axialPossSpinBox.setValue(new_axial_value)
 
 
 if __name__ == '__main__':
