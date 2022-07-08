@@ -40,8 +40,7 @@
 ## $QT_END_LICENSE$
 ##
 #############################################################################
-
-
+import stir
 from PyQt5.QtCore import QDateTime, Qt, QTimer
 from PyQt5.QtWidgets import (QApplication, QCheckBox, QComboBox, QDateTimeEdit,
         QDial, QDialog, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
@@ -49,12 +48,16 @@ from PyQt5.QtWidgets import (QApplication, QCheckBox, QComboBox, QDateTimeEdit,
         QSlider, QSpinBox, QStyleFactory, QTableWidget, QTabWidget, QTextEdit,
         QVBoxLayout, QWidget)
 
+from ProjDataVisualisationBackend import ProjDataVisualisationBackend
 
 class WidgetGallery(QDialog):
     def __init__(self, parent=None):
         super(WidgetGallery, self).__init__(parent)
 
         self.originalPalette = QApplication.palette()
+
+        ### Backend ###
+        self.stir_interface = ProjDataVisualisationBackend(sys.argv)
 
         styleComboBox = QComboBox()
         styleComboBox.addItems(QStyleFactory.keys())
@@ -82,14 +85,13 @@ class WidgetGallery(QDialog):
         mainLayout.addWidget(self.topLeftGroupBox, 1, 0)
         mainLayout.addWidget(self.topRightGroupBox, 1, 1)
         # mainLayout.addWidget(self.bottomLeftTabWidget, 2, 0)
-        mainLayout.addWidget(self.bottomLeftGroupBox, 2, 1)
+        mainLayout.addWidget(self.bottomLeftGroupBox, 2, 0)
         mainLayout.setRowStretch(1, 1)
         mainLayout.setRowStretch(2, 1)
         mainLayout.setColumnStretch(0, 1)
         mainLayout.setColumnStretch(1, 1)
         self.setLayout(mainLayout)
 
-        # self.setWindowTitle("Styles")
         self.changeStyle('Fusion')
 
     def changeStyle(self, styleName):
@@ -104,21 +106,26 @@ class WidgetGallery(QDialog):
 
 
     def createTopLeftGroupBox(self):
-        self.topLeftGroupBox = QGroupBox("Group 1")
+        self.topLeftGroupBox = QGroupBox("FileName")
 
-        defaultPushButton = QPushButton("Show Sinogram")
-        defaultPushButton.setDefault(True)
+        # Creation group box entries
+        filenameLabel = QLabel(f"Filename:\n{self.stir_interface.proj_data_filename}")
 
-        radioButton1 = QRadioButton("Radio button 1")
-        radioButton2 = QRadioButton("Radio button 2")
-        radioButton3 = QRadioButton("Radio button 3")
-        radioButton1.setChecked(True)
+        gramTypeLabel = QLabel(f"Type of 2D data:")
+        radioButtonSinogram = QRadioButton("Sinogram")
+        radioButtonViewgram = QRadioButton("Viewgram")
+        # radioButton3 = QRadioButton("Radio button 3")
+        radioButtonSinogram.setChecked(True)
 
+        # Configure Layout
         layout = QVBoxLayout()
-        layout.addWidget(defaultPushButton)
-        layout.addWidget(radioButton1)
-        layout.addWidget(radioButton2)
-        layout.addWidget(radioButton3)
+        layout.addWidget(filenameLabel)
+
+        layout.addWidget(gramTypeLabel)
+        layout.addWidget(radioButtonSinogram)
+        layout.addWidget(radioButtonViewgram)
+        # layout.addWidget(radioButton3)
+
         layout.addStretch(1)
         self.topLeftGroupBox.setLayout(layout)
 
@@ -145,17 +152,27 @@ class WidgetGallery(QDialog):
 
     def createBottomLeftGroupBox(self):
         self.bottomLeftGroupBox = QGroupBox("Sinogram Positions")
-        # self.bottomLeftGroupBox.setCheckable(True)
-        # self.bottomLeftGroupBox.setChecked(True)
 
-        lineEdit = QLineEdit('s3cRe7')
-        lineEdit.setEchoMode(QLineEdit.EchoMode.Password)
+        # lineEdit = QLineEdit('s3cRe7')
+        # lineEdit.setEchoMode(QLineEdit.EchoMode.Password)
 
-        spinBox = QSpinBox(self.bottomLeftGroupBox)
-        spinBox.setValue(50)
+        max_axial_pos = self.stir_interface.proj_data.get_num_axial_poss(0) - 1
+        axialPossSpinBoxLabel = QLabel(f"Axial position: {0, max_axial_pos}")
+        spinBoxAxialPoss = QSpinBox(self.bottomLeftGroupBox)
+        spinBoxAxialPoss.setRange(0, max_axial_pos)
+        spinBoxAxialPoss.setValue(max_axial_pos//2)
 
-        dateTimeEdit = QDateTimeEdit(self.bottomLeftGroupBox)
-        dateTimeEdit.setDateTime(QDateTime.currentDateTime())
+        max_axial_pos = self.stir_interface.proj_data.get_num_axial_poss(0) - 1
+        axialPossSpinBoxLabel = QLabel(f"Tangential position: {0, max_axial_pos}")
+        spinBoxAxialPoss = QSpinBox(self.bottomLeftGroupBox)
+        spinBoxAxialPoss.setRange(0, max_axial_pos)
+        spinBoxAxialPoss.setValue(max_axial_pos//2)
+
+        # dateTimeEdit = QDateTimeEdit(self.bottomLeftGroupBox)
+        # dateTimeEdit.setDateTime(QDateTime.currentDateTime())
+
+        defaultPushButton = QPushButton("Show Sinogram")
+        defaultPushButton.setDefault(True)
 
         slider = QSlider(Qt.Orientation.Horizontal, self.bottomLeftGroupBox)
         slider.setValue(40)
@@ -168,9 +185,13 @@ class WidgetGallery(QDialog):
         dial.setNotchesVisible(True)
 
         layout = QGridLayout()
-        layout.addWidget(lineEdit, 0, 0, 1, 2)
-        layout.addWidget(spinBox, 1, 0, 1, 2)
-        layout.addWidget(dateTimeEdit, 2, 0, 1, 2)
+        # layout.addWidget(lineEdit, 0, 0, 1, 2)
+
+        layout.addWidget(axialPossSpinBoxLabel)
+        layout.addWidget(spinBoxAxialPoss, 1, 0, 1, 1)
+
+        layout.addWidget(defaultPushButton)
+        # layout.addWidget(dateTimeEdit, 2, 0, 1, 2)
         layout.addWidget(slider, 3, 0)
         layout.addWidget(scrollBar, 4, 0)
         layout.addWidget(dial, 3, 1, 2, 1)
