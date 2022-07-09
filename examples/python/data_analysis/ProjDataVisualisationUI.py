@@ -95,6 +95,8 @@ class WidgetGallery(QDialog):
         else:
             QApplication.setPalette(self.originalPalette)
 
+    ##### GROUPBOX CREATION #####
+
     def create_top_left_groupbox(self):
         self.topLeftGroupBox = QGroupBox("FileName")
 
@@ -150,7 +152,7 @@ class WidgetGallery(QDialog):
 
         # Some default configurations
         initial_segment_number = 0  # Zero ring difference, start here
-        initial_view_number = 0     # the first view, makes sense to start with this
+        initial_view_number = 0  # the first view, makes sense to start with this
 
         #### AXIAL POSITION ####
         max_axial_pos = self.stir_interface.proj_data_stream.get_max_axial_pos_num(initial_segment_number)
@@ -330,12 +332,11 @@ class WidgetGallery(QDialog):
         """
 
         # Segment slider and scroll box handling
-        if self.stir_interface.proj_data_stream.get_max_segment_num() == 0 and\
+        if self.stir_interface.proj_data_stream.get_max_segment_num() == 0 and \
                 self.stir_interface.proj_data_stream.get_min_segment_num() == 0:
             self.segment_number_spinbox.setEnabled(False)
             self.segment_number_slider.setEnabled(False)
             self.segment_number_label.setEnabled(False)
-
 
         # Check if sinogram or viewgram is selected and disable the appropriate sliders and spinboxs
         if self.sinogram_radio_button.isChecked():
@@ -359,7 +360,7 @@ class WidgetGallery(QDialog):
             self.tangential_pos_label.setEnabled(False)
             self.tangential_pos_slider.setEnabled(False)
             self.tangential_pos_spinbox.setEnabled(False)
-        
+
         self.update_axial_pos_spin_box_and_slider_range()
         self.update_display_image()
 
