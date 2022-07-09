@@ -18,21 +18,21 @@ from PyQt5.QtGui import QPixmap, QImage
 from ProjDataVisualisationBackend import ProjDataVisualisationBackend
 
 
-def float32_to_uint8(image):
+def float32_to_uint8(array: np.ndarray) -> np.ndarray:
     """
-    This function converts a float32 image to an uint8 image.
+    This function converts a float32 array to an uint8 array.
     """
-    image = image.astype(np.float32)
-    if image.max() == image.min():
+    array = array.astype(np.float32)
+    if array.max() == array.min():
         # Avoid division by zero
-        image = image.fill(1)
+        array = array.fill(1)
     else:
         # Normalize the image between int(0) and int(255)
-        image = (image - image.min()) / (image.max() - image.min())
-        image = image * 255
+        array = (array - array.min()) / (array.max() - array.min())
+        array = array * 255
 
-    image = image.astype(np.uint8)
-    return image
+    array = array.astype(np.uint8)
+    return array
 
 
 class WidgetGallery(QDialog):
@@ -54,12 +54,12 @@ class WidgetGallery(QDialog):
 
         # disableWidgetsCheckBox = QCheckBox("&Disable widgets")
 
-        self.createTopLeftGroupBox()
-        self.createTopRightGroupBox()
-        self.createBottomLeftGroupBox()
+        self.create_top_left_groupbox()
+        self.create_top_right_groupbox()
+        self.create_bottom_left_groupbox()
 
-        styleComboBox.textActivated.connect(self.changeStyle)
-        self.useStylePaletteCheckBox.toggled.connect(self.changePalette)
+        styleComboBox.textActivated.connect(self.change_UI_style)
+        self.useStylePaletteCheckBox.toggled.connect(self.change_UI_palette)
 
         topLayout = QHBoxLayout()
         topLayout.addStretch(1)
@@ -76,50 +76,52 @@ class WidgetGallery(QDialog):
         mainLayout.setColumnStretch(1, 1)
         self.setLayout(mainLayout)
 
-        self.changeStyle('Fusion')
+        self.change_UI_style('Fusion')
 
-        self.updateDisplayImageLabel()
+        self.update_UI_configuration()
 
     def configure_backend(self):
         ### Backend ###
         self.stir_interface = ProjDataVisualisationBackend(sys.argv)
         self.stir_interface.refresh_segment_data(0)
 
-    def changeStyle(self, styleName):
+    def change_UI_style(self, styleName):
         QApplication.setStyle(QStyleFactory.create(styleName))
-        self.changePalette()
+        self.change_UI_palette()
 
-    def changePalette(self):
+    def change_UI_palette(self):
         if (self.useStylePaletteCheckBox.isChecked()):
             QApplication.setPalette(QApplication.style().standardPalette())
         else:
             QApplication.setPalette(self.originalPalette)
 
-    def createTopLeftGroupBox(self):
+    def create_top_left_groupbox(self):
         self.topLeftGroupBox = QGroupBox("FileName")
 
         # Creation group box entries
         filenameLabel = QLabel(f"Filename:\n{self.stir_interface.proj_data_filename}")
 
         gramTypeLabel = QLabel(f"Type of 2D data:")
-        radioButtonSinogram = QRadioButton("Sinogram")
-        radioButtonViewgram = QRadioButton("Viewgram")
-        # radioButton3 = QRadioButton("Radio button 3")
-        radioButtonSinogram.setChecked(True)
+        self.sinogram_radio_button = QRadioButton("Sinogram")
+        self.viewgram_radio_button = QRadioButton("Viewgram")
+
+        self.sinogram_radio_button.setChecked(True)
+        self.sinogram_radio_button.toggled.connect(self.update_UI_configuration)
+        self.viewgram_radio_button.toggled.connect(self.update_UI_configuration)
 
         # Configure Layout
         layout = QVBoxLayout()
         layout.addWidget(filenameLabel)
 
         layout.addWidget(gramTypeLabel)
-        layout.addWidget(radioButtonSinogram)
-        layout.addWidget(radioButtonViewgram)
+        layout.addWidget(self.sinogram_radio_button)
+        layout.addWidget(self.viewgram_radio_button)
         # layout.addWidget(radioButton3)
 
         layout.addStretch(1)
         self.topLeftGroupBox.setLayout(layout)
 
-    def createTopRightGroupBox(self):
+    def create_top_right_groupbox(self):
         self.topRightGroupBox = QGroupBox("Group 2")
 
         self.displayImageLabel = QLabel(f"Image goes here...")
@@ -143,61 +145,77 @@ class WidgetGallery(QDialog):
         layout.addStretch(1)
         self.topRightGroupBox.setLayout(layout)
 
-    def createBottomLeftGroupBox(self):
+    def create_bottom_left_groupbox(self):
         self.bottomLeftGroupBox = QGroupBox("Sinogram Positions")
 
-        #### AXIAL POSITION ####
-        max_axial_pos = self.stir_interface.proj_data_stream.get_num_axial_poss(0) - 1
-        self.axialPossLabel = QLabel(f"Axial position: {0, max_axial_pos}")
-        self.axialPossSpinBox = QSpinBox(self.bottomLeftGroupBox)
-        self.axialPossSpinBox.setRange(0, max_axial_pos)
-        self.axialPossSpinBox.setValue(max_axial_pos // 2)
-        self.axialPossSpinBox.valueChanged.connect(self.axialPossSpinBoxValueChanged)
+        # Some default configurations
+        initial_segment_number = 0  # Zero ring difference, start here
+        initial_view_number = 0     # the first view, makes sense to start with this
 
-        self.axialPossSlider = QSlider(Qt.Orientation.Horizontal, self.bottomLeftGroupBox)
-        self.axialPossSlider.setRange(0, max_axial_pos)
-        self.axialPossSlider.setValue(self.axialPossSpinBox.value())
-        self.axialPossSlider.setTickPosition(QSlider.TicksBelow)
-        self.axialPossSlider.valueChanged.connect(self.axialPossSliderValueChanged)
+        #### AXIAL POSITION ####
+        max_axial_pos = self.stir_interface.proj_data_stream.get_max_axial_pos_num(initial_segment_number)
+        min_axial_pos = self.stir_interface.proj_data_stream.get_min_axial_pos_num(initial_segment_number)
+        self.axial_pos_label = QLabel(f"Axial position: {min_axial_pos, max_axial_pos}")
+        self.axial_pos_spinbox = QSpinBox(self.bottomLeftGroupBox)
+        self.axial_pos_spinbox.setRange(min_axial_pos, max_axial_pos)
+        self.axial_pos_spinbox.setValue((max_axial_pos - min_axial_pos) // 2)
+        self.axial_pos_spinbox.valueChanged.connect(self.axial_pos_spin_box_value_changed)
+
+        self.axial_pos_slider = QSlider(Qt.Orientation.Horizontal, self.bottomLeftGroupBox)
+        self.axial_pos_slider.setRange(0, max_axial_pos)
+        self.axial_pos_slider.setValue(self.axial_pos_spinbox.value())
+        self.axial_pos_slider.setTickPosition(QSlider.TicksBelow)
+        self.axial_pos_slider.valueChanged.connect(self.axial_pos_slider_value_changed)
 
         if max_axial_pos == 0:
-            self.axialPossSpinBox.setEnabled(False)
-            self.axialPossLabel.setEnabled(False)
-            self.axialPossSlider.setEnabled(False)
+            self.axial_pos_spinbox.setEnabled(False)
+            self.axial_pos_label.setEnabled(False)
+            self.axial_pos_slider.setEnabled(False)
 
-        # #### TANGENTIAL POSITION ####
-        # max_tangential_pos = self.stir_interface.proj_data.get_num_tangential_poss() - 1
-        # self.tangentialPossSpinBoxLabel = QLabel(f"Tangential position: {0, max_tangential_pos}")
-        # self.tangentialPossSpinBox = QSpinBox(self.bottomLeftGroupBox)
-        # self.tangentialPossSpinBox.setRange(0, max_tangential_pos)
-        # self.tangentialPossSpinBox.setValue(max_tangential_pos // 2)
-        # self.tangentialPossSpinBox.valueChanged.connect(self.tangentialPossSpinBoxChanged)
-        #
-        # self.tangentialPossSlider = QSlider(Qt.Orientation.Horizontal, self.bottomLeftGroupBox)
-        # self.tangentialPossSlider.setRange(0, max_tangential_pos)
-        # self.tangentialPossSlider.setValue(self.tangentialPossSpinBox.value())
-        # self.tangentialPossSlider.setTickPosition(QSlider.TicksBelow)
-        # self.tangentialPossSlider.valueChanged.connect(self.tangentialPossSliderChanged)
+        #### VIEW NUMBER ####
+        max_view_number = self.stir_interface.proj_data_stream.get_max_view_num()
+        min_view_number = self.stir_interface.proj_data_stream.get_min_view_num()
+        self.view_num_label = QLabel(f"View number: {min_view_number, max_view_number}")
+        self.view_number_spinbox = QSpinBox(self.bottomLeftGroupBox)
+        self.view_number_spinbox.setRange(min_view_number, max_view_number)
+        self.view_number_spinbox.setValue(initial_view_number)
+        self.view_number_spinbox.valueChanged.connect(self.view_num_spinbox_value_changed)
+
+        self.view_number_slider = QSlider(Qt.Orientation.Horizontal, self.bottomLeftGroupBox)
+        self.view_number_slider.setRange(min_view_number, max_view_number)
+        self.view_number_slider.setValue(self.view_number_spinbox.value())
+        self.view_number_slider.setTickPosition(QSlider.TicksBelow)
+        self.view_number_slider.valueChanged.connect(self.view_num_slider_value_changed)
+
+        #### TANGENTIAL POSITION ####
+        max_tangential_pos = self.stir_interface.proj_data_stream.get_max_tangential_pos_num()
+        min_tangential_pos = self.stir_interface.proj_data_stream.get_min_tangential_pos_num()
+        self.tangential_pos_label = QLabel(f"Tangential position: {min_tangential_pos, max_tangential_pos}")
+        self.tangential_pos_spinbox = QSpinBox(self.bottomLeftGroupBox)
+        self.tangential_pos_spinbox.setRange(min_tangential_pos, max_tangential_pos)
+        self.tangential_pos_spinbox.setValue((max_tangential_pos - min_tangential_pos) // 2)
+        self.tangential_pos_spinbox.valueChanged.connect(self.tangential_pos_spin_box_value_changed)
+
+        self.tangential_pos_slider = QSlider(Qt.Orientation.Horizontal, self.bottomLeftGroupBox)
+        self.tangential_pos_slider.setRange(0, max_tangential_pos)
+        self.tangential_pos_slider.setValue(self.tangential_pos_spinbox.value())
+        self.tangential_pos_slider.setTickPosition(QSlider.TicksBelow)
+        self.tangential_pos_slider.valueChanged.connect(self.tangential_pos_slider_value_changed)
 
         #### SEGMENT NUMBER ####
-        max_segment_number = self.stir_interface.proj_data_stream.get_max_segment_num()  # TODO needs rework because this is actually variable
+        max_segment_number = self.stir_interface.proj_data_stream.get_max_segment_num()
         min_segment_number = self.stir_interface.proj_data_stream.get_min_segment_num()
-        self.segmentNumberLabel = QLabel(f"Segment Number: {min_segment_number, max_segment_number}")
-        self.segmentNumberSpinBox = QSpinBox(self.bottomLeftGroupBox)
-        self.segmentNumberSpinBox.setRange(min_segment_number, max_segment_number)
-        self.segmentNumberSpinBox.setValue(0)
-        self.segmentNumberSpinBox.valueChanged.connect(self.segmentNumberSpinBoxValueChanged)
+        self.segment_number_label = QLabel(f"Segment Number: {min_segment_number, max_segment_number}")
+        self.segment_number_spinbox = QSpinBox(self.bottomLeftGroupBox)
+        self.segment_number_spinbox.setRange(min_segment_number, max_segment_number)
+        self.segment_number_spinbox.setValue(initial_segment_number)
+        self.segment_number_spinbox.valueChanged.connect(self.segment_number_spin_box_value_changed)
 
-        self.segmentNumberSlider = QSlider(Qt.Orientation.Horizontal, self.bottomLeftGroupBox)
-        self.segmentNumberSlider.setRange(min_segment_number, max_segment_number)
-        self.segmentNumberSlider.setValue(self.segmentNumberSpinBox.value())
-        self.segmentNumberSlider.setTickPosition(QSlider.TicksBelow)
-        self.segmentNumberSlider.valueChanged.connect(self.segmentNumberSliderValueChanged)
-
-        if max_segment_number == 0 and min_segment_number == 0:
-            self.segmentNumberSpinBox.setEnabled(False)
-            self.segmentNumberSlider.setEnabled(False)
-            self.segmentNumberLabel.setEnabled(False)
+        self.segment_number_slider = QSlider(Qt.Orientation.Horizontal, self.bottomLeftGroupBox)
+        self.segment_number_slider.setRange(min_segment_number, max_segment_number)
+        self.segment_number_slider.setValue(self.segment_number_spinbox.value())
+        self.segment_number_slider.setTickPosition(QSlider.TicksBelow)
+        self.segment_number_slider.valueChanged.connect(self.segment_number_slider_value_changed)
 
         # self.showSinogramPushButton = QPushButton("Show Sinogram")
         # self.showSinogramPushButton.setDefault(True)
@@ -206,71 +224,90 @@ class WidgetGallery(QDialog):
         layout = QGridLayout()
         # layout.addWidget(lineEdit, 0, 0, 1, 2)
 
-        layout.addWidget(self.segmentNumberLabel, 0, 0, 1, 1)
-        layout.addWidget(self.segmentNumberSlider, 1, 0, 1, 1)
-        layout.addWidget(self.segmentNumberSpinBox, 1, 1, 1, 1)
+        layout.addWidget(self.segment_number_label, 0, 0, 1, 1)
+        layout.addWidget(self.segment_number_slider, 1, 0, 1, 1)
+        layout.addWidget(self.segment_number_spinbox, 1, 1, 1, 1)
 
-        layout.addWidget(self.axialPossLabel, 2, 0, 1, 1)
-        layout.addWidget(self.axialPossSlider, 3, 0, 1, 1)
-        layout.addWidget(self.axialPossSpinBox, 3, 1, 1, 1)
+        layout.addWidget(self.axial_pos_label, 2, 0, 1, 1)
+        layout.addWidget(self.axial_pos_slider, 3, 0, 1, 1)
+        layout.addWidget(self.axial_pos_spinbox, 3, 1, 1, 1)
 
-        #
-        # layout.addWidget(self.tangentialPossSpinBoxLabel, 2, 0, 1, 1)
-        # layout.addWidget(self.tangentialPossSlider, 3, 0, 1, 1)
-        # layout.addWidget(self.tangentialPossSpinBox, 3, 1, 1, 1)
+        # view number
+        layout.addWidget(self.view_num_label, 4, 0, 1, 1)
+        layout.addWidget(self.view_number_slider, 5, 0, 1, 1)
+        layout.addWidget(self.view_number_spinbox, 6, 1, 1, 1)
+
+        # tangential position
+        layout.addWidget(self.tangential_pos_label, 6, 0, 1, 1)
+        layout.addWidget(self.tangential_pos_slider, 7, 0, 1, 1)
+        layout.addWidget(self.tangential_pos_spinbox, 7, 1, 1, 1)
 
         # layout.addWidget(self.showSinogramPushButton, 4, 0, 1, 2)
 
         layout.setRowStretch(5, 1)
         self.bottomLeftGroupBox.setLayout(layout)
 
-    def segmentNumberSliderValueChanged(self):
+    def segment_number_slider_value_changed(self):
         """
         This function is called when the user changes the segment number slider value.
         """
-        self.segmentNumberSpinBox.setValue(self.segmentNumberSlider.value())
-        self.stir_interface.refresh_segment_data(self.segmentNumberSlider.value())
-        self.updateAxialPossSpinBoxAndSliderUI()
-        self.updateDisplayImageLabel()
+        self.segment_number_spinbox.setValue(self.segment_number_slider.value())
+        self.stir_interface.refresh_segment_data(self.segment_number_slider.value())
+        self.update_UI_configuration()
 
-    def segmentNumberSpinBoxValueChanged(self):
+    def segment_number_spin_box_value_changed(self):
         """
         This function is called when the user changes the segment number spinbox value.
         """
-        self.segmentNumberSlider.setValue(self.segmentNumberSpinBox.value())
-        self.stir_interface.refresh_segment_data(self.segmentNumberSpinBox.value())
-        self.updateAxialPossSpinBoxAndSliderUI()
-        self.updateDisplayImageLabel()
+        self.segment_number_slider.setValue(self.segment_number_spinbox.value())
+        self.stir_interface.refresh_segment_data(self.segment_number_spinbox.value())
+        self.update_UI_configuration()
 
-    def axialPossSliderValueChanged(self):
+    def axial_pos_slider_value_changed(self):
         """
         This function is called when the user changes the axial position slider value.
         """
-        self.axialPossSpinBox.setValue(self.axialPossSlider.value())
-        self.updateDisplayImageLabel()
+        self.axial_pos_spinbox.setValue(self.axial_pos_slider.value())
+        self.update_UI_configuration()
 
-    def axialPossSpinBoxValueChanged(self):
+    def axial_pos_spin_box_value_changed(self):
         """
         This function is called when the user changes the axial position spinbox value.
         """
-        self.axialPossSlider.setValue(self.axialPossSpinBox.value())
-        self.updateDisplayImageLabel()
+        self.axial_pos_slider.setValue(self.axial_pos_spinbox.value())
+        self.update_UI_configuration()
 
-    def tangentialPossSliderValueChanged(self):
+    def tangential_pos_slider_value_changed(self):
         """
         This function is called when the user changes the tangential position slider value.
         """
-        self.tangentialPossSpinBox.setValue(self.tangentialPossSlider.value())
-        self.updateDisplayImageLabel()
+        self.tangential_pos_spinbox.setValue(self.tangential_pos_slider.value())
+        self.update_UI_configuration()
 
-    def tangentialPossSpinBoxValueChanged(self):
+    def tangential_pos_spin_box_value_changed(self):
         """
         This function is called when the user changes the tangential position spinbox value.
         """
-        self.tangentialPossSlider.setValue(self.tangentialPossSpinBox.value())
-        self.updateDisplayImageLabel()
+        self.tangential_pos_slider.setValue(self.tangential_pos_spinbox.value())
+        self.update_UI_configuration()
 
-    def updateAxialPossSpinBoxAndSliderUI(self):
+    def view_num_slider_value_changed(self):
+        """
+        This function is called when the user changes the view num slider value.
+        """
+        self.view_number_spinbox.setValue(self.view_number_slider.value())
+        self.update_UI_configuration()
+
+    def view_num_spinbox_value_changed(self):
+        """
+        This function is called when the user changes the view num spinbox value.
+        """
+        self.view_number_slider.setValue(self.view_number_spinbox.value())
+        self.update_UI_configuration()
+
+    ######## UI CONFIGURATION CHANGES #########
+
+    def update_axial_pos_spin_box_and_slider_range(self):
         """
         This function is called when the segment number is changed to automatically update the axial position slider
         and spinbox.
@@ -278,16 +315,65 @@ class WidgetGallery(QDialog):
         """
         min_axial_pos = self.stir_interface.segment_data.get_min_axial_pos_num()
         max_axial_pos = self.stir_interface.segment_data.get_max_axial_pos_num()
-        new_axial_value = min(max_axial_pos, max(self.axialPossSlider.value(), min_axial_pos))
+        new_axial_value = min(max_axial_pos, max(self.axial_pos_slider.value(), min_axial_pos))
 
-        self.axialPossSlider.setRange(min_axial_pos, max_axial_pos)
-        self.axialPossSpinBox.setRange(min_axial_pos, max_axial_pos)
-        self.axialPossSlider.setValue(new_axial_value)
-        self.axialPossSpinBox.setValue(new_axial_value)
+        self.axial_pos_slider.setRange(min_axial_pos, max_axial_pos)
+        self.axial_pos_spinbox.setRange(min_axial_pos, max_axial_pos)
+        self.axial_pos_slider.setValue(new_axial_value)
+        self.axial_pos_spinbox.setValue(new_axial_value)
 
-    def updateDisplayImageLabel(self):
+    def update_UI_configuration(self):
+        """
+        This function is called when the user changes any of the projection data parameters.
+        It updates the UI to reflect the new projection data parameters.
+        It calls the updateDisplayImage function to update the display image.
+        """
+
+        # Segment slider and scroll box handling
+        if self.stir_interface.proj_data_stream.get_max_segment_num() == 0 and\
+                self.stir_interface.proj_data_stream.get_min_segment_num() == 0:
+            self.segment_number_spinbox.setEnabled(False)
+            self.segment_number_slider.setEnabled(False)
+            self.segment_number_label.setEnabled(False)
+
+
+        # Check if sinogram or viewgram is selected and disable the appropriate sliders and spinboxs
+        if self.sinogram_radio_button.isChecked():
+            # Disable the tangential position position slider and spinbox
+            self.view_num_label.setEnabled(False)
+            self.view_number_slider.setEnabled(False)
+            self.view_number_spinbox.setEnabled(False)
+            self.axial_pos_label.setEnabled(True)
+            self.axial_pos_slider.setEnabled(True)
+            self.axial_pos_spinbox.setEnabled(True)
+
+        elif self.viewgram_radio_button.isChecked():
+            self.axial_pos_label.setEnabled(False)
+            self.axial_pos_slider.setEnabled(False)
+            self.axial_pos_spinbox.setEnabled(False)
+            self.view_num_label.setEnabled(True)
+            self.view_number_spinbox.setEnabled(True)
+            self.view_number_slider.setEnabled(True)
+
         if True:
-            image = self.getSinogramImage()
+            self.tangential_pos_label.setEnabled(False)
+            self.tangential_pos_slider.setEnabled(False)
+            self.tangential_pos_spinbox.setEnabled(False)
+        
+        self.update_axial_pos_spin_box_and_slider_range()
+        self.update_display_image()
+
+    def update_display_image(self):
+        """
+        This method updates the displayed image based uon the current UI configuration parameters.
+        """
+        if self.sinogram_radio_button.isChecked():
+            image = self.get_sinogram_numpy_array()
+        elif self.viewgram_radio_button.isChecked():
+            image = self.get_viewgram_numpy_array()
+        else:
+            msg = f"Error: No radio button is checked... How did you get here?\n"
+            raise Exception(msg)
 
         image = float32_to_uint8(image)
         # image.reshape(image.shape + (1,))≥
@@ -306,9 +392,18 @@ class WidgetGallery(QDialog):
 
         self.displayImageLabel.setPixmap(qImg)
 
-    def getSinogramImage(self):
+    def get_sinogram_numpy_array(self):
+        """
+        This function returns the sinogram numpy array based on the current UI configuration parameters for segment 
+        number and axial position number. 
+        """
         return self.stir_interface.as_numpy(
-            self.stir_interface.segment_data.get_sinogram(self.axialPossSpinBox.value())
+            self.stir_interface.segment_data.get_sinogram(self.axial_pos_spinbox.value())
+        )
+
+    def get_viewgram_numpy_array(self):
+        return self.stir_interface.as_numpy(
+            self.stir_interface.segment_data.get_viewgram(self.view_number_spinbox.value())
         )
 
 
