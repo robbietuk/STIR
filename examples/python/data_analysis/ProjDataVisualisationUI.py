@@ -15,6 +15,11 @@ from PyQt5.QtWidgets import (QApplication, QCheckBox, QComboBox, QDateTimeEdit,
                              QVBoxLayout, QWidget)
 from PyQt5.QtGui import QPixmap, QImage
 
+## From demoPyQt5MatPlotLib2.py:
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+import matplotlib.pyplot as plt
+
 from ProjDataVisualisationBackend import ProjDataVisualisationBackend
 
 
@@ -126,8 +131,22 @@ class WidgetGallery(QDialog):
     def create_top_right_groupbox(self):
         self.topRightGroupBox = QGroupBox("Group 2")
 
-        self.displayImageLabel = QLabel(f"Image goes here...")
-        self.displayImageLabel.resize(640, 400)
+        # a figure instance to plot on
+        self.display_image_matplotlib_figure = plt.figure()
+
+        # this is the Canvas Widget that
+        # displays the 'figure'it takes the
+        # 'figure' instance as a parameter to __init__
+        self.display_image_matplotlib_canvas = FigureCanvas(self.display_image_matplotlib_figure)
+
+        # this is the Navigation widget
+        # it takes the Canvas widget and a parent
+        self.display_image_matplotlib_toolbar = NavigationToolbar(self.display_image_matplotlib_canvas, self)
+
+
+
+        # self.displayImageLabel = QLabel(f"Image goes here...")
+        # self.displayImageLabel.resize(640, 400)
 
         defaultPushButton = QPushButton("Default Push Button")
         defaultPushButton.setDefault(True)
@@ -139,12 +158,20 @@ class WidgetGallery(QDialog):
         flatPushButton = QPushButton("Flat Push Button")
         flatPushButton.setFlat(True)
 
+        # creating a Vertical Box layout
         layout = QVBoxLayout()
-        layout.addWidget(self.displayImageLabel)
-        layout.addWidget(defaultPushButton)
-        layout.addWidget(togglePushButton)
-        layout.addWidget(flatPushButton)
-        layout.addStretch(1)
+        # layout.addWidget(self.displayImageLabel)
+        # layout.addWidget(defaultPushButton)
+        # layout.addWidget(togglePushButton)
+        # layout.addWidget(flatPushButton)
+
+        # adding tool bar to the layout
+        layout.addWidget(self.display_image_matplotlib_toolbar)
+
+        # adding canvas to the layout
+        layout.addWidget(self.display_image_matplotlib_canvas)
+
+        layout.addStretch(1)  # todo: Remove this line?
         self.topRightGroupBox.setLayout(layout)
 
     def create_bottom_left_groupbox(self):
@@ -237,7 +264,7 @@ class WidgetGallery(QDialog):
         # view number
         layout.addWidget(self.view_num_label, 4, 0, 1, 1)
         layout.addWidget(self.view_number_slider, 5, 0, 1, 1)
-        layout.addWidget(self.view_number_spinbox, 6, 1, 1, 1)
+        layout.addWidget(self.view_number_spinbox, 5, 1, 1, 1)
 
         # tangential position
         layout.addWidget(self.tangential_pos_label, 6, 0, 1, 1)
@@ -368,30 +395,33 @@ class WidgetGallery(QDialog):
         """
         This method updates the displayed image based uon the current UI configuration parameters.
         """
+
+        # reset the figure
+        self.display_image_matplotlib_figure.clear()
+        ax = self.display_image_matplotlib_figure.add_subplot(111)
+
+        # get the projection data numpy array from the stir interface
         if self.sinogram_radio_button.isChecked():
             image = self.get_sinogram_numpy_array()
+            ax.title.set_text(f"Sinogram - Segment: {self.segment_number_spinbox.value()}, "
+                              f"Axial Position: {self.axial_pos_spinbox.value()}")
+            ax.yaxis.set_label_text("Views/projection angle")
+            ax.xaxis.set_label_text("Tangential positions")
         elif self.viewgram_radio_button.isChecked():
             image = self.get_viewgram_numpy_array()
+            ax.title.set_text(f"Sinogram - Segment: {self.segment_number_spinbox.value()},"
+                              f"View Number: {self.view_number_spinbox.value()}")
+            ax.yaxis.set_label_text("Axial positions")
+            ax.xaxis.set_label_text("Tangential positions")
         else:
             msg = f"Error: No radio button is checked... How did you get here?\n"
             raise Exception(msg)
 
-        image = float32_to_uint8(image)
-        # image.reshape(image.shape + (1,))≥
-        colour_map = QImage.Format_Grayscale8
-
-        qImg = QPixmap(
-            QImage(image,
-                   image.shape[1], image.shape[0],
-                   colour_map)
-        )
-
-        multiplicative_size_factor = 4
-        qImg = qImg.scaled(multiplicative_size_factor * qImg.size().width(),
-                           multiplicative_size_factor * qImg.size().height()
-                           )
-
-        self.displayImageLabel.setPixmap(qImg)
+        # display the image
+        ax.imshow(image,
+                  # cmap='gray'
+                  )
+        self.display_image_matplotlib_canvas.draw()
 
     def get_sinogram_numpy_array(self):
         """
