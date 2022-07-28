@@ -45,19 +45,19 @@ class ProjDataVisualisationWidgetGallery(QDialog):
         styleComboBox.textActivated.connect(self.change_UI_style)
         self.useStylePaletteCheckBox.toggled.connect(self.change_UI_palette)
 
-        topLayout = QHBoxLayout()
-        topLayout.addStretch(1)
 
         mainLayout = QGridLayout()
-        mainLayout.addLayout(topLayout, 0, 0, 1, 5)
-        mainLayout.addWidget(self.topLeftGroupBox, 1, 0)
-        mainLayout.addWidget(self.topRightGroupBox, 1, 1)
-        # mainLayout.addWidget(self.bottomLeftTabWidget, 2, 0)
-        mainLayout.addWidget(self.UI_groupbox_projdata_dimensions.groupbox, 2, 0)
-        mainLayout.setRowStretch(1, 1)
-        mainLayout.setRowStretch(2, 1)
+        # mainLayout.addLayout(topLayout, 0, 0, 1, 5)
+        mainLayout.addWidget(self.UI_groupbox_file_loader, 0, 0)
+        mainLayout.addWidget(self.UI_groupbox_projdata_dimensions_controller.groupbox, 0, 1)
+        mainLayout.addWidget(self.UI_groupbox_projdata_display, 1, 1)
+        # mainLayout.addWidget(self.bottomLeftTabWidget, 1, 1)
+
+        mainLayout.setRowStretch(0, 0)
+        # mainLayout.setRowStretch(1, 1)
         mainLayout.setColumnStretch(0, 1)
         mainLayout.setColumnStretch(1, 1)
+
         self.setLayout(mainLayout)
 
         self.change_UI_style('Fusion')
