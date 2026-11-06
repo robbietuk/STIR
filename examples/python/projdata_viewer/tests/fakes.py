@@ -36,6 +36,20 @@ class CountingSource:
         return self.inner.get_segment(segment, tof_bin)
 
 
+class SinogramCountingSource(CountingSource):
+    """Also offers ``get_sinogram`` (like the STIR adapter) and counts those reads separately."""
+
+    def __init__(self, inner):
+        super().__init__(inner)
+        self.sinogram_reads = 0
+
+    def get_sinogram(self, segment, axial, tof_bin):
+        self.sinogram_reads += 1
+        if self.fail:
+            raise OSError("disk went away")
+        return self.inner.get_sinogram(segment, axial, tof_bin)
+
+
 # ---- gateway-level fakes ---------------------------------------------------------------
 def layout_of(info: ProjDataInfo) -> ProjDataLayout:
     return ProjDataLayout(info.min_segment, info.max_segment, info.min_view, info.max_view,
@@ -58,6 +72,10 @@ class FakeHandle:
     def read_segment(self, segment, tof_bin):
         self.reads += 1
         return self._src.get_segment(segment, tof_bin)
+
+    def read_sinogram(self, segment, axial, tof_bin):
+        self.sinogram_reads = getattr(self, "sinogram_reads", 0) + 1
+        return self._src.get_sinogram(segment, axial, tof_bin)
 
 
 class FakeGateway:
@@ -117,9 +135,23 @@ class FakeProjData:
     get_min_axial_pos_num = lambda self, s: 0      # noqa: E731
     get_max_axial_pos_num = lambda self, s: 3 + (1 - abs(s)) - 1  # noqa: E731
 
-    def get_segment_by_view(self, idx):
-        a = self.data[(idx.seg, idx.tof)]
+    def get_segment_by_view(self, seg_or_idx, tof=0):
+        """Both SWIG overloads: (segment, timing_pos) and (SegmentIndices)."""
+        seg, tof = (seg_or_idx, tof) if isinstance(seg_or_idx, int) else (seg_or_idx.seg, seg_or_idx.tof)
+        a = self.data[(seg, tof)]
         return FakeSegment(a.transpose(1, 0, 2).copy() if self.transpose else a, truth=a)
+
+    def get_sinogram(self, axial, segment, make_num_tangential_poss_odd=False, timing_pos=0):
+        return FakeArray(self.data[(segment, timing_pos)][:, axial - self.get_min_axial_pos_num(segment), :])
+
+
+class FakeProjDataIndicesOnly(FakeProjData):
+    """Only the SegmentIndices overload (exercises the gateway's fallback)."""
+
+    def get_segment_by_view(self, idx):
+        if isinstance(idx, int):
+            raise TypeError("in method 'get_segment_by_view', argument 2 of type 'stir::SegmentIndices const &'")
+        return super().get_segment_by_view(idx)
 
 
 def make_fake_stir(pd: FakeProjData):

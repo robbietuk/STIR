@@ -52,12 +52,12 @@ Note however that this is currently a bit experimental. Improvements welcome!
 
 [`projdata_viewer/`](projdata_viewer/README.md) is a standalone rewrite of `projdata_visualisation`
 with time-of-flight support (step through, play back, or sum/mean/max over TOF bins) and per-LOR
-TOF profiles. It is not installed by STIR's CMake; install it with `pip install -e .` from that
-directory (or use its `environment.yml`), then
+TOF profiles. Installing STIR also installs it next to the `stir` module (it needs numpy, PySide6
+and pyqtgraph at run time), so
 
 ```sh
-stir-projdata-viewer my_sinogram.hs      # STIR projection data
-stir-projdata-viewer --demo              # synthetic TOF data, needs no STIR
+python -m stir_projdata_viewer my_sinogram.hs     # STIR projection data
+python -m stir_projdata_viewer --demo             # synthetic TOF data
 ```
 
 or from Python
@@ -67,5 +67,7 @@ from stir_projdata_viewer.app import launch
 launch("my_sinogram.hs")                 # or a stir.ProjData object
 ```
 
+[`demo_projdata_viewer.py`](demo_projdata_viewer.py) shows it with a `stir.ProjData` object. Without
+installing STIR, `pip install -e .` in that directory gives the `stir-projdata-viewer` command.
 See [projdata_viewer/README.md](projdata_viewer/README.md#loading-data) for all the ways to load data,
 including numpy arrays and pointing it at a STIR source build.

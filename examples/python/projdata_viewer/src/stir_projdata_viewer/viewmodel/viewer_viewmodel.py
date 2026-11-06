@@ -9,6 +9,7 @@ injected ``source_factory``, so it never imports Qt, pyqtgraph or STIR.
 from __future__ import annotations
 
 import functools
+import os
 from dataclasses import dataclass
 from typing import Any, Callable
 
@@ -65,6 +66,22 @@ class TofProfile:
     title: str
 
 
+@dataclass(frozen=True)
+class _Rendered:
+    image: SliceImage
+    display: np.ndarray
+    levels: tuple[float, float]
+    stats: Any
+
+
+def clean_path(text: str) -> str:
+    """Normalise a typed or pasted path: strip whitespace and one pair of surrounding quotes, expand ``~``."""
+    text = (text or "").strip()
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in "\"'":
+        text = text[1:-1].strip()
+    return os.path.expanduser(text) if text else ""
+
+
 def _command(fn):
     """Run a view-model method as one transaction: subscribers are notified once at the end."""
     @functools.wraps(fn)
@@ -79,6 +96,7 @@ class ViewerViewModel(ObservableObject):
     loaded = Observed(False)
     window_title = Observed("STIR projection data viewer")
     source_label = Observed("")            # name of the loaded data set (file name for files)
+    source_path = Observed("")             # path of the loaded file, "" for in-memory or demo data
     status = Observed(DEFAULT_STATUS)
     error = Observed(None)                 # last error message; re-notified on every failure
     dimensions = Observed(())              # tuple[DimensionState, ...]
@@ -109,6 +127,7 @@ class ViewerViewModel(ObservableObject):
         self._slice: SliceImage | None = None
         self._manual_levels: tuple[float, float] | None = None
         self._last_pixel: tuple[int, int] | None = None
+        self._cursor: tuple[float, float] | None = None     # last hover position in axis coordinates
 
     # ---- read access for tests and views --------------------------------------------
     @property
@@ -127,30 +146,38 @@ class ViewerViewModel(ObservableObject):
     def load(self, obj: Any) -> bool:
         """Load a path, ``stir.ProjData`` or ``ProjDataSource`` through the injected factory.
         On failure the previous data stays, ``error`` is set and False is returned."""
+        level_mode = LevelMode.AUTO if self.level_mode is LevelMode.MANUAL else self.level_mode
         try:
             dataset = ProjDataset(self._factory(obj))
+            selection = Selection.initial(dataset.info)
+            rendered = self._render(dataset, selection, level_mode, None)   # first slice must be readable
         except Exception as exc:  # noqa: BLE001 - any loader failure is reported, not raised
             self._report_error(f"Could not load projection data: {exc}")
             return False
-        self._dataset = dataset
-        self._selection = Selection.initial(dataset.info)
         self._manual_levels = None
-        if self.level_mode is LevelMode.MANUAL:
-            self.level_mode = LevelMode.AUTO
-        self._last_pixel = None
+        self.level_mode = level_mode
         self.playing = False
         self.error = None
         self.loaded = True
         self.window_title = f"STIR projection data viewer - {dataset.info.name}"
         self.source_label = dataset.info.name
+        self.source_path = os.fspath(obj) if isinstance(obj, (str, os.PathLike)) else ""
         self.status = f"Loaded {dataset.info.name}"
         self.tof_available = dataset.info.is_tof
         self.tof_profile = None
         self.pixel_text = ""
-        self.metrics = ()
-        self.context = ()
-        self._refresh_all()
+        self._cursor = None
+        self._commit(dataset, selection, rendered)
         return True
+
+    @_command
+    def load_path(self, text: str) -> bool:
+        """Load a path typed or pasted by the user: surrounding whitespace and quotes (e.g. from Windows
+        "Copy as path") are removed and ``~`` is expanded. Blank input does nothing."""
+        path = clean_path(text)
+        if not path:
+            return False
+        return self.load(path)
 
     @_command
     def load_demo(self) -> bool:
@@ -174,8 +201,7 @@ class ViewerViewModel(ObservableObject):
     @_command
     def set_value(self, dim: str, value: int) -> None:
         if self._ready():
-            self._selection = self._selection.with_value(self._dataset.info, dim, value)
-            self._refresh_all()
+            self._show(self._selection.with_value(self._dataset.info, dim, value))
 
     @_command
     def step(self, dim: str, delta: int) -> None:
@@ -190,16 +216,12 @@ class ViewerViewModel(ObservableObject):
     @_command
     def set_slice_mode(self, mode: SliceMode) -> None:
         if self._ready():
-            self._selection = self._selection.with_slice_mode(mode)
-            self._last_pixel = None
-            self._refresh_all()
+            self._show(self._selection.with_slice_mode(mode))
 
     @_command
     def set_tof_mode(self, mode: TofMode) -> None:
         if self._ready():
-            self._selection = self._selection.with_tof_mode(mode)
-            self._last_pixel = None
-            self._refresh_all()
+            self._show(self._selection.with_tof_mode(mode))
 
     @_command
     def set_playing(self, playing: bool) -> None:
@@ -222,8 +244,7 @@ class ViewerViewModel(ObservableObject):
         if not self.can_play:
             self.playing = False
             return
-        self._selection = self._selection.step_tof(self._dataset.info, 1)
-        self._refresh_all()
+        self._show(self._selection.step_tof(self._dataset.info, 1))
 
     @_command
     def set_colormap(self, name: str) -> None:
@@ -233,8 +254,10 @@ class ViewerViewModel(ObservableObject):
 
     @_command
     def set_level_mode(self, mode: LevelMode) -> None:
+        old = self.level_mode
         self.level_mode = mode
-        self._refresh_image()
+        if self._ready() and not self._show(self._selection):
+            self.level_mode = old
 
     @_command
     def set_log_display(self, enabled: bool) -> None:
@@ -242,12 +265,16 @@ class ViewerViewModel(ObservableObject):
         self._manual_levels = None     # levels chosen in the other scale are meaningless
         if self.level_mode is LevelMode.MANUAL:
             self.level_mode = LevelMode.AUTO
-        self._refresh_image()
+        if self._ready():
+            self._show(self._selection)
 
     @_command
     def set_manual_levels(self, lo: float, hi: float) -> None:
-        """Called by the view when the user drags the histogram region."""
-        if hi <= lo:
+        """Called by the view when the user drags the histogram region. An empty, inverted or non-finite
+        range is rejected; ``levels`` is then re-announced so the view puts its widgets back."""
+        if not (np.isfinite(lo) and np.isfinite(hi)) or hi <= lo:
+            self.status = f"Ignored level range {lo:g} .. {hi:g}: the minimum must be below the maximum"
+            self._mark_changed("levels")
             return
         self._manual_levels = (float(lo), float(hi))
         self.level_mode = LevelMode.MANUAL
@@ -267,6 +294,15 @@ class ViewerViewModel(ObservableObject):
         """Cursor at axis coordinates (x = column axis, y = row axis) of the displayed image."""
         if self._slice is None or self._dataset is None:
             return
+        self._cursor = (x, y)
+        self._hover(x, y)
+
+    @_command
+    def hover_leave(self) -> None:
+        self._cursor = None
+        self.pixel_text = ""
+
+    def _hover(self, x: float, y: float) -> None:
         row, col = self._slice.pixel_from_axes(x, y)
         value = self._slice.value_at(row, col)
         if value is None:
@@ -277,10 +313,6 @@ class ViewerViewModel(ObservableObject):
             self._last_pixel = (row, col)
             self._update_tof_profile(self._slice.indices_at(row, col))
 
-    @_command
-    def hover_leave(self) -> None:
-        self.pixel_text = ""
-
     # ---- internals ---------------------------------------------------------------------
     def _ready(self) -> bool:
         return self._dataset is not None and self._selection is not None
@@ -290,9 +322,23 @@ class ViewerViewModel(ObservableObject):
         self._mark_changed("error")      # notify even if the text repeats
         self.status = message
 
-    def _refresh_all(self) -> None:
-        self._last_pixel = None          # the LOR under the cursor changes with any selection change
-        sel, info = self._selection, self._dataset.info
+    def _show(self, selection: Selection) -> bool:
+        """Display ``selection`` of the current data set. All or nothing: if the slice cannot be read the
+        previous selection, picture and controls stay (the view is told to repaint the controls)."""
+        try:
+            rendered = self._render(self._dataset, selection, self.level_mode, self._manual_levels)
+        except Exception as exc:  # noqa: BLE001 - keep the previous picture, tell the user why
+            self.playing = False         # never keep playing into a stream of identical errors
+            self._report_error(f"Could not read the slice: {exc}")
+            self._mark_changed("dimensions", "slice_mode", "tof_mode", "level_mode")  # snap widgets back
+            return False
+        self._commit(self._dataset, selection, rendered)
+        return True
+
+    def _commit(self, dataset: ProjDataset, sel: Selection, rendered: "_Rendered") -> None:
+        """Make ``dataset``/``sel`` current and publish everything derived from them (cannot fail)."""
+        self._dataset, self._selection = dataset, sel
+        info = dataset.info
         self.slice_mode = sel.slice_mode
         self.tof_mode = sel.tof_mode
         self.can_play = info.is_tof and sel.tof_mode is TofMode.BIN
@@ -300,7 +346,22 @@ class ViewerViewModel(ObservableObject):
             self.playing = False
         self.tof_marker = sel.tof if self.can_play else None
         self._refresh_dimensions()
-        self._refresh_image()
+        image = rendered.image
+        self._slice = image
+        rows, cols = image.shape
+        self.image = DisplayImage(rendered.display, image.col_origin - 0.5, image.row_origin - 0.5,
+                                  float(cols), float(rows), image.row_axis, image.col_axis, image.title)
+        self.levels = rendered.levels
+        self.metrics = formatting.format_metrics(rendered.stats)
+        self.context = formatting.context_chips(info, sel)
+        self.info_text = (formatting.describe_dataset(info) + "\n\n"
+                          + formatting.describe_slice(image, rendered.stats))
+        # the LOR under a resting cursor changes with the selection: recompute readout and profile
+        self._last_pixel = None
+        if self._cursor is not None:
+            self._hover(*self._cursor)
+        else:
+            self.tof_profile = None
 
     def _refresh_dimensions(self) -> None:
         sel, info = self._selection, self._dataset.info
@@ -317,38 +378,22 @@ class ViewerViewModel(ObservableObject):
             return np.log1p(np.clip(data, 0, None)).astype(np.float32)
         return np.ascontiguousarray(data, dtype=np.float32)
 
-    def _levels_for(self, disp: np.ndarray) -> tuple[float, float]:
-        if self.level_mode is LevelMode.FIXED:
-            lo, hi = self._dataset.global_range(self._selection)
+    def _render(self, dataset: ProjDataset, sel: Selection, level_mode: LevelMode,
+                manual: tuple[float, float] | None) -> "_Rendered":
+        """Everything needed to show ``sel``, computed without touching any observable state (may raise)."""
+        image = dataset.slice(sel)
+        disp = self._display_values(image.data)
+        if level_mode is LevelMode.FIXED:
+            lo, hi = dataset.global_range(sel)
             if self.log_display:
                 lo, hi = float(np.log1p(max(lo, 0.0))), float(np.log1p(max(hi, 0.0)))
-        elif self.level_mode is LevelMode.MANUAL and self._manual_levels is not None:
-            lo, hi = self._manual_levels
+        elif level_mode is LevelMode.MANUAL and manual is not None:
+            lo, hi = manual
         else:
             lo, hi = finite_range(disp) or (0.0, 1.0)
         if hi <= lo:
-            hi = lo + 1e-6
-        return lo, hi
-
-    def _refresh_image(self) -> None:
-        try:
-            image = self._dataset.slice(self._selection)
-            disp = self._display_values(image.data)
-            levels = self._levels_for(disp)
-            stats = self._dataset.stats(image)
-        except Exception as exc:  # noqa: BLE001 - keep the previous picture, tell the user why
-            self.playing = False         # never keep playing into a stream of identical errors
-            self._report_error(f"Could not read the slice: {exc}")
-            return
-        self._slice = image
-        rows, cols = image.shape
-        self.image = DisplayImage(disp, image.col_origin - 0.5, image.row_origin - 0.5, float(cols), float(rows),
-                                  image.row_axis, image.col_axis, image.title)
-        self.levels = levels
-        self.metrics = formatting.format_metrics(stats)
-        self.context = formatting.context_chips(self._dataset.info, self._selection)
-        self.info_text = (formatting.describe_dataset(self._dataset.info) + "\n\n"
-                          + formatting.describe_slice(image, stats))
+            hi = lo + max(abs(lo) * 1e-6, np.finfo(np.float32).tiny)
+        return _Rendered(image, disp, (lo, hi), dataset.stats(image))
 
     def _update_tof_profile(self, indices: dict[str, int]) -> None:
         sel = self._selection

@@ -29,6 +29,9 @@ class StirProjDataSource:
     def get_segment(self, segment: int, tof_bin: int) -> np.ndarray:
         return self._handle.read_segment(segment, tof_bin)
 
+    def get_sinogram(self, segment: int, axial: int, tof_bin: int) -> np.ndarray:
+        return self._handle.read_sinogram(segment, axial, tof_bin)
+
 
 def open_stir_source(obj: Any, stir_path: str | None = None, gateway: StirGateway | None = None) -> StirProjDataSource:
     """``obj`` is a filename or a ``stir.ProjData``. ``gateway`` defaults to the real SWIG one."""

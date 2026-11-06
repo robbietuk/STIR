@@ -240,19 +240,27 @@ def test_typed_path_and_demo_go_through_view_model_commands(window_module):
     assert loaded == ["/data/x.hs", "<demo>"]
 
 
-def test_source_label_fills_the_path_box(window_module):
+def test_path_box_shows_file_paths_only_never_data_set_labels(window_module, tmp_path):
+    """Review finding: after the demo the box said "demo phantom (synthetic)", which Load then tried to open."""
+    import numpy as np
     h = Harness(window_module)
-    shown = []
+    shown, titles = [], []
     h.win.path_edit.setText = shown.append
+    h.win.title_label.setText = titles.append
     h.vm.load(small_demo())
-    assert shown and "demo" in shown[-1]
+    assert all(t == "" for t in shown) and "demo" in titles[-1]   # the label goes to the title, never the path box
+    f = tmp_path / "a.npy"
+    np.save(f, np.zeros((4, 3, 5), dtype=np.float32))
+    h.vm._factory = __import__("stir_projdata_viewer.sources.loader", fromlist=["x"]).make_source
+    h.vm.load(str(f))
+    assert shown[-1] == str(f)
 
 
-def test_level_spin_boxes_follow_levels_without_echo(window_module):
+def test_level_edits_follow_levels_without_echo(window_module):
     h = Harness(window_module, small_demo())
     values = {}
-    for key, spin in h.win.level_spins.items():
-        spin.setValue = (lambda k: lambda v: values.__setitem__(k, v))(key)
+    for key, edit in h.win.level_edits.items():
+        edit.set_value = (lambda k: lambda v: values.__setitem__(k, v))(key)
     h.vm.set_manual_levels(1.5, 4.5)
     assert values == {"low": 1.5, "high": 4.5}
     assert h.vm.levels == (1.5, 4.5)

@@ -178,3 +178,36 @@ stubbed and real-Qt tests for the pane and layout.
   and share the TOF reduction mode (bin / sum / mean / max) across linked panes.
 * Memory: each data set caches all TOF bins of a segment, so N data sets cost N times that. The shared cache budget
   in section 8 matters most for TOF data.
+
+## 9. Second independent review (what it found and what was done)
+
+All twelve findings were fixed, each with a regression test (`tests/test_review_findings_2.py` plus the window
+and gateway-contract tests), and the key fixes were mutation-checked (re-introducing the bug fails a test):
+
+1. **Load is all-or-nothing.** The new data set and its first slice are read before anything is replaced; a failure
+   keeps the old data, title, image and hover state.
+2. **Slice changes are all-or-nothing.** `_render` (pure, may raise) + `_commit` (cannot fail): a failed read keeps the
+   previous selection and re-announces it so sliders snap back.
+3. **TOF profile follows the selection.** The cursor position is remembered; after any selection change the readout
+   and profile are recomputed for the pixel under it (cleared when there is no cursor). The two tests that claimed
+   this but hovered again were rewritten.
+4. **Global levels are global.** Single-bin mode uses the range over all segments *and all TOF bins*, so the scale
+   no longer jumps during playback.
+5. **Level boxes** are `NumberEdit` fields (any magnitude, scientific notation); a rejected range is re-announced so the
+   boxes snap back; constant tiny data gets a relative, not absolute, minimum width.
+6. **STIR `as_array()` layout** is accepted as `.npz` (`as_array` + `axial_counts` [+ `segment_numbers`]), split in
+   STIR's `standard_segment_sequence` order; the README explains why a bare `.npy` of it cannot work.
+7. **SWIG overloads.** The gateway calls `get_segment_by_view(segment, timing_pos)` (overridden by every `ProjData`
+   subclass) and falls back to `SegmentIndices`; the contract test runs against a fake with only the latter.
+8. **Keys.** Window shortcuts pass the key to a focused slider/spin box/text field (disabling themselves while
+   re-sending it); elsewhere (buttons, the image) they still work, and Space never re-clicks a focused button.
+9. **Hover cost / memory.** Profiles read one sinogram per TOF bin (`get_sinogram`, optional on sources), reusing
+   cached segments; segment caches have a 1 GiB byte budget.
+10. **Path box** shows `source_path` (a real path or empty), never a data set label; typed paths lose surrounding
+    quotes and expand `~`; a missing file is reported as missing, before STIR is imported.
+11. **STIR lookup.** A bad `$STIR_PYTHON_PATH` warns and falls back to `import stir`; a bad `--stir-path` is still an
+    error; an already imported `stir` from elsewhere is used with a warning.
+12. **Wired into STIR.** CMake installs `stir_projdata_viewer` next to `stir`; `demo_projdata_viewer.py`, the examples
+    README, the User's Guide and the 6.5 release notes describe it. Zoom/pan stays removed by request.
+
+Still unverified: everything that needs the real `stir` bindings (`test_real_stir_integration.py` is skipped here).

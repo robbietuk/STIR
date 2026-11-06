@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from fakes import CountingSource, small_demo
-from stir_projdata_viewer.model import ProjDataset, Selection, TofMode
+from stir_projdata_viewer.model import ProjDataset, Selection, SliceMode, TofMode
 from stir_projdata_viewer.sources import ArraySource
 from stir_projdata_viewer.viewmodel import LevelMode, ViewerViewModel
 
@@ -16,21 +16,30 @@ def make_vm(source=None):
 
 
 def test_tof_profile_is_not_stale_after_the_selection_changes():
+    """The cursor does not move; the slice under it does: the profile must follow without a new hover."""
     vm = make_vm()
     vm.hover_at(0, 3)
-    assert "axial 3" in vm.tof_profile.title or f"axial {vm.selection.axial}" in vm.tof_profile.title
-    vm.set_value("axial", 1)
-    vm.hover_at(0, 3)                                   # same pixel, different slice
-    assert "axial 1" in vm.tof_profile.title
+    assert f"axial {vm.selection.axial}," in vm.tof_profile.title
+    vm.set_value("axial", 1)                            # no hover_at after this
+    assert "axial 1," in vm.tof_profile.title and "view 3," in vm.tof_profile.title
+    expected = vm.dataset.tof_profile(vm.selection.segment, 3, 1, 0)
+    np.testing.assert_allclose(vm.tof_profile.y, expected)
 
 
-def test_tof_profile_refreshes_after_playback_tick_and_slice_mode_change():
+def test_tof_profile_refreshes_after_segment_mode_and_playback_changes():
     vm = make_vm()
     vm.hover_at(0, 3)
-    first = vm.tof_profile
     vm.set_value("segment", 1)
-    vm.hover_at(0, 3)
-    assert vm.tof_profile is not first and "segment 1" in vm.tof_profile.title
+    assert "segment 1," in vm.tof_profile.title
+    vm.set_slice_mode(SliceMode.VIEWGRAM)               # same cursor now means (axial 3, tangential 0)
+    assert "axial 3," in vm.tof_profile.title and f"view {vm.selection.view}," in vm.tof_profile.title
+    before = vm.tof_profile
+    vm.set_playing(True)
+    vm.tick()                                           # TOF bin changes, the LOR does not
+    assert vm.tof_profile == before and vm.tof_marker == vm.selection.tof
+    vm.hover_leave()
+    vm.set_value("view", 0)
+    assert vm.tof_profile is None                       # no cursor: no profile for a LOR nobody points at
 
 
 def test_a_read_error_stops_playback():

@@ -25,11 +25,19 @@ def test_existing_source_passes_through():
     assert make_source(src) is src
 
 
-def test_hs_without_stir_gives_helpful_error(monkeypatch):
+def test_hs_without_stir_gives_helpful_error(monkeypatch, tmp_path):
     monkeypatch.setitem(sys.modules, "stir", None)           # makes `import stir` fail
     monkeypatch.delenv("STIR_PYTHON_PATH", raising=False)
+    hs = tmp_path / "some.hs"
+    hs.write_text("!INTERFILE :=\n")
     with pytest.raises(StirNotFoundError, match="--stir-path"):
-        make_source("some.hs")
+        make_source(hs)
+
+
+def test_missing_file_is_reported_as_missing_not_as_missing_stir(monkeypatch, tmp_path):
+    monkeypatch.setitem(sys.modules, "stir", None)
+    with pytest.raises(FileNotFoundError, match="No such file"):
+        make_source(tmp_path / "typo.hs")
 
 
 def test_arbitrary_object_is_treated_as_stir_projdata(monkeypatch):

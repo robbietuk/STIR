@@ -5788,6 +5788,16 @@ launch_GUI(proj_data)
 proj_data_array = proj_data.as_array()
   \end{verbatim}
 
+  Since STIR 6.5 there is also a newer viewer, \texttt{stir\_projdata\_viewer} (needs PySide6 and pyqtgraph),
+  which handles time-of-flight data (stepping through, playing back or summing TOF bins, and the TOF profile of the
+  LOR under the cursor). It is installed next to the \texttt{stir} module and can be used in the same way
+  \begin{verbatim}
+from stir_projdata_viewer.app import launch
+launch(proj_data)       # or a filename
+  \end{verbatim}
+  or from the command line as \texttt{python -m stir\_projdata\_viewer file.hs}. See
+  \texttt{examples/python/projdata\_viewer/README.md} for details.
+
 \section{
 Future developments and Support}
 

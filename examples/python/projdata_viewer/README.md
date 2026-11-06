@@ -95,7 +95,26 @@ launch("my_sinogram.hs", stir_path="/opt/stir/python", theme="light")
 
 ### numpy layout
 
-* `.npz`: one array per segment, named `segment_<n>` (`n` may be negative, e.g. `segment_-1`). Each array is
+Two `.npz` layouts are accepted, plus `.npy`:
+
+* **STIR's own export.** `ProjData.as_array()` returns one array `(tof, sinograms, views, tangential)` in which the
+  sinograms of all segments follow each other in STIR's order 0, 1, -1, 2, -2, ... Since that array alone does
+  not say where one segment ends, save the number of axial positions per segment with it:
+
+  ```python
+  import numpy as np, stir
+  pd = stir.ProjData.read_from_file("my_sinogram.hs")
+  n = pd.get_num_segments()
+  order = [0] + [s for k in range(1, n) for s in (k, -k)][: n - 1]     # 0, 1, -1, 2, -2, ...
+  np.savez("my_sinogram.npz", as_array=pd.as_array(),
+           axial_counts=[pd.get_num_axial_poss(s) for s in order])
+  ```
+
+  For a segment range that is not symmetric (e.g. -1..2) also save `segment_numbers=` with STIR's order
+  (for -1..2: `[0, 1, -1, 2]`). A bare `np.save(..., pd.as_array())` `.npy` cannot be split into segments and
+  is **not** in the layout below, so it would be shown wrongly: use the `.npz` form above.
+
+* **One array per segment**, named `segment_<n>` (`n` may be negative, e.g. `segment_-1`). Each array is
   `(views, axial, tangential)` for non-TOF data or `(tof, views, axial, tangential)` for TOF data. Segment
   numbers must be contiguous (e.g. -1, 0, 1). All segments must have the same number of views, tangential
   positions and TOF bins; the axial size may differ.
@@ -111,7 +130,9 @@ np.savez("data.npz", segment_0=seg0, **{"segment_-1": seg_m1, "segment_1": seg_p
 In the window: the *Slice* box chooses sinogram / viewgram / tangential slice; *Time of flight*
 chooses a single bin (with Play) or Sum / Mean / Max over all bins. Hovering shows the value, the
 bin indices, and (for TOF data) the counts-versus-TOF-bin profile of the LOR under the cursor.
-Keys: Space play/pause, Left/Right step the active index, PgUp/PgDn change segment.
+Keys: Space play/pause, Left/Right step the active index, PgUp/PgDn change segment. When a slider, spin box
+or text field has the keyboard focus, these keys go to it instead (e.g. Right on the segment slider moves the
+segment). Min/Max level accept any number, including scientific notation such as `2.5e-8`.
 
 ## Architecture (MVVM)
 
@@ -173,13 +194,18 @@ Changed on purpose: no matplotlib toolbar; the slice is always shown as a fixed 
 vmin is no longer fixed at 0 (auto per slice, or fixed global range); the initial slice is the central one;
 the data summary is shown in the Information panel instead of the console.
 
-Dropped: the Qt style/palette selector; installation by STIR's CMake into the `stir` package
-(this is a standalone project, so `python -m stir.projdata_visualisation` is unchanged and still the old tool).
+Dropped: the Qt style/palette selector; zoom/pan (the slice is always shown whole, as a fixed image).
+
+Installation: STIR's CMake installs this package next to the `stir` package (`<prefix>/python/stir_projdata_viewer`),
+so after installing STIR `python -m stir_projdata_viewer` works wherever `import stir` does. The old tool is still
+installed as `stir.projdata_visualisation` and is unchanged.
 
 ## Known limitations
 
-* Everything runs on the UI thread. Collapsing TOF bins, *Fixed (global range)* levels and the first hover on TOF
-  data read every bin of one segment (all segments for the global range); on large TOF data this can take a while
-  and use several GB (the cache holds all TOF bins of one segment). Not measured on real data yet.
-* Left/Right arrow shortcuts apply to the whole window and take precedence over a focused slider.
+* Everything runs on the UI thread. Collapsing TOF bins reads every bin of one segment, and *Fixed (global range)*
+  levels read the whole data set once (every segment and, for single bins, every TOF bin); on large TOF data this
+  takes a while (a wait cursor is shown). Not measured on real data yet.
+* Memory: segments are cached up to about 1 GiB (plus up to 1 GiB of Sum/Mean/Max results); beyond that the least
+  recently used ones are dropped and read again when needed. Hovering reads single sinograms (one per TOF bin),
+  not whole segments.
 * Written against PySide6 >= 6.6 and pyqtgraph >= 0.13.7 but not yet run against them: see PLAN.md section 4.

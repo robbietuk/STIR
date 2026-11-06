@@ -34,6 +34,15 @@ def _colormap(name: str) -> pg.ColorMap:
     return pg.ColorMap([0.0, 1.0], [(0, 0, 0), (255, 255, 255)])
 
 
+def _uses_key(widget, key) -> bool:
+    """Does ``widget`` (the focused one) have its own meaning for ``key``?"""
+    Key = QtCore.Qt.Key
+    text_entry = (QtWidgets.QLineEdit, QtWidgets.QAbstractSpinBox, QtWidgets.QPlainTextEdit, QtWidgets.QTextEdit)
+    if key == Key.Key_Space:
+        return isinstance(widget, text_entry)
+    return isinstance(widget, (QtWidgets.QAbstractSlider, QtWidgets.QComboBox) + text_entry)
+
+
 @contextlib.contextmanager
 def _wait_cursor():
     QtWidgets.QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.CursorShape.WaitCursor))
@@ -171,17 +180,13 @@ class ViewerWindow(QtWidgets.QMainWindow):
         self.level_control.set_choice_enabled(LEVEL_MODE_OPTIONS.values[-1], False)  # MANUAL is entered by editing
         display.body.addWidget(ui.LabeledRow("Colour map", self.cmap_control))
         display.body.addWidget(self.level_control)
-        self.level_spins: dict[str, QtWidgets.QDoubleSpinBox] = {}
+        self.level_edits: dict[str, ui.NumberEdit] = {}
         for key, label in (("low", "Min level"), ("high", "Max level")):
-            spin = QtWidgets.QDoubleSpinBox()
-            spin.setRange(-1e30, 1e30)
-            spin.setDecimals(6)
-            spin.setKeyboardTracking(False)          # commit on Enter/focus-out, not per keystroke
-            spin.setStepType(QtWidgets.QAbstractSpinBox.StepType.AdaptiveDecimalStepType)
-            spin.setFixedWidth(130)
-            spin.valueChanged.connect(lambda v, k=key: self._run(self.vm.set_level_bounds, **{k: v}))
-            self.level_spins[key] = spin
-            display.body.addWidget(ui.LabeledRow(label, spin))
+            edit = ui.NumberEdit()                   # any magnitude, e.g. 1e-8; commits on Enter/focus-out
+            edit.setFixedWidth(130)
+            edit.valueEdited.connect(lambda v, k=key: self._run(self.vm.set_level_bounds, **{k: v}))
+            self.level_edits[key] = edit
+            display.body.addWidget(ui.LabeledRow(label, edit))
         self.log_switch = QtWidgets.QCheckBox("log(1 + x) display")
         self.log_switch.toggled.connect(lambda on: self._run(self.vm.set_log_display, on))
         display.body.addWidget(self.log_switch)
@@ -257,13 +262,37 @@ class ViewerWindow(QtWidgets.QMainWindow):
         return page
 
     def _install_shortcuts(self) -> None:
-        def add(key: str, fn) -> None:
-            QtGui.QShortcut(QtGui.QKeySequence(key), self).activated.connect(fn)
-        add("Space", lambda: self._run(self.vm.toggle_play))
-        add("Left", lambda: self._run(self.vm.step_active, -1))
-        add("Right", lambda: self._run(self.vm.step_active, +1))
-        add("PgUp", lambda: self._run(self.vm.step, "segment", +1))
-        add("PgDown", lambda: self._run(self.vm.step, "segment", -1))
+        """Window-wide keys. A QShortcut pre-empts the focused widget, so when the focus is on a widget that
+        uses the key itself (a slider or spin box for arrows/PgUp/PgDn, a text field for Space), the key
+        is passed on to that widget instead of running the shortcut: Right on a focused segment slider
+        moves the segment, not the axial position."""
+        Key = QtCore.Qt.Key
+        self._shortcut_commands = {
+            Key.Key_Space: lambda: self._run(self.vm.toggle_play),
+            Key.Key_Left: lambda: self._run(self.vm.step_active, -1),
+            Key.Key_Right: lambda: self._run(self.vm.step_active, +1),
+            Key.Key_PageUp: lambda: self._run(self.vm.step, "segment", +1),
+            Key.Key_PageDown: lambda: self._run(self.vm.step, "segment", -1),
+        }
+        self._shortcuts = {}
+        for key in self._shortcut_commands:
+            sc = QtGui.QShortcut(QtGui.QKeySequence(key), self)
+            sc.activated.connect(lambda k=key: self._on_shortcut(k))
+            self._shortcuts[key] = sc
+
+    def _on_shortcut(self, key) -> None:
+        focus = self.focusWidget()       # this window's focus child (also right when the window is not active)
+        if focus is not None and _uses_key(focus, key):
+            sc = self._shortcuts[key]
+            sc.setEnabled(False)          # or the re-sent key would trigger this shortcut again
+            try:
+                for kind in (QtCore.QEvent.Type.KeyPress, QtCore.QEvent.Type.KeyRelease):
+                    QtWidgets.QApplication.sendEvent(
+                        focus, QtGui.QKeyEvent(kind, key, QtCore.Qt.KeyboardModifier.NoModifier))
+            finally:
+                sc.setEnabled(True)
+            return
+        self._shortcut_commands[key]()
 
     # ------------------------------------------------------------------ theming
     def set_palette(self, palette: Palette) -> None:
@@ -295,9 +324,8 @@ class ViewerWindow(QtWidgets.QMainWindow):
             self._run(self.vm.load, path)
 
     def _load_typed_path(self) -> None:
-        text = self.path_edit.text().strip()
-        if text:
-            self._run(self.vm.load, text)
+        if self.path_edit.text().strip():
+            self._run(self.vm.load_path, self.path_edit.text())
 
     def _save_image(self) -> None:
         path, _ = QtWidgets.QFileDialog.getSaveFileName(self, "Save image", "slice.png",
@@ -331,7 +359,7 @@ class ViewerWindow(QtWidgets.QMainWindow):
         b = self.bindings.bind
         b("window_title", lambda: self.setWindowTitle(self.vm.window_title))
         b("status", lambda: self.statusBar().showMessage(self.vm.status))
-        b("source_label", lambda: self.path_edit.setText(self.vm.source_label))
+        b("source_path", lambda: self.path_edit.setText(self.vm.source_path))   # a real path or empty
         b("source_label", lambda: self.title_label.setText(self.vm.source_label))
         b("loaded", self._show_page)
         b("loaded", lambda: self.act_save.setEnabled(self.vm.loaded))
@@ -396,7 +424,7 @@ class ViewerWindow(QtWidgets.QMainWindow):
         try:
             self.hist.setLevels(*self.vm.levels)
             for key, value in zip(("low", "high"), self.vm.levels):
-                ui.silently(self.level_spins[key], lambda k=key, v=value: self.level_spins[k].setValue(v))
+                self.level_edits[key].set_value(value)
         finally:
             self._applying_levels = False
 

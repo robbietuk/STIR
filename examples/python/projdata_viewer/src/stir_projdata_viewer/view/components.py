@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from PySide6 import QtCore, QtWidgets
 
+from ..viewmodel.formatting import format_number, parse_number
 from ..viewmodel.options import ChoiceOptions
 
 
@@ -301,3 +302,34 @@ class DimensionControl(QtWidgets.QWidget):
         self._label.setText(label)
         self._range.setText(f"{lo} – {hi}")
         self.setEnabled(enabled)
+
+
+class NumberEdit(QtWidgets.QLineEdit):
+    """A floating-point field that accepts any magnitude, including scientific notation (``1e-8``).
+
+    A ``QDoubleSpinBox`` has a fixed number of decimals, so small values (normalisation factors,
+    scatter estimates) would display as zero. ``valueEdited(float)`` fires when the user commits a
+    valid number (Enter or focus-out); invalid text is put back to the last shown value.
+    ``set_value`` updates the text without firing ``valueEdited``.
+    """
+
+    valueEdited = QtCore.Signal(float)
+
+    def __init__(self, parent: QtWidgets.QWidget | None = None):
+        super().__init__(parent)
+        self._shown = ""
+        self.editingFinished.connect(self._commit)
+
+    def set_value(self, value: float) -> None:
+        self._shown = format_number(value)
+        silently(self, lambda: self.setText(self._shown))
+
+    def _commit(self) -> None:
+        text = self.text().strip()
+        if text == self._shown:
+            return                         # focus-out without an edit
+        value = parse_number(text)
+        if value is None:
+            silently(self, lambda: self.setText(self._shown))
+            return
+        self.valueEdited.emit(value)

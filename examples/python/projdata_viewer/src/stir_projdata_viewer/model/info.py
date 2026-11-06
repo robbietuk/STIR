@@ -91,5 +91,9 @@ class ProjDataSource(Protocol):
         """Return one segment for one TOF bin as float32, shape ``(views, axial, tangential)``.
 
         Index 0 along each axis corresponds to the ``min_*`` value in ``info``.
+
+        Sources may also offer ``get_sinogram(segment, axial, tof_bin)`` returning one sinogram
+        ``(views, tangential)``. It is optional (looked up with ``getattr``); when present the per-LOR TOF
+        profile reads one sinogram per TOF bin instead of whole segments.
         """
         ...

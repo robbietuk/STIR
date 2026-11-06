@@ -48,6 +48,10 @@ class StirProjDataHandle(Protocol):
         """float32 array of shape (views, axial, tangential); must be validated by the implementation."""
         ...
 
+    def read_sinogram(self, segment: int, axial: int, tof_bin: int) -> np.ndarray:
+        """float32 array of shape (views, tangential): one sinogram, much cheaper than a segment."""
+        ...
+
 
 @runtime_checkable
 class StirGateway(Protocol):

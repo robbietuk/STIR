@@ -66,6 +66,18 @@
       <a href=https://github.com/UCL/STIR/pull/1604>PR #1604</a>.
     </li>
   </ul>
+  <h4>Python</h4>
+  <ul>
+    <li>
+      New interactive projection data viewer <code>stir_projdata_viewer</code> (PySide6 + pyqtgraph) in
+      <code>examples/python/projdata_viewer</code>, installed next to the <code>stir</code> module.
+      It shows sinograms, viewgrams and tangential slices, steps through, plays back or sums/averages/maxes
+      over TOF bins, and plots the TOF profile of the LOR under the cursor. It opens STIR files,
+      <code>stir.ProjData</code> objects and numpy arrays (including the layout of <code>ProjData.as_array()</code>).
+      Run <code>python -m stir_projdata_viewer file.hs</code>, or see <code>examples/python/demo_projdata_viewer.py</code>.
+      The PyQt5 <code>stir.projdata_visualisation</code> is still installed.
+    </li>
+  </ul>
 
   <!--
   <h3>Changed functionality</h3>

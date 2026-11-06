@@ -6,7 +6,7 @@ The real-STIR variant lives in test_real_stir_integration.py and reuses ``check_
 import numpy as np
 import pytest
 
-from fakes import FakeHandle, FakeProjData, make_fake_stir, small_demo
+from fakes import FakeHandle, FakeProjData, FakeProjDataIndicesOnly, make_fake_stir, small_demo
 from stir_projdata_viewer.stir_interface import ProjDataLayout, StirProjDataHandle
 from stir_projdata_viewer.stir_interface.swig_gateway import SwigStirGateway
 
@@ -35,6 +35,14 @@ def check_handle_contract(h: StirProjDataHandle) -> None:
     with pytest.raises(Exception):                                          # noqa: B017 - any failure is fine
         h.read_segment(lay.max_segment + 5, lay.min_tof)
 
+    # one sinogram must equal the corresponding slice of the segment
+    for seg, (lo, hi) in lay.axial_ranges.items():
+        for tof in (lay.min_tof, lay.max_tof):
+            for ax in (lo, hi):
+                sino = np.asarray(h.read_sinogram(seg, ax, tof))
+                assert sino.dtype == np.float32 and sino.shape == (n_view, n_tang)
+                np.testing.assert_array_equal(sino, h.read_segment(seg, tof)[:, ax - lo, :])
+
 
 def _fake_handle():
     return FakeHandle(small_demo(), meta={"scanner": "demo"})
@@ -45,6 +53,12 @@ def _swig_over_fake_stir():
     return SwigStirGateway(stir_module=make_fake_stir(pd)).wrap(pd)
 
 
-@pytest.mark.parametrize("make", [_fake_handle, _swig_over_fake_stir], ids=["fake-handle", "swig-gateway-fake-stir"])
+def _swig_over_fake_stir_indices_only():
+    pd = FakeProjDataIndicesOnly()
+    return SwigStirGateway(stir_module=make_fake_stir(pd)).wrap(pd)
+
+
+@pytest.mark.parametrize("make", [_fake_handle, _swig_over_fake_stir, _swig_over_fake_stir_indices_only],
+                         ids=["fake-handle", "swig-gateway-fake-stir", "swig-gateway-segment-indices-only"])
 def test_handle_contract(make):
     check_handle_contract(make())

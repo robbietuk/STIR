@@ -132,15 +132,74 @@ def test_the_real_histogram_signal_reaches_the_view_model(win):
     assert win.vm.level_mode is LevelMode.MANUAL and win.vm.levels == (1.0, 2.0)
 
 
+def _type_into(edit, text):
+    edit.setText(text)
+    edit.editingFinished.emit()
+
+
 def test_typed_level_and_path_controls(win, tmp_path):
     import numpy as np
-    win.level_spins["high"].setValue(123.0)
+    _type_into(win.level_edits["high"], "123")
     assert win.vm.level_mode is LevelMode.MANUAL and win.vm.levels[1] == 123.0
     np.save(tmp_path / "a.npy", np.zeros((4, 3, 5), dtype=np.float32))
     win.vm._factory = __import__("stir_projdata_viewer.sources.loader", fromlist=["x"]).make_source
-    win.path_edit.setText(str(tmp_path / "a.npy"))
+    win.path_edit.setText(f'  "{tmp_path / "a.npy"}"  ')             # Windows "Copy as path" style
     win._load_typed_path()
-    assert win.vm.dataset.info.num_views == 4 and win.path_edit.text().endswith("a.npy")
+    assert win.vm.dataset.info.num_views == 4 and win.path_edit.text() == str(tmp_path / "a.npy")
+
+
+def test_level_edits_handle_tiny_values_and_snap_back_on_rejection(app):
+    """Review finding: 6 fixed decimals showed 1e-8-sized data as 0/0, and a rejected bound stayed displayed."""
+    import numpy as np
+    from stir_projdata_viewer.sources import ArraySource
+    vm = ViewerViewModel(lambda o: o)
+    w = ViewerWindow(vm)
+    try:
+        vm.load(ArraySource({0: np.linspace(1e-9, 5e-8, 4 * 3 * 5, dtype=np.float32).reshape(4, 3, 5)}))
+        lo, hi = vm.levels
+        assert float(w.level_edits["low"].text()) == pytest.approx(lo, rel=1e-5)
+        assert float(w.level_edits["high"].text()) == pytest.approx(hi, rel=1e-5) and hi < 1e-7
+        _type_into(w.level_edits["high"], "2.5e-8")
+        assert vm.levels[1] == pytest.approx(2.5e-8)
+        _type_into(w.level_edits["low"], "1")                        # above high: rejected
+        assert vm.levels[0] == pytest.approx(lo)
+        assert float(w.level_edits["low"].text()) == pytest.approx(lo, rel=1e-5)   # box snapped back
+        _type_into(w.level_edits["low"], "not a number")
+        assert float(w.level_edits["low"].text()) == pytest.approx(lo, rel=1e-5)
+    finally:
+        w.close()
+
+
+def _press(widget, key):
+    from PySide6 import QtCore, QtTest
+    QtTest.QTest.keyClick(widget, key)
+    QtWidgets.QApplication.processEvents()
+
+
+def test_arrow_keys_go_to_the_focused_slider_not_the_active_dimension(win, app):
+    """Review finding: window-wide Left/Right shortcuts pre-empted a focused slider."""
+    from PySide6 import QtCore
+    win.show()
+    app.processEvents()
+    seg = win.dim_controls["segment"]._slider
+    before = (win.vm.selection.segment, win.vm.selection.axial)
+    seg.setFocus()
+    _press(seg, QtCore.Qt.Key.Key_Left)
+    assert win.vm.selection.segment == before[0] - 1 and win.vm.selection.axial == before[1]
+    # focus on something without its own use for arrows (here: a button), the window steps the active dimension
+    win.play_button.setFocus()
+    _press(win.play_button, QtCore.Qt.Key.Key_Left)             # (Right would clamp: axial 3 is the last in segment -1)
+    assert win.vm.selection.axial == before[1] - 1 and win.vm.selection.segment == before[0] - 1
+    _press(win.play_button, QtCore.Qt.Key.Key_PageUp)
+    assert win.vm.selection.segment == before[0]
+    win.mode_control._buttons[0].setFocus()                       # Space must not re-click a focused button
+    _press(win.mode_control._buttons[0], QtCore.Qt.Key.Key_Space)
+    assert win.vm.playing
+    _press(win.mode_control._buttons[0], QtCore.Qt.Key.Key_Space)
+    assert not win.vm.playing
+    win.path_edit.setFocus()                                      # ...but a text field gets its space
+    _press(win.path_edit, QtCore.Qt.Key.Key_Space)
+    assert not win.vm.playing and win.path_edit.text().endswith(" ")
 
 
 def test_save_image_writes_a_png(win, tmp_path, monkeypatch):

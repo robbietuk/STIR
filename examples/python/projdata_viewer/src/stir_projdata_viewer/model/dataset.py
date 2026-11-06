@@ -14,14 +14,19 @@ from .selection import Selection, SliceMode, TofMode
 from .slices import SliceImage, SliceStats, compute_stats, finite_range
 
 
+DEFAULT_CACHE_BYTES = 1 << 30          # 1 GiB for raw segments, the same again at most for reductions
+
+
 class ProjDataset:
-    def __init__(self, source: ProjDataSource, cache_segments: int = 8):
+    def __init__(self, source: ProjDataSource, cache_segments: int = 8, cache_bytes: int | None = DEFAULT_CACHE_BYTES):
         self.source = source
         self.info: ProjDataInfo = source.info
-        # (segment, tof_bin) -> array. Big enough for all bins of one segment, so TOF playback and the
-        # per-LOR TOF profile never reload. TOF reductions are cached separately.
-        self._raw: LRUCache[np.ndarray] = LRUCache(max(cache_segments, self.info.num_tof_bins + 1))
-        self._reduced: LRUCache[np.ndarray] = LRUCache(cache_segments)
+        # (segment, tof_bin) -> array. Room for all bins of one segment (so TOF playback does not reload)
+        # unless that exceeds ``cache_bytes``; then the least recently used bins are dropped and re-read.
+        self._raw: LRUCache[np.ndarray] = LRUCache(max(cache_segments, self.info.num_tof_bins + 1), cache_bytes)
+        self._reduced: LRUCache[np.ndarray] = LRUCache(cache_segments, cache_bytes)
+        # (segment, axial, tof_bin) -> sinogram (views, tangential), for cheap per-LOR TOF profiles
+        self._sinograms: LRUCache[np.ndarray] = LRUCache(max(64, 4 * self.info.num_tof_bins))
         self._global: dict[tuple, tuple[float, float]] = {}
 
     # ---- raw and reduced segments ---------------------------------------------
@@ -92,17 +97,43 @@ class ProjDataset:
         return compute_stats(image.data)
 
     def global_range(self, sel: Selection) -> tuple[float, float]:
-        """(min, max) of the finite values over all segments for the TOF selection of ``sel``.
-        Loads everything once; (0, 1) if there are no finite values."""
-        key = (sel.tof_mode, sel.tof if sel.tof_mode is TofMode.BIN else None)
+        """(min, max) of the finite values of the whole data set as displayed in ``sel.tof_mode``:
+        for single TOF bins over all segments *and all TOF bins* (so the colour scale stays put while
+        stepping or playing through bins); for Sum/Mean/Max over all reduced segments.
+        Reads everything once and caches the result; (0, 1) if there are no finite values."""
+        key = sel.tof_mode
         if key not in self._global:
             lo, hi = np.inf, -np.inf
             for s in self.info.segments:
-                r = finite_range(self.segment_array(s, sel.tof_mode, sel.tof))
-                if r is not None:
-                    lo, hi = min(lo, r[0]), max(hi, r[1])
+                parts = ([self.segment_array(s, TofMode.BIN, k) for k in self.info.tof_bins]
+                         if sel.tof_mode is TofMode.BIN else [self.segment_array(s, sel.tof_mode)])
+                for part in parts:
+                    r = finite_range(part)
+                    if r is not None:
+                        lo, hi = min(lo, r[0]), max(hi, r[1])
             self._global[key] = (lo, hi) if lo <= hi else (0.0, 1.0)
         return self._global[key]
+
+    def _sinogram(self, segment: int, axial: int, tof_bin: int) -> np.ndarray:
+        """One sinogram (views, tangential). Served from a cached segment if there is one, else read on its
+        own when the source can (``get_sinogram``), which is much cheaper than a whole segment."""
+        a_lo, _ = self.info.axial_range(segment)
+        raw = self._raw.get((segment, tof_bin))
+        if raw is not None:
+            return raw[:, axial - a_lo, :]
+        reader = getattr(self.source, "get_sinogram", None)
+        if reader is None:
+            return self._raw_segment(segment, tof_bin)[:, axial - a_lo, :]
+        key = (segment, axial, tof_bin)
+        sino = self._sinograms.get(key)
+        if sino is None:
+            sino = np.asarray(reader(segment, axial, tof_bin), dtype=np.float32)
+            expected = (self.info.num_views, self.info.num_tangential)
+            if sino.shape != expected:
+                raise ValueError(f"source returned sinogram shape {sino.shape} for segment {segment}, "
+                                 f"axial {axial}, expected {expected}")
+            self._sinograms.put(key, sino)
+        return sino
 
     def tof_profile(self, segment: int, view: int, axial: int, tangential: int) -> np.ndarray:
         """Counts versus TOF bin for one LOR; length = number of TOF bins."""
@@ -116,6 +147,6 @@ class ProjDataset:
             if not lo <= value <= hi:
                 raise ValueError(f"{name} {value} is outside {lo}..{hi}")
         return np.array([
-            self._raw_segment(segment, k)[view - i.min_view, axial - a_lo, tangential - i.min_tangential]
+            self._sinogram(segment, axial, k)[view - i.min_view, tangential - i.min_tangential]
             for k in i.tof_bins
         ], dtype=np.float64)

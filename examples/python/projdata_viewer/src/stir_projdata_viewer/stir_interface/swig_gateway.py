@@ -14,6 +14,7 @@ from __future__ import annotations
 import importlib
 import os
 import sys
+import warnings
 from typing import Any, Callable
 
 import numpy as np
@@ -36,13 +37,40 @@ def _add_windows_dll_dirs(python_dir: str) -> None:
             add(d)
 
 
+def _module_dir(module: Any) -> str | None:
+    f = getattr(module, "__file__", None)
+    return os.path.dirname(os.path.dirname(os.path.abspath(f))) if f else None
+
+
 def import_stir(extra_path: str | None = None):
-    """Import and return the ``stir`` module, optionally searching ``extra_path`` first."""
-    path = extra_path or os.environ.get(ENV_VAR)
+    """Import and return the ``stir`` module.
+
+    * ``extra_path`` (``--stir-path``) is an explicit request: it must exist, and is searched first.
+    * ``$STIR_PYTHON_PATH`` is a default: if it does not exist a warning is issued and the normal
+      ``import stir`` is tried instead.
+    * A ``stir`` that is already imported cannot be replaced (it is a compiled extension); if it comes from
+      somewhere else than ``extra_path`` a warning says which one is used.
+    """
+    path = extra_path
+    if path is None and os.environ.get(ENV_VAR):
+        env_path = os.path.abspath(os.path.expanduser(os.environ[ENV_VAR]))
+        if os.path.isdir(env_path):
+            path = env_path
+        else:
+            warnings.warn(f"${ENV_VAR}={os.environ[ENV_VAR]!r} is not a directory; ignoring it", RuntimeWarning,
+                          stacklevel=2)
     if path:
         path = os.path.abspath(os.path.expanduser(path))
         if not os.path.isdir(path):
             raise StirNotFoundError(f"STIR python path does not exist: {path}")
+        loaded = sys.modules.get("stir")
+        if loaded is not None:
+            where = _module_dir(loaded)
+            if where is not None and os.path.normcase(where) != os.path.normcase(path):
+                warnings.warn(f"'stir' is already imported from {where}; it cannot be replaced by the one in "
+                              f"{path} in this Python session, so the already imported one is used",
+                              RuntimeWarning, stacklevel=2)
+            return loaded
         if path not in sys.path:
             sys.path.insert(0, path)
         _add_windows_dll_dirs(path)
@@ -108,8 +136,28 @@ class SwigProjData:
             extra["TOF mashing factor"] = str(mash)
         return extra
 
+    def _segment_by_view(self, segment: int, tof_bin: int):
+        # The (segment, timing_pos) overload is declared on ProjData *and* overridden by every subclass
+        # (ProjDataInMemory, ProjDataFromStream, ...). The SegmentIndices overload is an inline on ProjData
+        # only, which C++ name hiding (and so SWIG) does not carry over to the subclasses; it is the fallback.
+        try:
+            return self._pd.get_segment_by_view(segment, tof_bin)
+        except TypeError:
+            return self._pd.get_segment_by_view(self._stir.SegmentIndices(segment, tof_bin))
+
+    def read_sinogram(self, segment: int, axial: int, tof_bin: int) -> np.ndarray:
+        """One sinogram (views, tangential), via ``ProjData.get_sinogram(ax_pos, segment, False, timing_pos)``."""
+        sino = self._pd.get_sinogram(axial, segment, False, tof_bin)
+        arr = np.asarray(sino.as_array(), dtype=np.float32)
+        lay = self._layout
+        expected = (lay.max_view - lay.min_view + 1, lay.max_tangential - lay.min_tangential + 1)
+        if arr.shape != expected:
+            raise RuntimeError(f"unexpected sinogram shape {arr.shape} for segment {segment}, axial {axial}, "
+                               f"expected {expected} (views, tangential)")
+        return arr
+
     def read_segment(self, segment: int, tof_bin: int) -> np.ndarray:
-        seg = self._pd.get_segment_by_view(self._stir.SegmentIndices(segment, tof_bin))
+        seg = self._segment_by_view(segment, tof_bin)
         arr = np.asarray(seg.as_array(), dtype=np.float32)
         lay = self._layout
         a_lo, a_hi = lay.axial_ranges[segment]

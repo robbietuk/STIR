@@ -3,6 +3,8 @@
 """Pure functions turning model objects into the text the view shows."""
 from __future__ import annotations
 
+import math
+
 from ..model import ProjDataInfo, Selection, SliceImage, SliceMode, SliceStats, TofMode
 
 
@@ -62,3 +64,17 @@ def context_chips(info: ProjDataInfo, sel: Selection) -> tuple[str, ...]:
     if info.is_tof:
         chips.append(f"TOF bin {sel.tof}" if sel.tof_mode is TofMode.BIN else f"TOF {sel.tof_mode.name.lower()}")
     return tuple(chips)
+
+
+def format_number(value: float) -> str:
+    """Compact text for an editable number: 6 significant digits, scientific notation when needed."""
+    return f"{float(value):.6g}"
+
+
+def parse_number(text: str) -> float | None:
+    """The finite float in ``text`` (``1e-8``, ``-3``, `` 2.5 ``), or None if it is not one."""
+    try:
+        value = float(text.strip().replace(",", "."))
+    except (ValueError, AttributeError):
+        return None
+    return value if math.isfinite(value) else None
