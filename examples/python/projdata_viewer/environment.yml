@@ -1,0 +1,13 @@
+# conda env create -f environment.yml && conda activate stir-viewer
+# then, from this directory:  pip install -e .
+name: stir-viewer
+channels:
+  - conda-forge
+dependencies:
+  - python>=3.11
+  - stir            # STIR with Python bindings (conda-forge build)
+  - numpy
+  - pyside6         # from conda-forge so the Qt stack matches the rest of the env
+  - pyqtgraph>=0.13.7
+  - pytest
+  - pip

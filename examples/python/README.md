@@ -47,3 +47,25 @@ launch_GUI('filename.hs')
 ```
 
 Note however that this is currently a bit experimental. Improvements welcome!
+
+## Projection data viewer (PySide6 + pyqtgraph)
+
+[`projdata_viewer/`](projdata_viewer/README.md) is a standalone rewrite of `projdata_visualisation`
+with time-of-flight support (step through, play back, or sum/mean/max over TOF bins) and per-LOR
+TOF profiles. It is not installed by STIR's CMake; install it with `pip install -e .` from that
+directory (or use its `environment.yml`), then
+
+```sh
+stir-projdata-viewer my_sinogram.hs      # STIR projection data
+stir-projdata-viewer --demo              # synthetic TOF data, needs no STIR
+```
+
+or from Python
+
+```python
+from stir_projdata_viewer.app import launch
+launch("my_sinogram.hs")                 # or a stir.ProjData object
+```
+
+See [projdata_viewer/README.md](projdata_viewer/README.md#loading-data) for all the ways to load data,
+including numpy arrays and pointing it at a STIR source build.

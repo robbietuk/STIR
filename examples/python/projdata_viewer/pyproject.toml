@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "stir-projdata-viewer"
+version = "0.1.0"
+description = "Interactive PySide6 viewer for STIR projection data (sinograms, viewgrams, TOF bins)"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+dependencies = [
+    "numpy>=1.24.3",
+    "PySide6>=6.6",
+    "pyqtgraph>=0.13.7",
+]
+# NOTE: `stir` is deliberately NOT listed. It is a compiled SWIG extension that
+# is not on PyPI; it is discovered at run time (see PLAN.md, "Getting STIR").
+
+[project.optional-dependencies]
+test = ["pytest>=7"]
+
+[project.scripts]
+stir-projdata-viewer = "stir_projdata_viewer.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/stir_projdata_viewer"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "tests"]
