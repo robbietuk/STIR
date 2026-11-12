@@ -1,12 +1,12 @@
-# STIR pip Phase 3: CUDA variants Implementation Plan
+# STIR pip Phase 3: CUDA 12 variant (`stir-cuda12`) Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build, test and rehearse-publish `stir-cuda12` and `stir-cuda13` wheels for Linux x86_64, Linux aarch64 (sbsa) and Windows x86_64, Python 3.11–3.15. The wheels load the CUDA runtime from NVIDIA's pip packages and explain clearly when the machine has no usable GPU. The phase ends with Robert's sign-off on a real GPU.
+**Goal:** Build, test and rehearse-publish `stir-cuda12` wheels, Python 3.11–3.15 (10 wheels): Linux x86_64 first (Tasks 1–11), then Windows x86_64 as a separate, later task group (Tasks 12–13). The wheels load the CUDA runtime from NVIDIA's pip packages and explain clearly when the machine has no usable GPU. The phase ends with Robert's sign-off on a real GPU. `stir-cuda13` and Linux aarch64 (sbsa) are deferred to the appendix.
 
 **Architecture:** The variant is chosen in two places. `prepare_build.py --variant cudaXX` sets the package name and the NVIDIA runtime dependency. `STIR_WHEEL_VARIANT=cudaXX` turns on a `[[tool.scikit-build.overrides]]` table in `pyproject.toml` that enables STIR's own CUDA code (`DISABLE_STIR_CUDA=OFF`, a fixed `CMAKE_CUDA_ARCHITECTURES`, shared cudart). `build_deps.py --variant cudaXX` builds libparallelproj with `USE_CUDA=ON` into its own cached prefix. In the wheel, `libcudart` is never bundled (auditwheel/delvewheel `--exclude`). Instead, the new `stir/_cuda.py` preloads it from the `nvidia` pip package before `_stir` is imported, and checks the driver and GPU.
 
-**Tech Stack:** CUDA Toolkit 12.9 and 13.4 (nvcc; build time only), libparallelproj 2.0.7, scikit-build-core overrides, cibuildwheel (manylinux_2_28 x86_64 and aarch64, Windows), auditwheel, delvewheel, NVIDIA pip runtime packages (`nvidia-cuda-runtime-cu12`, `nvidia-cuda-runtime`), Python `ctypes` and `importlib.metadata`, pytest, GitHub Actions.
+**Tech Stack:** CUDA Toolkit 12.9 (nvcc; build time only), libparallelproj 2.0.7, scikit-build-core overrides, cibuildwheel (manylinux_2_28 x86_64, Windows), auditwheel, delvewheel, NVIDIA pip runtime package `nvidia-cuda-runtime-cu12`, Python `ctypes` and `importlib.metadata`, pytest, GitHub Actions.
 
 **Spec:** `docs/superpowers/specs/2026-11-12-stir-pip-packaging-design.md`. **Contract:** `docs/superpowers/plans/2026-11-12-stir-pip-00-overview.md`. Read both first.
 
@@ -15,16 +15,17 @@
 - No changes to any STIR C++ file (`*.cxx`, `*.h`, `*.inl`, `*.cu`) or any STIR `CMakeLists.txt`/`*.cmake` (full protected list: overview). All CUDA control goes through `-D` cache variables. If a task seems to need a CMake edit, stop and ask Robert.
 - The only existing STIR file edited is `src/swig/python/stir/__init__.py`; this phase adds exactly the overview's two Phase 3 lines.
 - Never push to `UCL/STIR`. Never publish to PyPI or TestPyPI. `publish` stays `if: false`. Pushes go to the `fork` remote only, after Robert's go-ahead for this phase (overview).
-- `build_cuda` runners: `ubuntu-24.04`, `ubuntu-24.04-arm`, and `windows-2022` (the one runner exception, for VS 2022 with CUDA 12.9).
+- `build_cuda` runners: `ubuntu-24.04` (Tasks 1–11) and `windows-2022` (Task 12; the one runner exception, for VS 2022 with CUDA 12.9).
 - Every job in `wheels.yml` has `if: github.repository == 'robbietuk/STIR'`. Triggers stay `push` to `pip-packaging` and `workflow_dispatch`.
-- Package names: `stir-cuda12` and `stir-cuda13`. All variants provide `import stir`.
-- CUDA platforms: Linux x86_64, Linux aarch64 (sbsa), Windows x86_64. Python 3.11, 3.12, 3.13, 3.14, 3.15. Linux uses `manylinux_2_28`. No CUDA on macOS.
+- Package name: `stir-cuda12`. All variants provide `import stir`. `cuda13` stays an accepted, reserved `--variant` value that exits 1 (overview); nothing in this phase builds it.
+- CUDA platforms, in order: Linux x86_64, then Windows x86_64. Python 3.11, 3.12, 3.13, 3.14, 3.15 (2 × 5 = 10 wheels). Linux uses `manylinux_2_28`. No CUDA on macOS.
+- **Not part of the first version:** `stir-cuda13` and Linux aarch64 (sbsa). Their researched details are in "Appendix: Later, if needed"; do not execute it unless Robert asks.
 - Features in the CUDA wheels: the same as the CPU `stir` wheel, plus parallelproj (CUDA) and STIR's CUDA code.
 - At runtime the wheel depends on NVIDIA's pip packages instead of bundling the runtime. The CUDA driver (`libcuda` / `nvcuda.dll`) is never bundled.
-- CUDA architectures: the main ones from sm_70 to current, plus PTX for the newest (spec §5.4). CUDA 13 cannot target anything below sm_75, so `stir-cuda13` starts at sm_75.
+- CUDA architectures: the main ones from sm_70 to current, plus PTX for the newest (spec §5.4).
 - PyPI per-file limit: 100 MB. CI fails above it.
 - The wheel must work with no environment variables set, and after the venv is moved (anti-goal, spec §2).
-- Artifact names: `wheels-<variant>-<os>-<arch>` with cibuildwheel arch names, e.g. `wheels-cuda12-linux-x86_64`, `wheels-cuda12-linux-aarch64`, `wheels-cuda12-windows-AMD64`.
+- Artifact names: `wheels-<variant>-<os>-<arch>` with cibuildwheel arch names, exactly `wheels-cuda12-linux-x86_64` and `wheels-cuda12-windows-AMD64`.
 - `STIR_WHEEL_EXPECT` for a CUDA platform is that platform's `build_cpu` `expect` plus `,cuda` (today `config,openmp,json,hdf5,petsird,itk,parallelproj,cuda`; Phase 2 known gaps carry over).
 - Commits: plain imperative messages, ending with the attribution lines your session requires.
 
@@ -32,8 +33,8 @@
 
 1. **Someone with `nvcc` on PATH builds the CPU `stir` from the sdist.** They should get a CPU wheel. If they got one silently linked to `libcudart`, it would fail on any machine without CUDA. Pinned by `test_base_defines_disable_cuda` (Task 2), and in CI by `test_cpu_wheel_has_no_cuda` (Task 5).
 2. **`stir-cudaXX` installed on a machine with no NVIDIA driver** (laptop, CI runner, container started without `--gpus`). `import stir` must still work, and should give one `RuntimeWarning` saying what is missing and what to install instead. It must not crash with a cryptic loader error. Pinned by `test_classify_no_driver` (Task 4) and `test_cuda_device_status_is_reported` (Task 5, which runs on GPU-less runners).
-3. **A driver too old for the variant**, for example a 535 driver (CUDA 12.2) with `stir-cuda13`. The warning should name the CUDA version the driver supports and suggest `stir-cuda12` or a driver update. Pinned by `test_classify_driver_too_old_cuda13` (Task 4).
-4. **A GPU older than the built architectures** (Pascal sm_61 with either variant; Volta sm_70 with `stir-cuda13`). Without a check, this fails later with "no kernel image is available". The warning should say which compute capability was found and which is needed. Pinned by `test_classify_unsupported_gpu` (Task 4).
+3. **A driver too old for the variant**, for example a 470 driver (CUDA 11.4) with `stir-cuda12`. The warning should name the CUDA version the driver supports and the one needed, and suggest a driver update or the CPU `stir`. Pinned by `test_classify_driver_too_old` (Task 4).
+4. **A GPU older than the built architectures** (Pascal sm_61 with `stir-cuda12`). Without a check, this fails later with "no kernel image is available". The warning should say which compute capability was found and which is needed. Pinned by `test_classify_unsupported_gpu` (Task 4).
 5. **Two variants installed in one environment**, for example `pip install stir` followed by `pip install stir-cuda12`. A warning at import should list both and say how to fix it. Pinned by `test_multiple_variants_message` (Task 4) and by the two-variant step in `rehearse_publish` (Task 9).
 
 ---
@@ -42,12 +43,12 @@
 
 | Path | Action | Responsibility |
 |---|---|---|
-| `packaging/pip/deps/versions.toml` | Modify | add `[cuda.cuda12]` and `[cuda.cuda13]`: toolkit version, architectures, runtime requirement |
+| `packaging/pip/deps/versions.toml` | Modify | add `[cuda.cuda12]`: toolkit version, architectures, runtime requirement |
 | `packaging/pip/deps/build_deps.py` | Modify | libparallelproj CUDA build args; `--cuda-version` flag (cache key already includes variant) |
 | `packaging/pip/deps/build_in_manylinux.sh` | Modify | install the CUDA toolkit in the container before `build_deps.py` for `cuda*` |
 | `packaging/pip/tests/test_build_deps.py` | Modify (Phase 2) | tests for the CUDA additions to `build_deps.py` |
-| `pyproject.toml` | Modify | base `DISABLE_STIR_CUDA=ON`; one override table each for `cuda12` and `cuda13` |
-| `packaging/pip/prepare_build.py` | Modify | `cuda12`/`cuda13`: name, runtime dependency, override presence check |
+| `pyproject.toml` | Modify | base `DISABLE_STIR_CUDA=ON`; one override table for `cuda12` |
+| `packaging/pip/prepare_build.py` | Modify | `cuda12`: name, runtime dependency, override presence check (`cuda13` exits 1) |
 | `packaging/pip/tests/test_prepare_build.py` | Modify | variant tests and pyproject/versions consistency tests |
 | `src/swig/python/stir/_cuda.py` | Create | variant detection, cudart preload, driver/GPU status, multi-variant warning |
 | `src/swig/python/stir/__init__.py` | Modify | call `_cuda.prepare_runtime()` before `from .swigstir import *` |
@@ -56,8 +57,8 @@
 | `packaging/pip/check_wheel_size.py` | Create | fails if any wheel is over the limit |
 | `packaging/pip/tests/test_check_wheel_size.py` | Create | its tests |
 | `packaging/pip/ci/install_cuda_linux.sh` | Create | installs nvcc and cudart-devel in a manylinux_2_28 container |
-| `packaging/pip/ci/install_cuda_windows.ps1` | Create | installs nvcc and cudart on a Windows runner via NVIDIA's network installer |
-| `.github/workflows/wheels.yml` | Modify | `build_cuda` job; `rehearse_publish` installs CUDA variants and checks the two-variant warning |
+| `packaging/pip/ci/install_cuda_windows.ps1` | Create (Task 12) | installs nvcc and cudart on a Windows runner via NVIDIA's network installer |
+| `.github/workflows/wheels.yml` | Modify | `build_cuda` job (Linux in Task 8, Windows in Task 12); `rehearse_publish` installs `stir-cuda12` and checks the two-variant warning |
 | `packaging/pip/tests/gpu_check.py` | Create | manual GPU check: CPU vs GPU agreement |
 | `packaging/pip/README.md` | Modify | "CUDA variants" section, GPU check instructions, sign-off table |
 
@@ -73,9 +74,9 @@
 **Interfaces:**
 - Consumes: Phase 2 `build_deps.py` CLI (`--prefix`, `--variant`, `--only`, `--jobs`, `--cache-key`), `parallelproj_cmake_args(variant, versions)` (raises `UsageError` for CUDA until this task), the `<prefix>/.stamps/<name>` completion stamps, and the test helpers `load_build_deps()` / `run(*args)` in `test_build_deps.py`.
 - Produces:
-  - `versions.toml` tables `[cuda.cuda12]` and `[cuda.cuda13]` with keys `toolkit` (str), `architectures` (str, CMake list), `runtime_requirement` (str, PEP 508). Tasks 2, 3 and 7 read these.
+  - `versions.toml` table `[cuda.cuda12]` with keys `toolkit` (str), `architectures` (str, CMake list), `runtime_requirement` (str, PEP 508). Tasks 2, 3, 7 and 12 read it.
   - `parallelproj_cmake_args(variant: str, versions: Mapping[str, Any]) -> list[str]` in `build_deps.py`
-  - CLI `python packaging/pip/deps/build_deps.py --cuda-version --variant {cuda12,cuda13}` prints the toolkit version (e.g. `12.9.1`) and exits 0. With `--variant cpu` it exits 2.
+  - CLI `python packaging/pip/deps/build_deps.py --cuda-version --variant cuda12` prints the toolkit version (`12.9.1`) and exits 0. With `--variant cpu` it exits 2. With the reserved `cuda13` (no `[cuda.cuda13]` table) it exits 1, for `--cuda-version` and for a build (overview).
 
 Background (verified upstream at v2.0.7): libparallelproj always builds a **shared** library (`add_library(parallelproj SHARED ...)`); there is no static option. CUDA is switched on with `-DUSE_CUDA=ON`, which needs CMake ≥ 3.31 and `CUDAToolkit ≥ 12.0`. It links `CUDA::cudart` PRIVATE. Since v2.0.4 it no longer auto-detects architectures, so `CMAKE_CUDA_ARCHITECTURES` must be passed. Its installed `parallelprojConfig.cmake` sets `PARALLELPROJ_CUDA` (0/1) and `PARALLELPROJ_VERSION`, and STIR's top-level `CMakeLists.txt` reads both. It exports `int parallelproj_cuda_enabled(void)`, which Task 5 uses.
 
@@ -85,19 +86,14 @@ Background (verified upstream at v2.0.7): libparallelproj always builds a **shar
 # CUDA variants (Phase 3). Architectures use CMake syntax: "-real" = SASS only,
 # "-virtual" = PTX only. The pyproject.toml override for each variant must carry
 # the identical string (enforced by test_cuda_arch_lists_agree).
+# [cuda.cuda13] is deferred (plan appendix B1); its absence makes cuda13 exit 1.
 [cuda.cuda12]
 toolkit = "12.9.1"
 architectures = "70-real;75-real;80-real;86-real;89-real;90-real;100-real;120-real;120-virtual"
 runtime_requirement = "nvidia-cuda-runtime-cu12>=12.9,<13"
-
-[cuda.cuda13]
-# CUDA 13 dropped offline compilation for sm_50..sm_72; sm_101 was renumbered sm_110 (Thor).
-toolkit = "13.4.2"
-architectures = "75-real;80-real;86-real;89-real;90-real;100-real;110-real;120-real;120-virtual"
-runtime_requirement = "nvidia-cuda-runtime>=13.4,<14"
 ```
 
-Rationale: sm_100 SASS also runs on sm_103 (B300), and sm_120 SASS runs on sm_121 (GB10 / DGX Spark), so those don't need their own entries. PTX for 120 covers future GPUs. For `13.4.2`, Step 7 checks that the installer URL exists. If it doesn't, use the newest `13.4.x` that does.
+Rationale: sm_100 SASS also runs on sm_103 (B300), and sm_120 SASS runs on sm_121 (GB10 / DGX Spark), so those don't need their own entries. PTX for 120 covers future GPUs.
 
 - [ ] **Step 2: Write the failing tests**
 
@@ -108,21 +104,25 @@ Phase 2's `test_cuda_build_is_phase3` (this task implements CUDA builds). Phase 
 ```python
 VERSIONS = load_build_deps().load_versions()
 
-@pytest.mark.parametrize("variant,expected", [("cuda12", "12.9.1"), ("cuda13", "13.4.2")])
-def test_cuda_version_flag(variant, expected):
-    r = run("--cuda-version", "--variant", variant)
-    assert r.returncode == 0 and r.stdout.strip() == expected
+def test_cuda_version_flag():
+    r = run("--cuda-version", "--variant", "cuda12")
+    assert r.returncode == 0 and r.stdout.strip() == "12.9.1"
 
 def test_cuda_version_flag_rejects_cpu():
     r = run("--cuda-version", "--variant", "cpu")
-    assert r.returncode == 2 and "cuda12 or cuda13" in r.stderr
+    assert r.returncode == 2 and "needs a CUDA variant" in r.stderr
+
+def test_deferred_cuda13_exits_1():
+    for args in (["--cuda-version", "--variant", "cuda13"], ["--prefix", "p", "--variant", "cuda13"]):
+        r = run(*args)
+        assert r.returncode == 1 and "deferred variant" in r.stderr
 
 def test_parallelproj_args_cpu():
     args = load_build_deps().parallelproj_cmake_args("cpu", VERSIONS)
     assert "-DUSE_CUDA=OFF" in args
     assert not any(a.startswith("-DCMAKE_CUDA_ARCHITECTURES") for a in args)
 
-@pytest.mark.parametrize("variant", ["cuda12", "cuda13"])
+@pytest.mark.parametrize("variant", ["cuda12"])
 def test_parallelproj_args_cuda(variant):
     args = load_build_deps().parallelproj_cmake_args(variant, VERSIONS)
     assert "-DUSE_CUDA=ON" in args
@@ -135,11 +135,11 @@ def test_parallelproj_args_cuda(variant):
 - [ ] **Step 3: Run the tests to check they fail**
 
 Run: `pytest packaging/pip/tests/test_build_deps.py -v`
-Expected: `test_cuda_version_flag*` FAIL (unknown flag) and `test_parallelproj_args_cuda` FAILS with `UsageError`. Phase 2's tests still pass.
+Expected: `test_cuda_version_flag*` and `test_deferred_cuda13_exits_1` FAIL (unknown flag / Phase 2's exit 2) and `test_parallelproj_args_cuda` FAILS with `UsageError`. Phase 2's tests still pass.
 
 - [ ] **Step 4: Implement `parallelproj_cmake_args(variant, versions) -> list[str]` and the `--cuda-version` flag in `build_deps.py`**
 
-Extend Phase 2's `parallelproj_cmake_args`. For `cpu` it returns Phase 2's list unchanged (it includes `-DUSE_CUDA=OFF`). For CUDA variants it replaces `-DUSE_CUDA=OFF` and adds `-DUSE_CUDA=ON`, `-DCMAKE_CUDA_ARCHITECTURES=<architectures>` and `-DCMAKE_CUDA_RUNTIME_LIBRARY=Shared`. Without the last one, CMake links `cudart_static` into `.cu` targets as well as the shared `CUDA::cudart`, which would put two CUDA runtimes in one process. `--cuda-version` prints `versions["cuda"][variant]["toolkit"]`; like `--cache-key` it does not need `--prefix`. With `--variant cpu` it exits 2 with `build_deps: --cuda-version needs cuda12 or cuda13` on stderr. Remove Phase 2's "implemented in Phase 3" exit for CUDA builds. Phase 2's cache key already hashes the variant.
+Extend Phase 2's `parallelproj_cmake_args`. For `cpu` it returns Phase 2's list unchanged (it includes `-DUSE_CUDA=OFF`). For CUDA variants it replaces `-DUSE_CUDA=OFF` and adds `-DUSE_CUDA=ON`, `-DCMAKE_CUDA_ARCHITECTURES=<architectures>` and `-DCMAKE_CUDA_RUNTIME_LIBRARY=Shared`. Without the last one, CMake links `cudart_static` into `.cu` targets as well as the shared `CUDA::cudart`, which would put two CUDA runtimes in one process. `--cuda-version` prints `versions["cuda"][variant]["toolkit"]`; like `--cache-key` it does not need `--prefix`. With `--variant cpu` it exits 2 with `build_deps: --cuda-version needs a CUDA variant (cuda12)` on stderr. A CUDA variant with no `versions["cuda"][variant]` table exits 1 with `build_deps: no [cuda.<variant>] table in versions.toml (deferred variant)`, both for `--cuda-version` and for a build (`--cache-key` still works). Remove Phase 2's "implemented in Phase 3" exit for CUDA builds. Phase 2's cache key already hashes the variant.
 
 The CUDA variants build every dep Phase 2 builds on the platform. All except parallelproj are built exactly as for `cpu`, so each variant gets its own complete prefix (`.deps/<variant>`) and cache entry.
 
@@ -155,16 +155,16 @@ Expected: `set(PARALLELPROJ_CUDA 1)`, `set(PARALLELPROJ_VERSION "2.0.7")`, and `
 
 If no local nvcc is available, skip this step: Task 8's CI log check covers the same thing.
 
-- [ ] **Step 7: Check the pinned toolkit versions exist**
+- [ ] **Step 7: Check the pinned toolkit version exists**
 
-Run: `for v in 12.9.1 13.4.2; do curl -fsI https://developer.download.nvidia.com/compute/cuda/$v/network_installers/cuda_${v}_windows_network.exe | head -1; done`
-Expected: `HTTP/2 200` twice. If 13.4.2 returns 404, change `toolkit` to the newest 13.4.x that returns 200 and update `test_cuda_version_flag`.
+Run: `curl -fsI https://developer.download.nvidia.com/compute/cuda/12.9.1/network_installers/cuda_12.9.1_windows_network.exe | head -1`
+Expected: `HTTP/2 200`. (Task 12 uses this installer.)
 
 - [ ] **Step 8: Commit**
 
 ```bash
 git add packaging/pip/deps/versions.toml packaging/pip/deps/build_deps.py packaging/pip/tests/test_build_deps.py
-git commit -m "Build libparallelproj with CUDA for cuda12/cuda13 deps prefixes"
+git commit -m "Build libparallelproj with CUDA for the cuda12 deps prefix"
 ```
 
 ---
@@ -177,7 +177,7 @@ git commit -m "Build libparallelproj with CUDA for cuda12/cuda13 deps prefixes"
 
 **Interfaces:**
 - Consumes: `versions.toml` `[cuda.<variant>].architectures` (Task 1).
-- Produces: overrides keyed by `if.env.STIR_WHEEL_VARIANT` equal to `"cuda12"` or `"cuda13"`. Task 3 checks they exist. Task 8 sets the variable.
+- Produces: one override keyed by `if.env.STIR_WHEEL_VARIANT` equal to `"cuda12"`. Task 3 checks it exists. Tasks 8 and 12 set the variable. (No `cuda13` override: deferred, appendix B1.)
 
 STIR facts this depends on (top-level `CMakeLists.txt` lines 208–280): CUDA is attempted unless `DISABLE_STIR_CUDA` is set. It needs CMake ≥ 3.23. If `CMAKE_CUDA_ARCHITECTURES` is undefined it defaults to `"all"`, which is too big and includes sm_50. If nvcc or CUDAToolkit is missing, it only warns and silently turns CUDA off. Task 5's smoke test is what catches that. NiftyPET is out of scope (spec §2), so it is disabled explicitly to stop `find_package(NiftyPET)` from picking up a stray install.
 
@@ -202,7 +202,7 @@ def test_base_defines_disable_cuda():
     assert d["DISABLE_STIR_CUDA"] == "ON"
     assert d["DISABLE_NiftyPET_PROJECTOR"] == "ON"
 
-@pytest.mark.parametrize("variant", ["cuda12", "cuda13"])
+@pytest.mark.parametrize("variant", ["cuda12"])
 def test_cuda_override_enables_cuda(variant):
     o = _override(variant)
     assert o["inherit"]["cmake"]["define"] == "append"
@@ -210,7 +210,7 @@ def test_cuda_override_enables_cuda(variant):
     assert d["DISABLE_STIR_CUDA"] == "OFF"
     assert d["CMAKE_CUDA_RUNTIME_LIBRARY"] == "Shared"
 
-@pytest.mark.parametrize("variant", ["cuda12", "cuda13"])
+@pytest.mark.parametrize("variant", ["cuda12"])
 def test_cuda_arch_lists_agree(variant):
     assert (_override(variant)["cmake"]["define"]["CMAKE_CUDA_ARCHITECTURES"]
             == VERSIONS["cuda"][variant]["architectures"])
@@ -239,16 +239,9 @@ inherit.cmake.define = "append"
 cmake.define.DISABLE_STIR_CUDA = "OFF"
 cmake.define.CMAKE_CUDA_ARCHITECTURES = "70-real;75-real;80-real;86-real;89-real;90-real;100-real;120-real;120-virtual"
 cmake.define.CMAKE_CUDA_RUNTIME_LIBRARY = "Shared"
-
-[[tool.scikit-build.overrides]]
-if.env.STIR_WHEEL_VARIANT = "cuda13"
-inherit.cmake.define = "append"
-cmake.define.DISABLE_STIR_CUDA = "OFF"
-cmake.define.CMAKE_CUDA_ARCHITECTURES = "75-real;80-real;86-real;89-real;90-real;100-real;110-real;120-real;120-virtual"
-cmake.define.CMAKE_CUDA_RUNTIME_LIBRARY = "Shared"
 ```
 
-`inherit.cmake.define = "append"` is required. Without it the override replaces the whole define table and drops `CMAKE_PROJECT_STIR_INCLUDE`, `BUILD_SHARED_LIBS`, `CMAKE_PREFIX_PATH` and the rest. The nvcc location is not set here. It comes from the `CUDACXX` environment variable (Task 8), because the path differs per platform.
+`inherit.cmake.define = "append"` is required. Without it the override replaces the whole define table and drops `CMAKE_PROJECT_STIR_INCLUDE`, `BUILD_SHARED_LIBS`, `CMAKE_PREFIX_PATH` and the rest. The nvcc location is not set here. It comes from the `CUDACXX` environment variable (Tasks 8 and 12), because the path differs per platform.
 
 - [ ] **Step 4: Run the tests to check they pass**
 
@@ -264,12 +257,12 @@ Expected: `OFF Shared True`. The `True` shows that `append` kept the base define
 
 ```bash
 git add pyproject.toml packaging/pip/tests/test_prepare_build.py
-git commit -m "Add scikit-build overrides for the cuda12 and cuda13 variants"
+git commit -m "Add the scikit-build override for the cuda12 variant"
 ```
 
 ---
 
-### Task 3: `prepare_build.py` for `cuda12` and `cuda13`
+### Task 3: `prepare_build.py` for `cuda12`
 
 **Files:**
 - Modify: `packaging/pip/prepare_build.py`
@@ -277,7 +270,7 @@ git commit -m "Add scikit-build overrides for the cuda12 and cuda13 variants"
 
 **Interfaces:**
 - Consumes: the contract CLI `--variant {cpu,cuda12,cuda13} [--dev-number N] [--pyproject PATH]`; `versions.toml` `[cuda.<variant>].runtime_requirement` (Task 1); the overrides (Task 2).
-- Produces: for `cudaXX`, `[project].name = "stir-cudaXX"` and `runtime_requirement` appended to `[project].dependencies` (the line carrying Phase 1's `# prepare_build: dependencies` marker; keep it a single-line array, and keep any other entries such as Phase 5's `root`). Exit 0 on success, 2 on bad arguments (contract), and **1** with a message on stderr when the pyproject has no override for the requested variant. `versions.toml` is found at `Path(__file__).parent / "deps" / "versions.toml"` and read only for CUDA variants (so `cpu` still works on a copied pyproject, as Phase 4's `release_check.py` does).
+- Produces: for `cudaXX`, `[project].name = "stir-cudaXX"` and `runtime_requirement` appended to `[project].dependencies` (the line carrying Phase 1's `# prepare_build: dependencies` marker; keep it a single-line array, and keep any other entries such as Phase 5's `root`). Exit 0 on success, 2 on bad arguments (contract), and **1** with a message on stderr when the pyproject has no override for the requested variant. `versions.toml` is found at `Path(__file__).parent / "deps" / "versions.toml"` and read only for CUDA variants (so `cpu` still works on a copied pyproject, as Phase 4's `release_check.py` does). The override check runs **before** `versions.toml` is read, so the reserved `cuda13` (no override, no table) exits 1 with the override message.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -298,8 +291,7 @@ def prep(tmp_path, *args, source=ROOT / "pyproject.toml"):
     return r, (tomllib.loads(p.read_text()) if p.exists() else None)
 
 @pytest.mark.parametrize("variant,dep", [
-    ("cuda12", "nvidia-cuda-runtime-cu12>=12.9,<13"),
-    ("cuda13", "nvidia-cuda-runtime>=13.4,<14")])
+    ("cuda12", "nvidia-cuda-runtime-cu12>=12.9,<13")])
 def test_cuda_variant_name_and_dependency(tmp_path, variant, dep):
     r, doc = prep(tmp_path, "--variant", variant)
     assert r.returncode == 0, r.stderr
@@ -319,20 +311,24 @@ def test_cuda_variant_is_idempotent(tmp_path):
     assert sum(d.startswith("nvidia-cuda-runtime") for d in doc["project"]["dependencies"]) == 1
 
 def test_cuda_with_dev_number(tmp_path):
-    r, doc = prep(tmp_path, "--variant", "cuda13", "--dev-number", "42")
-    assert doc["project"]["name"] == "stir-cuda13"
+    r, doc = prep(tmp_path, "--variant", "cuda12", "--dev-number", "42")
+    assert doc["project"]["name"] == "stir-cuda12"
     assert doc["project"]["version"].endswith(".dev42")
 
 def test_cuda_variant_requires_override(tmp_path):
     text = (ROOT / "pyproject.toml").read_text()
-    stripped = text[: text.index("[[tool.scikit-build.overrides]]\nif.env.STIR_WHEEL_VARIANT = \"cuda13\"")]
+    stripped = text[: text.index("[[tool.scikit-build.overrides]]\nif.env.STIR_WHEEL_VARIANT = \"cuda12\"")]
     src = tmp_path / "src.toml"; src.write_text(stripped)
-    r, _ = prep(tmp_path, "--variant", "cuda13", source=src)
+    r, _ = prep(tmp_path, "--variant", "cuda12", source=src)
     assert r.returncode == 1
-    assert 'STIR_WHEEL_VARIANT = "cuda13"' in r.stderr
+    assert 'STIR_WHEEL_VARIANT = "cuda12"' in r.stderr
+
+def test_deferred_cuda13_exits_1(tmp_path):
+    r, _ = prep(tmp_path, "--variant", "cuda13")
+    assert r.returncode == 1 and 'STIR_WHEEL_VARIANT = "cuda13"' in r.stderr
 ```
 
-(The `stripped` trick only works if the cuda13 override is the last table in the file. Task 2 appends it there. If Phase 2 added tables after it, build the fixture by removing that one table with the TOML library.)
+(The `stripped` trick only works if the cuda12 override is the last table in the file. Task 2 appends it there. If Phase 2 added tables after it, build the fixture by removing that one table with the TOML library.)
 
 - [ ] **Step 2: Run the tests to check they fail**
 
@@ -354,7 +350,7 @@ Expected: all PASS.
 
 ```bash
 git add packaging/pip/prepare_build.py packaging/pip/tests/test_prepare_build.py
-git commit -m "Support cuda12/cuda13 variants in prepare_build.py"
+git commit -m "Support the cuda12 variant in prepare_build.py"
 ```
 
 ---
@@ -371,13 +367,13 @@ git commit -m "Support cuda12/cuda13 variants in prepare_build.py"
 - Produces (all in `stir._cuda`; Tasks 5, 9 and 10 use them):
 
 ```python
-VARIANT_DISTS: dict[str, str]          # {"cpu": "stir", "cuda12": "stir-cuda12", "cuda13": "stir-cuda13"}
+# First version: cpu and cuda12 only. Appendix B1 adds the cuda13 entries.
+VARIANT_DISTS: dict[str, str]          # {"cpu": "stir", "cuda12": "stir-cuda12"}
 RUNTIME_RELPATHS: dict[tuple[str, str], str]  # (variant, sys.platform) -> path under a site-packages "nvidia" dir:
 #   ("cuda12","linux"): "cuda_runtime/lib/libcudart.so.12"    ("cuda12","win32"): "cuda_runtime/bin/cudart64_12.dll"
-#   ("cuda13","linux"): "cu13/lib/libcudart.so.13"            ("cuda13","win32"): "cu13/bin/x86_64/cudart64_13.dll"
-RUNTIME_PIP_PACKAGE: dict[str, str]    # {"cuda12": "nvidia-cuda-runtime-cu12", "cuda13": "nvidia-cuda-runtime"}
-MIN_DRIVER_API: dict[str, int]         # {"cuda12": 12000, "cuda13": 13000}  (cuDriverGetVersion units)
-MIN_COMPUTE: dict[str, tuple[int, int]]  # {"cuda12": (7, 0), "cuda13": (7, 5)}
+RUNTIME_PIP_PACKAGE: dict[str, str]    # {"cuda12": "nvidia-cuda-runtime-cu12"}
+MIN_DRIVER_API: dict[str, int]         # {"cuda12": 12000}  (cuDriverGetVersion units)
+MIN_COMPUTE: dict[str, tuple[int, int]]  # {"cuda12": (7, 0)}
 
 @dataclass(frozen=True)
 class DriverProbe:
@@ -407,7 +403,7 @@ def prepare_runtime() -> None
 
 Behaviour that the signatures and tests don't fully pin down:
 
-- `installed_variants` returns the variants whose distribution `lookup` finds (it catches `PackageNotFoundError`), in `cpu, cuda12, cuda13` order. It costs three metadata lookups and does not scan the whole environment.
+- `installed_variants` returns the variants whose distribution `lookup` finds (it catches `PackageNotFoundError`), in `cpu, cuda12` order. It costs two metadata lookups and does not scan the whole environment.
 - `nvidia_dirs()` returns `importlib.util.find_spec("nvidia").submodule_search_locations` as Paths, or `[]`. `nvidia` is a namespace package that can span several site dirs. Nothing is hard-coded, so a moved venv still works.
 - `preload_cuda_runtime`: if `find_cuda_runtime` finds the library, load it. On Linux use `ctypes.CDLL(str(path), mode=ctypes.RTLD_GLOBAL)`; glibc then matches `_stir`'s and libparallelproj's `DT_NEEDED libcudart.so.N` against the loaded SONAME. On Windows, call `os.add_dll_directory(path.parent)` (keep the handle in a module global) and then `ctypes.WinDLL(str(path))`. If it isn't found, try the bare name (`libcudart.so.12` / `cudart64_12.dll`) so a system CUDA or conda environment still works. If that also fails, raise `ImportError`: `stir-cuda12 could not load the CUDA 12 runtime (libcudart.so.12). It normally comes with the pip package nvidia-cuda-runtime-cu12. Fix: pip install --force-reinstall "nvidia-cuda-runtime-cu12>=12.9,<13"`.
 - `probe_driver` loads `libcuda.so.1` (Linux) or `nvcuda.dll` (Windows) with ctypes, then calls `cuDriverGetVersion`, `cuInit(0)`, `cuDeviceGetCount`, and for each device `cuDeviceGet` plus `cuDeviceGetAttribute` with attributes 75 and 76 (compute capability major/minor). It never raises. If the library fails to load, it returns `loaded=False`.
@@ -423,9 +419,9 @@ Behaviour that the signatures and tests don't fully pin down:
 
 Run:
 ```bash
-d=$(mktemp -d); for s in "nvidia-cuda-runtime-cu12>=12.9,<13" "nvidia-cuda-runtime>=13.4,<14"; do for p in manylinux2014_x86_64 manylinux2014_aarch64 win_amd64; do pip download -q --no-deps --only-binary=:all: --platform $p --python-version 3.12 -d $d "$s"; done; done; for w in $d/*.whl; do python -I -m zipfile -l $w | grep -oE "nvidia/[^ ]*(libcudart\.so\.1[23]|cudart64_1[23]\.dll)"; done
+d=$(mktemp -d); for p in manylinux2014_x86_64 win_amd64; do pip download -q --no-deps --only-binary=:all: --platform $p --python-version 3.12 -d $d "nvidia-cuda-runtime-cu12>=12.9,<13"; done; for w in $d/*.whl; do python -I -m zipfile -l $w | grep -oE "nvidia/[^ ]*(libcudart\.so\.12|cudart64_12\.dll)"; done
 ```
-Expected (one line per wheel): `nvidia/cuda_runtime/lib/libcudart.so.12` (×2), `nvidia/cuda_runtime/bin/cudart64_12.dll`, `nvidia/cu13/lib/libcudart.so.13` (×2), `nvidia/cu13/bin/x86_64/cudart64_13.dll`. If any differ, use the observed paths in `RUNTIME_RELPATHS` and the tests.
+Expected (one line per wheel): `nvidia/cuda_runtime/lib/libcudart.so.12`, `nvidia/cuda_runtime/bin/cudart64_12.dll`. If either differs, use the observed paths in `RUNTIME_RELPATHS` and the tests.
 
 - [ ] **Step 2: Write the failing tests**
 
@@ -456,7 +452,7 @@ def test_multiple_variants_message():
     assert cu.multiple_variants_message(["cuda12"]) is None
     msg = cu.multiple_variants_message(["cpu", "cuda12"])
     assert "stir, stir-cuda12" in msg
-    assert "pip uninstall -y stir stir-cuda12 stir-cuda13" in msg
+    assert "pip uninstall -y stir stir-cuda12" in msg
 
 @pytest.mark.parametrize("variant,platform", list(cu.RUNTIME_RELPATHS))
 def test_find_cuda_runtime_in_second_dir(tmp_path, variant, platform):
@@ -467,16 +463,16 @@ def test_find_cuda_runtime_in_second_dir(tmp_path, variant, platform):
     assert cu.find_cuda_runtime(variant, [a, b], platform) == lib
 
 def test_find_cuda_runtime_wrong_major(tmp_path):
-    lib = tmp_path / cu.RUNTIME_RELPATHS[("cuda12", "linux")]
+    lib = tmp_path / "cu13/lib/libcudart.so.13"   # a CUDA 13 runtime must not satisfy cuda12
     lib.parent.mkdir(parents=True); lib.write_bytes(b"")
-    assert cu.find_cuda_runtime("cuda13", [tmp_path], "linux") is None
+    assert cu.find_cuda_runtime("cuda12", [tmp_path], "linux") is None
 
 def probe(**kw):
-    base = dict(loaded=True, driver_version=13020, init_rc=0, capabilities=((8, 6),))
+    base = dict(loaded=True, driver_version=12090, init_rc=0, capabilities=((8, 6),))
     base.update(kw); return cu.DriverProbe(**base)
 
 def test_classify_ok():
-    s = cu.classify("cuda13", probe())
+    s = cu.classify("cuda12", probe())
     assert s.ok and s.reason == "ok" and s.message == ""
 
 def test_classify_no_driver():
@@ -484,10 +480,10 @@ def test_classify_no_driver():
     assert not s.ok and s.reason == "no-driver"
     assert s.message.startswith("stir-cuda12") and "pip install stir" in s.message
 
-def test_classify_driver_too_old_cuda13():
-    s = cu.classify("cuda13", probe(driver_version=12020))
+def test_classify_driver_too_old():
+    s = cu.classify("cuda12", probe(driver_version=11040))
     assert s.reason == "driver-too-old"
-    assert "12.2" in s.message and "13.0" in s.message and "stir-cuda12" in s.message
+    assert "11.4" in s.message and "12.0" in s.message and "pip install stir" in s.message
 
 def test_classify_no_device():
     s = cu.classify("cuda12", probe(init_rc=100, capabilities=()))
@@ -498,14 +494,12 @@ def test_classify_driver_error():
     assert s.reason == "driver-error" and "999" in s.message
 
 def test_classify_unsupported_gpu():
-    s = cu.classify("cuda13", probe(capabilities=((7, 0),)))
+    s = cu.classify("cuda12", probe(capabilities=((6, 1),)))
     assert s.reason == "unsupported-gpu"
-    assert "7.0" in s.message and "7.5" in s.message and "stir-cuda12" in s.message
-    s12 = cu.classify("cuda12", probe(driver_version=12090, capabilities=((6, 1),)))
-    assert s12.reason == "unsupported-gpu" and "pip install stir" in s12.message
+    assert "6.1" in s.message and "7.0" in s.message and "pip install stir" in s.message
 
 def test_classify_mixed_gpus_ok():
-    assert cu.classify("cuda13", probe(capabilities=((6, 1), (9, 0)))).ok
+    assert cu.classify("cuda12", probe(capabilities=((6, 1), (9, 0)))).ok
 
 def test_min_compute_matches_arch_lists():
     import tomllib
@@ -543,7 +537,7 @@ def test_init_calls_prepare_runtime_before_swig_import():
 Run: `pytest packaging/pip/tests/test_cuda_loader.py -v`
 Expected: collection error `FileNotFoundError: .../stir/_cuda.py`.
 
-- [ ] **Step 4: Implement `src/swig/python/stir/_cuda.py`** with the interface and behaviour above. Use only the standard library: `ctypes`, `dataclasses`, `importlib`, `os`, `sys`, `warnings`, `pathlib`. Format driver versions as `f"{v // 1000}.{v % 1000 // 10}"` (12020 → `12.2`).
+- [ ] **Step 4: Implement `src/swig/python/stir/_cuda.py`** with the interface and behaviour above. Use only the standard library: `ctypes`, `dataclasses`, `importlib`, `os`, `sys`, `warnings`, `pathlib`. Format driver versions as `f"{v // 1000}.{v % 1000 // 10}"` (11040 → `11.4`).
 
 - [ ] **Step 5: Wire it into `src/swig/python/stir/__init__.py`**
 
@@ -709,37 +703,32 @@ git commit -m "Add wheel size check against the PyPI per-file limit"
 
 ---
 
-### Task 7: CUDA toolkit install scripts for CI
+### Task 7: CUDA toolkit install script for Linux CI
 
 **Files:**
 - Create: `packaging/pip/ci/install_cuda_linux.sh`
-- Create: `packaging/pip/ci/install_cuda_windows.ps1`
 - Modify: `packaging/pip/deps/build_in_manylinux.sh` (Phase 2)
+
+(The Windows script, `install_cuda_windows.ps1`, is created in Task 12.)
 
 **Interfaces:**
 - Consumes: `build_deps.py --cuda-version --variant V` (Task 1).
 - Produces:
-  - `bash packaging/pip/ci/install_cuda_linux.sh {cuda12|cuda13}`, run as root inside a manylinux_2_28 container. Afterwards `/usr/local/cuda` is a symlink to `/usr/local/cuda-<maj>.<min>` and `/usr/local/cuda/bin/nvcc` works.
+  - `bash packaging/pip/ci/install_cuda_linux.sh cuda12`, run as root inside a manylinux_2_28 container. Afterwards `/usr/local/cuda` is a symlink to `/usr/local/cuda-<maj>.<min>` and `/usr/local/cuda/bin/nvcc` works.
   - `build_in_manylinux.sh ARCH --variant cudaXX ...` (Phase 2's CLI) now runs `bash packaging/pip/ci/install_cuda_linux.sh cudaXX` inside the same container before `build_deps.py`, with `CUDACXX=/usr/local/cuda/bin/nvcc` exported. `cpu` is unchanged.
-  - `pwsh packaging/pip/ci/install_cuda_windows.ps1 -Variant {cuda12|cuda13}`, run on a GitHub Windows runner. Afterwards `CUDA_PATH` and `CUDACXX` are in `$env:GITHUB_ENV`, and `<CUDA_PATH>\bin` (plus `<CUDA_PATH>\bin\x64` if it exists) is in `$env:GITHUB_PATH`.
 
 Linux script decisions:
 - Python for reading the version: `/opt/python/cp312-cp312/bin/python packaging/pip/deps/build_deps.py --cuda-version --variant $1`. MM = `<maj>-<min>` (e.g. `12-9`).
-- Repo arch: `x86_64` → `x86_64`, `aarch64` → `sbsa`. URL: `https://developer.download.nvidia.com/compute/cuda/repos/rhel8/<repo_arch>/cuda-rhel8.repo` (manylinux_2_28 is AlmaLinux 8, and RHEL 8 x86_64 and sbsa are supported through CUDA 13.4).
+- Repo arch: `x86_64` (`uname -m`; any other value exits 2 with "deferred platform", see appendix B2). URL: `https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64/cuda-rhel8.repo` (manylinux_2_28 is AlmaLinux 8, which CUDA 12.9 supports).
 - Commands: `dnf install -y dnf-plugins-core`, `dnf config-manager --add-repo <url>`, `dnf install -y cuda-nvcc-$MM cuda-cudart-devel-$MM cuda-cccl-$MM`, `ln -sfn /usr/local/cuda-<maj>.<min> /usr/local/cuda`, `/usr/local/cuda/bin/nvcc --version`, `dnf clean all`. Use `set -euo pipefail`.
 - If the image's default GCC is newer than nvcc supports (nvcc fails with `unsupported GNU version`), fix it in Task 8 by adding `-allow-unsupported-compiler` to `CMAKE_CUDA_FLAGS` through `CIBW_ENVIRONMENT` (`CUDAFLAGS`). Do not pin an older gcc-toolset.
 
-Windows script decisions:
-- `$ver` comes from `python packaging/pip/deps/build_deps.py --cuda-version --variant $Variant`, and `$mm = "<maj>.<min>"`.
-- Download `https://developer.download.nvidia.com/compute/cuda/$ver/network_installers/cuda_${ver}_windows_network.exe` and run it with `Start-Process -Wait -PassThru` and arguments `-s nvcc_$mm cudart_$mm thrust_$mm visual_studio_integration_$mm`. For major ≥ 13, also add `crt_$mm nvvm_$mm`; CUDA 13 split these out of nvcc. Fail if the exit code is non-zero.
-- `CUDA_PATH = C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v$mm` and `CUDACXX = $CUDA_PATH\bin\nvcc.exe`. Finish with `& $env:CUDACXX --version`.
+- [ ] **Step 1: Write the script** following the decisions above.
 
-- [ ] **Step 1: Write both scripts** following the decisions above.
+- [ ] **Step 2: Test the Linux script in the manylinux_2_28 x86_64 container**
 
-- [ ] **Step 2: Test the Linux script in both containers on x86_64 (aarch64 is covered by Task 8 CI)**
-
-Run: `for v in cuda12 cuda13; do docker run --rm -v "$PWD":/project -w /project quay.io/pypa/manylinux_2_28_x86_64 bash packaging/pip/ci/install_cuda_linux.sh $v | tail -2; done`
-Expected: `Cuda compilation tools, release 12.9, V12.9.…` then `Cuda compilation tools, release 13.4, V13.4.…`.
+Run: `docker run --rm -v "$PWD":/project -w /project quay.io/pypa/manylinux_2_28_x86_64 bash packaging/pip/ci/install_cuda_linux.sh cuda12 | tail -2`
+Expected: `Cuda compilation tools, release 12.9, V12.9.…`.
 
 - [ ] **Step 3: Run `shellcheck packaging/pip/ci/install_cuda_linux.sh`**
 Expected: no output.
@@ -747,23 +736,21 @@ Expected: no output.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add packaging/pip/ci/install_cuda_linux.sh packaging/pip/ci/install_cuda_windows.ps1 packaging/pip/deps/build_in_manylinux.sh
-git commit -m "Add CUDA toolkit install scripts for manylinux and Windows CI"
+git add packaging/pip/ci/install_cuda_linux.sh packaging/pip/deps/build_in_manylinux.sh
+git commit -m "Add CUDA toolkit install script for manylinux CI"
 ```
-
-(The Windows script is first exercised in Task 8.)
 
 ---
 
-### Task 8: `build_cuda` job in `wheels.yml`
+### Task 8: `build_cuda` job in `wheels.yml` (Linux x86_64)
 
 **Files:**
 - Modify: `.github/workflows/wheels.yml`
 - Modify: `packaging/pip/README.md` ("Building a CUDA variant locally" subsection)
 
 **Interfaces:**
-- Consumes: everything above. From Phase 2's `build_cpu`: the action pins, the "Locate the deps prefix and its cache key" step, the restore/save cache steps, the MSVC step and the pwsh deps step. Copy them with `cpu` replaced by `${{ matrix.variant }}`; don't redesign. Test settings (`test-requires`, `test-command`) come from `pyproject.toml`, and `STIR_DEPS_PREFIX`, `STIR_WHEEL_EXPECT` and `STIR_WHEEL_VARIANT` reach the Linux container through Phase 2's `environment-pass`.
-- Produces: artifacts `wheels-cuda12-linux-x86_64`, `wheels-cuda12-linux-aarch64`, `wheels-cuda12-windows-AMD64` and the three `cuda13` equivalents. Task 9 downloads them. Matrix keys: Phase 2's `os, arch, runner, wheel_tag, expect, only` plus `variant` (Phase 5's tests read `os` and `expect`).
+- Consumes: everything above. From Phase 2's `build_cpu`: the action pins, the "Locate the deps prefix and its cache key" step and the restore/save cache steps (Task 12 adds the MSVC and pwsh deps steps for Windows). Copy them with `cpu` replaced by `${{ matrix.variant }}`; don't redesign. Test settings (`test-requires`, `test-command`) come from `pyproject.toml`, and `STIR_DEPS_PREFIX`, `STIR_WHEEL_EXPECT` and `STIR_WHEEL_VARIANT` reach the Linux container through Phase 2's `environment-pass`.
+- Produces: artifact `wheels-cuda12-linux-x86_64` (Task 12 adds `wheels-cuda12-windows-AMD64`). Task 9 downloads it. Matrix keys: Phase 2's `os, arch, runner, wheel_tag, expect, only` plus `variant` (Phase 5's tests read `os` and `expect`).
 
 - [ ] **Step 1: Add the job** (the YAML is the decision; if Phase 2 recorded a known gap for a platform, use that platform's `build_cpu` `expect` plus `,cuda`):
 
@@ -784,41 +771,6 @@ git commit -m "Add CUDA toolkit install scripts for manylinux and Windows CI"
             wheel_tag: manylinux_2_28_x86_64
             expect: config,openmp,json,hdf5,petsird,itk,parallelproj,cuda
             only: ""
-          - variant: cuda12
-            os: linux
-            arch: aarch64
-            runner: ubuntu-24.04-arm
-            wheel_tag: manylinux_2_28_aarch64
-            expect: config,openmp,json,hdf5,petsird,itk,parallelproj,cuda
-            only: ""
-          - variant: cuda12
-            os: windows
-            arch: AMD64
-            runner: windows-2022
-            wheel_tag: win_amd64
-            expect: config,openmp,json,hdf5,petsird,itk,parallelproj,cuda
-            only: ""
-          - variant: cuda13
-            os: linux
-            arch: x86_64
-            runner: ubuntu-24.04
-            wheel_tag: manylinux_2_28_x86_64
-            expect: config,openmp,json,hdf5,petsird,itk,parallelproj,cuda
-            only: ""
-          - variant: cuda13
-            os: linux
-            arch: aarch64
-            runner: ubuntu-24.04-arm
-            wheel_tag: manylinux_2_28_aarch64
-            expect: config,openmp,json,hdf5,petsird,itk,parallelproj,cuda
-            only: ""
-          - variant: cuda13
-            os: windows
-            arch: AMD64
-            runner: windows-2022
-            wheel_tag: win_amd64
-            expect: config,openmp,json,hdf5,petsird,itk,parallelproj,cuda
-            only: ""
     env:
       STIR_WHEEL_VARIANT: ${{ matrix.variant }}
       STIR_WHEEL_EXPECT: ${{ matrix.expect }}
@@ -828,14 +780,9 @@ git commit -m "Add CUDA toolkit install scripts for manylinux and Windows CI"
       CIBW_ENVIRONMENT_LINUX: CUDACXX=/usr/local/cuda/bin/nvcc PATH=/usr/local/cuda/bin:$PATH
       CIBW_REPAIR_WHEEL_COMMAND_LINUX: >-
         auditwheel repair
-        --exclude ${{ matrix.variant == 'cuda12' && 'libcudart.so.12' || 'libcudart.so.13' }}
+        --exclude libcudart.so.12
         --exclude libcuda.so.1
         -w {dest_dir} {wheel}
-      CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: >-
-        delvewheel repair
-        --exclude "${{ matrix.variant == 'cuda12' && 'cudart64_12.dll' || 'cudart64_13.dll' }};nvcuda.dll"
-        --add-path %STIR_DEPS_PREFIX%\bin
-        -w {dest_dir} -v {wheel}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -852,16 +799,9 @@ git commit -m "Add CUDA toolkit install scripts for manylinux and Windows CI"
         with:
           path: ${{ env.STIR_DEPS_HOST }}
           key: stir-deps-${{ matrix.variant }}-${{ matrix.os }}-${{ matrix.arch }}-${{ env.DEPS_KEY }}
-      - name: Install CUDA toolkit (Windows)
-        if: runner.os == 'Windows'
-        run: pwsh packaging/pip/ci/install_cuda_windows.ps1 -Variant ${{ matrix.variant }}
-      - name: MSVC environment (Windows)
-        if: runner.os == 'Windows'
-        uses: ilammy/msvc-dev-cmd@v1
       - name: Build deps prefix (Linux, pinned manylinux image, with CUDA)
         if: runner.os == 'Linux' && steps.deps-cache.outputs.cache-hit != 'true'
         run: bash packaging/pip/deps/build_in_manylinux.sh ${{ matrix.arch }} --variant ${{ matrix.variant }} --jobs 4
-      # Phase 2's "Build deps prefix (macOS, Windows)" pwsh step, with --variant ${{ matrix.variant }}.
       - name: Save deps prefix
         if: steps.deps-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
@@ -885,7 +825,7 @@ git commit -m "Add CUDA toolkit install scripts for manylinux and Windows CI"
 
 Notes for the implementer:
 - The deps prefix is built on the host side (Linux: `build_in_manylinux.sh` in the same pinned image, which installs CUDA first), so `actions/cache/save` can store it. Building it in cibuildwheel's `before-all` would leave it inside the container, and the cache would never be saved. Completion is Phase 2's `<prefix>/.stamps/<name>`; `build_deps.py` skips stamped deps itself.
-- The Windows runner is pinned to `windows-2022`: VS 2022 is supported by both CUDA 12.9 and 13.4, and CUDA 12.9 does not support VS 2026.
+- The Windows row, its steps and its repair command are added in Task 12.
 - Update the Phase 1/2 workflow tests this job affects: `test_job_names` gains `build_cuda`, and `test_builds_use_dev_number` expects 3 `prepare_build.py` calls.
 
 - [ ] **Step 2: Check the workflow syntax**
@@ -901,13 +841,13 @@ This is Phase 3's first push. Ask Robert once: "Phase 3 needs pushes of `pip-pac
 
 ```bash
 git add .github/workflows/wheels.yml packaging/pip/README.md
-git commit -m "Add build_cuda CI job for cuda12/cuda13 wheels"
+git commit -m "Add build_cuda CI job for Linux x86_64 cuda12 wheels"
 git push fork pip-packaging
 gh run watch --repo robbietuk/STIR --exit-status
 ```
 Expected:
-- All 6 `build_cuda` jobs are green.
-- Each job's "Check wheel sizes" lists 5 wheels, all under 100 MB.
+- The `build_cuda (cuda12 linux-x86_64)` job is green.
+- Its "Check wheel sizes" lists 5 wheels, all under 100 MB.
 - `gh run download --repo robbietuk/STIR -n wheels-cuda12-linux-x86_64 -D /tmp/w && ls /tmp/w` shows `stir_cuda12-6.5.0.dev<N>-cp311-…-manylinux_2_28_x86_64.whl` through `cp315`.
 
 - [ ] **Step 5: Check the build logs**
@@ -923,7 +863,7 @@ There must be no `nvidia-smi not found` failure, only the warning. If `STIR CUDA
 - [ ] **Step 6: Check the excluded runtime really is excluded**
 
 Run: `unzip -l /tmp/w/stir_cuda12-*cp312*.whl | grep -Ei "cudart|libcuda" ; echo "exit=$?"`
-Expected: `exit=1` (no matches). Do the same for one `win_amd64` wheel from `wheels-cuda12-windows-AMD64`.
+Expected: `exit=1` (no matches). (Task 12 repeats this for a `win_amd64` wheel.)
 
 ---
 
@@ -933,14 +873,14 @@ Expected: `exit=1` (no matches). Do the same for one `win_amd64` wheel from `whe
 - Modify: `.github/workflows/wheels.yml` (`rehearse_publish`)
 
 **Interfaces:**
-- Consumes: the `wheels-cuda*` artifacts (Task 8); Phase 2's matrix `rehearse_publish` (rows `variant, os, arch, runner, expect, pythons, coexist`; background pypiserver with `--fallback-url https://pypi.org/simple/`, `twine upload`, fresh venv install, smoke test); `multiple_variants_message` wording (Task 4).
-- Produces: a rehearsal that resolves `nvidia-cuda-runtime*` through pypiserver's default fallback to `https://pypi.org/simple/` (the same way `numpy` already resolves), and fails if the two-variant warning ever stops firing.
+- Consumes: the `wheels-cuda12-linux-x86_64` artifact (Task 8); Phase 2's matrix `rehearse_publish` (rows `variant, os, arch, runner, expect, pythons, coexist`; background pypiserver with `--fallback-url https://pypi.org/simple/`, `twine upload`, fresh venv install, smoke test); `multiple_variants_message` wording (Task 4).
+- Produces: a rehearsal that resolves `nvidia-cuda-runtime-cu12` through pypiserver's default fallback to `https://pypi.org/simple/` (the same way `numpy` already resolves), and fails if the two-variant warning ever stops firing.
 
 - [ ] **Step 1: Extend the job**
 
 1. Add `build_cuda` to `needs:`, and update Phase 1's `test_rehearsal_installs_exact_dev_version` to expect `needs == ["sdist", "build_cpu", "build_cuda"]`.
-2. Downloads already use `pattern: wheels-*` (merge-multiple), so the CUDA wheels are uploaded with `twine` alongside the CPU ones. Change "Check the index lists every file" to check each file under `/simple/<project>/`, where `<project>` is the file name's distribution part with `_` → `-` (`stir`, `stir-cuda12`, `stir-cuda13`).
-3. Add four matrix rows, each with `pythons: "3.12"`, `coexist: false` and `expect: config,openmp,json,hdf5,petsird,itk,parallelproj,cuda` (or that platform's CPU expect plus `,cuda`): `{variant: cuda12, os: linux, arch: x86_64, runner: ubuntu-24.04}`, `{variant: cuda13, os: linux, arch: x86_64, runner: ubuntu-24.04}`, `{variant: cuda13, os: linux, arch: aarch64, runner: ubuntu-24.04-arm}`, `{variant: cuda12, os: windows, arch: AMD64, runner: windows-2022}`. In the install loop set `pkg=stir` for `cpu` and `pkg=stir-${{ matrix.variant }}` otherwise, and install `"$pkg==$version"`; update Phase 1's `test_rehearsal_installs_exact_dev_version` string to `--index-url http://localhost:8080/simple/ "$pkg==$version"`. Change Phase 2's `test_rehearsal_covers_every_build_platform_with_same_expect` so that every `rehearse_publish` row's `expect` equals the `expect` of the `build_cpu`/`build_cuda` row with the same `(variant, os, arch)`, and every `build_cpu` platform has a `cpu` rehearsal row.
+2. Downloads already use `pattern: wheels-*` (merge-multiple), so the CUDA wheels are uploaded with `twine` alongside the CPU ones. Change "Check the index lists every file" to check each file under `/simple/<project>/`, where `<project>` is the file name's distribution part with `_` → `-` (`stir`, `stir-cuda12`).
+3. Add one matrix row with `pythons: "3.12"`, `coexist: false` and `expect: config,openmp,json,hdf5,petsird,itk,parallelproj,cuda` (or Linux x86_64's CPU expect plus `,cuda`): `{variant: cuda12, os: linux, arch: x86_64, runner: ubuntu-24.04}`. (Task 12 adds the Windows row.) In the install loop set `pkg=stir` for `cpu` and `pkg=stir-${{ matrix.variant }}` otherwise, and install `"$pkg==$version"`; update Phase 1's `test_rehearsal_installs_exact_dev_version` string to `--index-url http://localhost:8080/simple/ "$pkg==$version"`. Change Phase 2's `test_rehearsal_covers_every_build_platform_with_same_expect` so that every `rehearse_publish` row's `expect` equals the `expect` of the `build_cpu`/`build_cuda` row with the same `(variant, os, arch)`, and every `build_cpu` platform has a `cpu` rehearsal row.
 4. Add one step, with `if: matrix.variant == 'cpu' && matrix.os == 'linux' && matrix.arch == 'x86_64'`, after the normal install test. Expected output: `two-variant warning OK`.
 
 ```bash
@@ -1041,7 +981,7 @@ This task is done by Robert on real hardware. An agent prepares the commands and
 - [ ] **Step 1: Download the artifacts of the latest green run**
 
 Run: `gh run download --repo robbietuk/STIR <run-id> -p "wheels-*" -D ~/stir-wheels`
-Expected: `~/stir-wheels/wheels-cpu-linux-x86_64/`, `…/wheels-cuda12-linux-x86_64/`, `…/wheels-cuda13-linux-x86_64/` and the rest. `<version>` below is the run's `6.5.0.devN` (from the wheel file names); always pin it, because `.devN` is a pre-release and an unpinned name could resolve to an unrelated project on PyPI.
+Expected: `~/stir-wheels/wheels-cpu-linux-x86_64/`, `…/wheels-cuda12-linux-x86_64/` and the CPU artifacts for the other platforms. `<version>` below is the run's `6.5.0.devN` (from the wheel file names); always pin it, because `.devN` is a pre-release and an unpinned name could resolve to an unrelated project on PyPI.
 
 - [ ] **Step 2: Make the CPU reference** (any machine, Python 3.12)
 
@@ -1065,37 +1005,195 @@ Expected:
 - `gpu_check` prints 4 PASS rows and exits 0.
 - pytest passes with no failures.
 
-- [ ] **Step 4: Repeat Step 3 for `stir-cuda13`** (driver ≥ 580, compute capability ≥ 7.5), in a fresh venv `~/v-cu13`.
-Expected: the same results.
-
-- [ ] **Step 5: Check moving the venv** (anti-goal: breaks when the venv is moved)
+- [ ] **Step 4: Check moving the venv** (anti-goal: breaks when the venv is moved)
 
 Run: `mv ~/v-cu12 ~/v-cu12-moved && ~/v-cu12-moved/bin/python packaging/pip/tests/gpu_check.py compare --ref ~/ref.npz`
 Expected: exit 0. Note that `bin/python` symlinks survive the move, but pip's console scripts do not; only `python` is used here.
 
-- [ ] **Step 6: Windows and aarch64, if Robert has the hardware.** Do Steps 2–4 with the `windows-AMD64` artifacts (PowerShell, `py -3.12 -m venv`) and/or the `linux-aarch64` artifacts (Grace/GH200 or DGX Spark). Mark any platform not tested as `not tested (no hardware)` in the table. Don't leave it blank.
+- [ ] **Step 5: Record the results and commit**
 
-- [ ] **Step 7: Record the results and commit**
-
-Fill in one table row per variant/platform tested, with GPU, compute capability, driver, Python, results and date.
+Fill in the Linux x86_64 `stir-cuda12` row with GPU, compute capability, driver, Python, results and date.
 
 ```bash
 git add packaging/pip/README.md
-git commit -m "Record Phase 3 GPU sign-off results"
+git commit -m "Record Phase 3 Linux GPU sign-off results"
 ```
 
-Phase 3 is complete when the Linux x86_64 rows for both `stir-cuda12` and `stir-cuda13` say PASS.
+The Linux task group is complete when the Linux x86_64 `stir-cuda12` row says PASS. Continue with Task 12.
+
+---
+
+## Windows x86_64 (task group 2; start after Task 11 passes)
+
+### Task 12: Windows x86_64 `stir-cuda12` in CI
+
+**Files:**
+- Create: `packaging/pip/ci/install_cuda_windows.ps1`
+- Modify: `.github/workflows/wheels.yml` (`build_cuda` Windows row and steps; `rehearse_publish` Windows row)
+- Modify: `packaging/pip/tests/test_ci_config.py` only if a Phase 2 test enumerates `build_cuda` rows
+
+**Interfaces:**
+- Consumes: `build_deps.py --cuda-version --variant cuda12` (Task 1); Task 8's `build_cuda` job; Phase 2's `build_cpu`
+  MSVC step and pwsh "Build deps prefix (macOS, Windows)" step (with Phase 2 Task 9's Windows prefix root, if its
+  fallback shortened it).
+- Produces:
+  - `pwsh packaging/pip/ci/install_cuda_windows.ps1 -Variant cuda12`, run on a GitHub Windows runner. Afterwards `CUDA_PATH` and `CUDACXX` are in `$env:GITHUB_ENV`, and `<CUDA_PATH>\bin` (plus `<CUDA_PATH>\bin\x64` if it exists) is in `$env:GITHUB_PATH`.
+  - Artifact `wheels-cuda12-windows-AMD64`.
+
+Windows script decisions:
+- `$ver` comes from `python packaging/pip/deps/build_deps.py --cuda-version --variant $Variant`, and `$mm = "<maj>.<min>"`.
+- Download `https://developer.download.nvidia.com/compute/cuda/$ver/network_installers/cuda_${ver}_windows_network.exe` and run it with `Start-Process -Wait -PassThru` and arguments `-s nvcc_$mm cudart_$mm thrust_$mm visual_studio_integration_$mm`. (Appendix B1 adds the CUDA 13 sub-packages.) Fail if the exit code is non-zero.
+- `CUDA_PATH = C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v$mm` and `CUDACXX = $CUDA_PATH\bin\nvcc.exe`. Finish with `& $env:CUDACXX --version`.
+
+- [ ] **Step 1: Write `install_cuda_windows.ps1`** following the decisions above.
+
+- [ ] **Step 2: Add the Windows row and steps to `build_cuda`**
+
+```yaml
+          - variant: cuda12
+            os: windows
+            arch: AMD64
+            runner: windows-2022
+            wheel_tag: win_amd64
+            expect: config,openmp,json,hdf5,petsird,itk,parallelproj,cuda
+            only: ""
+```
+(use Phase 2's Windows `build_cpu` `expect` plus `,cuda` if Phase 2 recorded a known gap). Add to the job `env:`:
+
+```yaml
+      CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: >-
+        delvewheel repair
+        --exclude "cudart64_12.dll;nvcuda.dll"
+        --add-path %STIR_DEPS_PREFIX%\bin
+        -w {dest_dir} -v {wheel}
+```
+and, after "Restore deps prefix":
+
+```yaml
+      - name: Install CUDA toolkit (Windows)
+        if: runner.os == 'Windows'
+        run: pwsh packaging/pip/ci/install_cuda_windows.ps1 -Variant ${{ matrix.variant }}
+      - name: MSVC environment (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+      # Phase 2's "Build deps prefix (macOS, Windows)" pwsh step, with --variant ${{ matrix.variant }}.
+```
+The Windows runner is pinned to `windows-2022`: VS 2022 is supported by CUDA 12.9, and CUDA 12.9 does not support VS 2026.
+
+- [ ] **Step 3: Add the Windows rehearsal row**: `{variant: cuda12, os: windows, arch: AMD64, runner: windows-2022}` with `pythons: "3.12"`, `coexist: false` and the same `expect` as the `build_cuda` row.
+
+- [ ] **Step 4: Run actionlint and the unit tests, then commit, push and watch**
+
+```bash
+actionlint .github/workflows/wheels.yml
+python -m pytest packaging/pip/tests --ignore=packaging/pip/tests/test_wheel_smoke.py -q
+git add packaging/pip/ci/install_cuda_windows.ps1 .github/workflows/wheels.yml packaging/pip/tests
+git commit -m "Build and rehearse Windows x86_64 cuda12 wheels"
+git push fork pip-packaging
+gh run watch --repo robbietuk/STIR --exit-status
+```
+Expected:
+- 2 `build_cuda` jobs green (`cuda12 linux-x86_64`, `cuda12 windows-AMD64`), each with 5 wheels under 100 MB.
+- The Windows log shows `STIR CUDA support enabled. Using CUDA version 12.9.` and `test_expected_feature[cuda] PASSED` for each Python.
+- `rehearse_publish (cuda12 windows-AMD64)` is green; `publish` is skipped.
+- The whole run has 5 wheel artifacts (3 `cpu`, 2 `cuda12`) and 25 wheels.
+
+- [ ] **Step 5: Check the excluded runtime really is excluded**
+
+Run: `gh run download --repo robbietuk/STIR -n wheels-cuda12-windows-AMD64 -D /tmp/ww && unzip -l /tmp/ww/stir_cuda12-*cp312*.whl | grep -Ei "cudart|nvcuda" ; echo "exit=$?"`
+Expected: `exit=1` (no matches).
+
+---
+
+### Task 13: Windows GPU sign-off (Robert, if he has the hardware)
+
+**Files:**
+- Modify: `packaging/pip/README.md` (sign-off table)
+
+**Interfaces:**
+- Consumes: the `wheels-cpu-windows-AMD64` and `wheels-cuda12-windows-AMD64` artifacts of a green Task 12 run;
+  `gpu_check.py` (Task 10); Task 11's procedure and sign-off table.
+
+- [ ] **Step 1: Run Task 11 Steps 2–4 on Windows** with the `wheels-cpu-windows-AMD64` and `wheels-cuda12-windows-AMD64` artifacts (PowerShell, `py -3.12 -m venv`, `<venv>\Scripts\python.exe`).
+Expected: the same results as on Linux. Without suitable hardware, record the row as `not tested (no hardware)`. Don't leave it blank.
+
+- [ ] **Step 2: Record and commit**
+
+```bash
+git add packaging/pip/README.md
+git commit -m "Record Phase 3 Windows GPU sign-off results"
+```
+
+Phase 3 is complete when the Linux x86_64 `stir-cuda12` row says PASS, Task 12's CI run is green, and the Windows row is filled in (PASS or `not tested (no hardware)`).
+
+---
+
+## Appendix: Later, if needed
+
+**Not part of the first version; do not execute unless Robert asks.** Condensed research for the two deferred CUDA
+additions (spec §7). Each is additive to Tasks 1–13. When one is added, extend the overview's matrix and artifact
+lists, Phase 4's README/docs tests (names, warning, uninstall line) and Phase 5's `build_cuda` expectations.
+
+### B1: `stir-cuda13` (deferred)
+
+Why deferred: CUDA 13 drops pre-Turing GPUs (no sm_50–sm_72; sm_101 renumbered sm_110, Thor) and needs driver ≥ 580,
+which shared clusters often lack (spec §5.2).
+
+- **versions.toml** (Task 1): add
+  ```toml
+  [cuda.cuda13]
+  # CUDA 13 dropped offline compilation for sm_50..sm_72; sm_101 was renumbered sm_110 (Thor).
+  toolkit = "13.4.2"
+  architectures = "75-real;80-real;86-real;89-real;90-real;100-real;110-real;120-real;120-virtual"
+  runtime_requirement = "nvidia-cuda-runtime>=13.4,<14"
+  ```
+  Check the pin: `curl -fsI .../cuda/13.4.2/network_installers/cuda_13.4.2_windows_network.exe` must give 200;
+  otherwise use the newest 13.4.x that does (open question for Robert).
+- **pyproject.toml** (Task 2): a second override, identical to `cuda12`'s except `if.env.STIR_WHEEL_VARIANT =
+  "cuda13"` and the architectures above. Put it last so Task 3's `stripped` fixture can target it.
+- **Tests:** add `"cuda13"` back to the Task 1–3 parametrizations (`test_cuda_version_flag` expects `13.4.2`;
+  runtime dependency `nvidia-cuda-runtime>=13.4,<14`); delete both `test_deferred_cuda13_exits_1` tests;
+  `build_deps --cuda-version --variant cpu` message becomes `needs cuda12 or cuda13`.
+- **`stir/_cuda.py`** (Task 4): `VARIANT_DISTS["cuda13"] = "stir-cuda13"`;
+  `RUNTIME_RELPATHS[("cuda13","linux")] = "cu13/lib/libcudart.so.13"`,
+  `[("cuda13","win32")] = "cu13/bin/x86_64/cudart64_13.dll"`; `RUNTIME_PIP_PACKAGE["cuda13"] = "nvidia-cuda-runtime"`
+  (`nvidia-cuda-runtime-cu13` is a deprecated stub); `MIN_DRIVER_API["cuda13"] = 13000`;
+  `MIN_COMPUTE["cuda13"] = (7, 5)`. `installed_variants` order `cpu, cuda12, cuda13`; uninstall hint
+  `pip uninstall -y stir stir-cuda12 stir-cuda13`. Tests to add: `classify("cuda13", driver 12020)` →
+  `driver-too-old` naming `12.2`, `13.0` and suggesting `stir-cuda12`; `classify("cuda13", cc 7.0)` →
+  `unsupported-gpu` naming `7.0`, `7.5`, `stir-cuda12`.
+- **CI scripts:** `install_cuda_linux.sh cuda13` (dnf packages `-13-4`); Windows installer: for major ≥ 13 also add
+  `crt_$mm nvvm_$mm` (CUDA 13 split these out of nvcc). VS 2022 on `windows-2022` supports 13.4.
+- **Workflow:** `build_cuda` rows `cuda13` for linux/x86_64 and windows/AMD64 (same as `cuda12` rows); repair
+  excludes become `${{ matrix.variant == 'cuda12' && 'libcudart.so.12' || 'libcudart.so.13' }}` and
+  `${{ matrix.variant == 'cuda12' && 'cudart64_12.dll' || 'cudart64_13.dll' }};nvcuda.dll`; a `cuda13` linux/x86_64
+  rehearsal row. Artifacts `wheels-cuda13-linux-x86_64`, `wheels-cuda13-windows-AMD64`; +10 wheels.
+- **Sign-off:** Task 11 Step 3 for `stir-cuda13` (driver ≥ 580, compute capability ≥ 7.5) in `~/v-cu13`.
+
+### B2: Linux aarch64 `stir-cuda12` (sbsa) (deferred)
+
+Needs Phase 2 appendix A1 (CPU Linux aarch64) first.
+
+- `install_cuda_linux.sh`: map `uname -m` `aarch64` → repo arch `sbsa`
+  (`.../repos/rhel8/sbsa/cuda-rhel8.repo`; RHEL 8 sbsa is supported through CUDA 13.4).
+- Runtime layout check (Task 4 Step 1): also download for `manylinux2014_aarch64`; expected path is the same
+  `nvidia/cuda_runtime/lib/libcudart.so.12`.
+- Workflow: `build_cuda` row `{variant: cuda12, os: linux, arch: aarch64, runner: ubuntu-24.04-arm, wheel_tag:
+  manylinux_2_28_aarch64, expect: <Linux aarch64 CPU expect>,cuda, only: ""}` and a matching rehearsal row.
+  Artifact `wheels-cuda12-linux-aarch64`; +5 wheels.
+- Sign-off hardware: Grace/GH200 or DGX Spark. Jetson Orin (sm_87) stays unbuilt: sbsa wheels target server Arm and
+  DGX Spark; Orin uses L4T/JetPack.
 
 ---
 
 ## Undecided items (Robert's call; the plan uses the stated default)
 
 1. **Pascal (sm_60/61) in `stir-cuda12`.** The spec says sm_70+. CUDA 12.9 can still build `60-real;61-real` for a few MB more, and Pascal cards (GTX 10xx, P100) are still common in labs. Default: not included. Users with Pascal get the `unsupported-gpu` warning.
-2. **Jetson Orin (sm_87).** Default: not built. The sbsa wheels target server Arm (Grace) and DGX Spark. Orin uses L4T/JetPack.
-3. **Exact CUDA 13 pin** (`13.4.2`). Task 1 Step 7 confirms it, or moves it to the newest 13.4.x that exists.
-4. **Windows runner image.** Pinned to `windows-2022`. When GitHub retires it, the fallback is `windows-latest` plus `-allow-unsupported-compiler` for CUDA 12.9.
-5. **Deps cache per variant.** Each CUDA variant rebuilds the identical hdf5/date/petsird/itk on a cache miss (simple, but slower cold builds). Reusing the `cpu` prefix and building only `parallelproj` per variant is a later optimisation if CI time hurts.
-6. **GPU sign-off hardware** for Windows and aarch64: depends on what Robert can access.
+2. **Windows runner image.** Pinned to `windows-2022`. When GitHub retires it, the fallback is `windows-latest` plus `-allow-unsupported-compiler` for CUDA 12.9.
+3. **Deps cache per variant.** Each CUDA variant rebuilds the identical hdf5/date/petsird/itk on a cache miss (simple, but slower cold builds). Reusing the `cpu` prefix and building only `parallelproj` per variant is a later optimisation if CI time hurts.
+4. **GPU sign-off hardware** for Windows (Task 13): depends on what Robert can access.
+
+(Jetson Orin and the exact CUDA 13 pin are deferred questions; see the appendix.)
 
 ## Contract concerns
 
@@ -1108,17 +1206,17 @@ Resolved in the overview's "Cross-plan review (2026-11-12)"; the overview wins w
 5. **libparallelproj is shared-only.** Spec §5.4 says "libparallelproj static", but upstream v2.0.7 hard-codes `add_library(parallelproj SHARED ...)`. The wheel therefore bundles `libparallelproj` through auditwheel/delvewheel. Phase 2 must already do this for the CPU wheel. If Phase 2's plan assumes a static libparallelproj, it needs correcting.
 6. **New CUDA keys in `versions.toml`**: `[cuda.<variant>]` with `toolkit`, `architectures` and `runtime_requirement`. `prepare_build.py` now reads `versions.toml`. In Phase 1 the two were independent.
 7. **The rehearsal depends on pypiserver's default fallback to PyPI** for `nvidia-cuda-runtime*`. Phase 1/2 must not start pypiserver with `--disable-fallback`. If they do, Task 9 needs `--extra-index-url https://pypi.org/simple/` for the install step only.
-8. **Artifact `<os>-<arch>` tokens.** This plan uses `linux-x86_64`, `linux-aarch64` and `windows-x86_64`. If Phase 2's `build_cpu` uses other tokens (e.g. `windows-amd64`), Task 8 should use Phase 2's spelling.
+8. **Artifact `<os>-<arch>` tokens.** This plan uses `linux-x86_64` and `windows-AMD64` (overview). If Phase 2's `build_cpu` uses other tokens (e.g. `windows-amd64`), Task 8 should use Phase 2's spelling.
 
 ## References
 
 - STIR rel_6.5.0 sources read for this plan: `CMakeLists.txt` lines 100–280 (DISABLE_STIR_CUDA, CMAKE_CUDA_ARCHITECTURES "all" default, parallelproj CONFIG and PARALLELPROJ_CUDA), `src/swig/CMakeLists.txt:38-39,144-147`, `src/recon_buildblock/CMakeLists.txt:141-211`, `src/CMakeLists.txt:281-285`, `src/swig/stir_priors.i:63-200`, `src/swig/stir_projectors.i:111-135`. The `.cu` sources are `src/buildblock/CUDA/cuda_utilities.cu`, `src/recon_buildblock/CUDA/CudaRelativeDifferencePrior.cu` and `src/recon_buildblock/CUDA/CudaGibbsPenaltiesInstantiations.cu`.
 - libparallelproj v2.0.7 `CMakeLists.txt`, `cmake/parallelprojConfig.cmake.in`, `src/parallelproj_info.cpp` (cloned from https://github.com/KUL-recon-lab/libparallelproj, tag v2.0.7). Changelog: https://libparallelproj.readthedocs.io/en/v2.0.7/_sources/changelog.rst.txt. Install docs: https://libparallelproj.readthedocs.io/en/latest/_sources/installation.rst.txt
-- NVIDIA runtime pip packages: https://pypi.org/project/nvidia-cuda-runtime (13.x; win_amd64 / manylinux x86_64 and aarch64), https://pypi.org/project/nvidia-cuda-runtime-cu13/ (deprecated stub pointing to `nvidia-cuda-runtime`), https://www.pypi.org/project/cuda-toolkit/13.2.0 (metapackage). Wheel library layout: https://nvidia.github.io/cuda-python/coverage/z_b173e2ae1fca2bc7_descriptor_catalog_py.html
-- CUDA 13.0 release notes (dropped sm_50–72, SM101 renamed SM110, driver ≥ 580 for 13.x and ≥ 525 for 12.x): https://docs.nvidia.com/cuda/archive/13.0.0/pdf/CUDA_Toolkit_Release_Notes.pdf. Also https://developer.nvidia.com/blog/navigating-gpu-architecture-support-a-guide-for-nvidia-cuda-developers
-- CUDA Linux install guide (RHEL 8 network repo, x86_64 and sbsa): https://docs.nvidia.com/cuda/archive/13.4.1/cuda-installation-guide-linux/index.html
+- (Appendix B1/B2) NVIDIA runtime pip packages: https://pypi.org/project/nvidia-cuda-runtime (13.x; win_amd64 / manylinux x86_64 and aarch64), https://pypi.org/project/nvidia-cuda-runtime-cu13/ (deprecated stub pointing to `nvidia-cuda-runtime`), https://www.pypi.org/project/cuda-toolkit/13.2.0 (metapackage). Wheel library layout: https://nvidia.github.io/cuda-python/coverage/z_b173e2ae1fca2bc7_descriptor_catalog_py.html
+- (Appendix B1) CUDA 13.0 release notes (dropped sm_50–72, SM101 renamed SM110, driver ≥ 580 for 13.x and ≥ 525 for 12.x): https://docs.nvidia.com/cuda/archive/13.0.0/pdf/CUDA_Toolkit_Release_Notes.pdf. Also https://developer.nvidia.com/blog/navigating-gpu-architecture-support-a-guide-for-nvidia-cuda-developers
+- CUDA Linux install guide (RHEL 8 network repo, x86_64; sbsa for appendix B2): https://docs.nvidia.com/cuda/archive/13.4.1/cuda-installation-guide-linux/index.html
 - CUDA Windows install guide (silent `-s` sub-packages, VS support, driver not bundled): https://docs.nvidia.com/cuda/archive/13.4.2/cuda-installation-guide-microsoft-windows/index.html
-- Jimver/cuda-toolkit action (considered; NVIDIA's network installer used directly instead because 13.x Windows support is unconfirmed): https://github.com/jimver/cuda-toolkit
+- Jimver/cuda-toolkit action (considered; NVIDIA's network installer used directly instead, so the deferred 13.x path needs no other tool): https://github.com/jimver/cuda-toolkit
 - CuPy package-per-CUDA-major model, `[ctk]` extra, conflict warning: https://docs.cupy.dev/en/stable/install.html
 - delvewheel `--exclude`, `--add-path`, `__init__.py` patching: https://pypi.org/project/delvewheel/
 - PyPI storage limits (100 MB/file, 10 GB/project by default; increase process): https://docs.pypi.org/project-management/storage-limits

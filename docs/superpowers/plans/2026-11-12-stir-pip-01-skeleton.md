@@ -544,6 +544,8 @@ git commit -m "Add scikit-build-core configuration for STIR pip wheels"
   pyproject file. Exit 0 on success. Exit 2 on bad arguments: unknown variant, `N < 0`, and `cuda12`/`cuda13`
   in Phase 1 with the message `variant cuda12 is not supported yet (Phase 3)`. Exit 1 when the file or a marker
   is missing, or `VERSION.txt` is not `X.Y.Z` (message on stderr). Phase 3 adds exit 1 for a missing CUDA override.
+  (`cuda13` is a reserved value for a deferred variant; it is accepted by argparse but never built in the first
+  version; see the overview.)
 - Produces (Python, used by Phase 3):
   - `VARIANT_PACKAGE_NAMES: dict[str, str] = {"cpu": "stir", "cuda12": "stir-cuda12", "cuda13": "stir-cuda13"}`
   - `read_stir_version(version_file: Path) -> str`: strips whitespace; raises `ValueError` unless it matches

@@ -33,8 +33,10 @@ Phase 4). The shared names come from `docs/superpowers/plans/2026-11-12-stir-pip
   Robert editing the guard himself. TestPyPI is not used at all.
 - Every job in `wheels.yml` except `publish` has `if: github.repository == 'robbietuk/STIR'`.
   Triggers stay `push` to `pip-packaging` plus `workflow_dispatch`.
-- Package names `stir`, `stir-cuda12` and `stir-cuda13` all provide `import stir`. Fallback names, used only if the
-  name check fails: `stir-recon`, `stir-recon-cuda12`, `stir-recon-cuda13`.
+- First-version packages `stir` (Linux x86_64, macOS arm64, Windows x86_64) and `stir-cuda12` (Linux x86_64,
+  Windows x86_64) both provide `import stir`. Fallback names, used only if the name check fails: `stir-recon`,
+  `stir-recon-cuda12`. `stir-cuda13`, Linux aarch64 and macOS x86_64 are deferred (overview); the docs mention them
+  only as "not available yet".
 - Dev versions are `<VERSION.txt>.devN`, with N = `github.run_number`.
 - Markdown files must pass the repo's `pymarkdown` pre-commit hook (`.pymarkdown`: MD013 line length 120).
 - Commits use plain imperative messages and end with the session's attribution lines.
@@ -446,7 +448,7 @@ README_REQUIRED_HEADINGS = [
     "## Do not install more than one STIR package", "## When to use conda instead",
     "## Building and testing (developers)",
 ]
-WARNING = "Install exactly one of `stir`, `stir-cuda12` or `stir-cuda13` in an environment."
+WARNING = "Install exactly one of `stir` or `stir-cuda12` in an environment."
 
 def test_readme_has_user_sections():
     text = README.read_text()
@@ -457,7 +459,7 @@ def test_readme_has_user_sections():
 def test_readme_warning_and_switch_command():
     text = README.read_text()
     assert WARNING in text
-    assert "pip uninstall -y stir stir-cuda12 stir-cuda13" in text
+    assert "pip uninstall -y stir stir-cuda12" in text
     assert "conda install -c conda-forge stir" in text
 
 def test_doc_script_paths_exist():
@@ -477,31 +479,33 @@ Expected: `test_readme_has_user_sections` and `test_readme_warning_and_switch_co
 The section contains:
 - **Installing.** Until a real release, wheels come from CI artifacts:
   `gh run download <run-id> --repo robbietuk/STIR -p 'wheels-*' -D wheels/`, then
-  `pip install --find-links wheels/wheels-cpu-<os>-<arch> "stir==<version>"` (artifact names as in the overview,
-  e.g. `wheels-cpu-windows-AMD64`; `--find-links` is not recursive). The exact `==<version>` pin is required:
+  `pip install --find-links wheels/wheels-cpu-<os>-<arch> "stir==<version>"` (artifact names as in the overview:
+  `wheels-cpu-linux-x86_64`, `wheels-cpu-macos-arm64`, `wheels-cpu-windows-AMD64`, `wheels-cuda12-linux-x86_64`,
+  `wheels-cuda12-windows-AMD64`; `--find-links` is not recursive). The exact `==<version>` pin is required:
   `.devN` builds are pre-releases. After a release this becomes `pip install stir`. Then run a check:
   `python -c "import stir; print(stir.__file__)"`.
 - **Which package do I need?**
-  - `stir`: CPU, every platform.
-  - `stir-cuda12` / `stir-cuda13`: NVIDIA GPU on Linux x86_64/aarch64 or Windows x86_64. Choose by the
-    "CUDA Version" that `nvidia-smi` reports (≥ 12.x → `stir-cuda12`, ≥ 13.x → either, preferring `stir-cuda13`).
-  - All three are imported as `import stir`. macOS has no CUDA.
+  - `stir`: CPU, on Linux x86_64, macOS arm64 (Apple silicon) and Windows x86_64.
+  - `stir-cuda12`: NVIDIA GPU on Linux x86_64 or Windows x86_64. Needs a driver whose "CUDA Version" in
+    `nvidia-smi` is ≥ 12.0, and a GPU with compute capability ≥ 7.0.
+  - Both are imported as `import stir`. macOS has no CUDA.
+  - Not available yet (use conda, or build from the sdist): Linux aarch64, Intel macOS, a CUDA 13 package.
 - **Features by platform.** Copy this table, which combines the two §5.2 tables:
 
-  | Feature | Linux x86_64 | Linux aarch64 | macOS arm64 | macOS x86_64 | Windows x86_64 |
-  |---|---|---|---|---|---|
-  | Core STIR + Python API, OpenMP | all | all | `stir` | `stir` | all |
-  | HDF5 (GE), PETSIRD, JSON, ITK image IO | all | all | `stir` | `stir` | all |
-  | parallelproj CPU | all | all | `stir` | `stir` | all |
-  | parallelproj CUDA + STIR CUDA code | `stir-cudaXX` | `stir-cudaXX` | — | — | `stir-cudaXX` |
-  | ROOT / GATE input | not yet (conda) | not yet (conda) | not yet (conda) | not yet (conda) | — |
-  | NiftyPET projector, MATLAB, STIR executables, C++ headers | — | — | — | — | — |
+  | Feature | Linux x86_64 | macOS arm64 | Windows x86_64 |
+  |---|---|---|---|
+  | Core STIR + Python API, OpenMP | all | `stir` | all |
+  | HDF5 (GE), PETSIRD, JSON, ITK image IO | all | `stir` | all |
+  | parallelproj CPU | all | `stir` | all |
+  | parallelproj CUDA + STIR CUDA code | `stir-cuda12` | — | `stir-cuda12` |
+  | ROOT / GATE input | not yet (conda) | not yet (conda) | — |
+  | NiftyPET projector, MATLAB, STIR executables, C++ headers | — | — | — |
 
-  "all" means `stir`, `stir-cuda12` and `stir-cuda13`. Python 3.11–3.15. Then apply Phase 2's "Known gaps" and
+  "all" means `stir` and `stir-cuda12`. Python 3.11–3.15. Then apply Phase 2's "Known gaps" and
   "Feature status by platform" from the existing README: every ✗ there becomes a footnoted cell here.
-- **Do not install more than one STIR package.** Include `WARNING` verbatim. Explain why: all three provide the same
+- **Do not install more than one STIR package.** Include `WARNING` verbatim. Explain why: both provide the same
   `stir/` folder, so they overwrite each other. Show `pip list | grep -i stir` to see what is installed. To switch,
-  run `pip uninstall -y stir stir-cuda12 stir-cuda13`, then install exactly one.
+  run `pip uninstall -y stir stir-cuda12`, then install exactly one.
 - **When to use conda instead** (`conda install -c conda-forge stir`):
   - reading GATE/ROOT output (`.hroot`/`.root`), until ROOT support lands;
   - command-line utilities such as `lm_to_projdata` or `OSMAPOSL` (wheels ship no executables);
@@ -563,7 +567,7 @@ def test_releasing_key_commands():
 
 def test_name_table_rows():
     text = RELEASING.read_text()
-    for name in ("stir", "stir-cuda12", "stir-cuda13", "stir-recon", "stir-recon-cuda12", "stir-recon-cuda13"):
+    for name in ("stir", "stir-cuda12", "stir-recon", "stir-recon-cuda12"):
         assert f"| `{name}` | https://pypi.org/project/{name}/ |" in text, name
 ```
 
@@ -613,18 +617,18 @@ Sections, in order:
    - CUDA versions;
    - the PyPI name table is still valid.
 4. **PyPI name check.** Robert does this by hand in a browser; nothing is registered. Use a table with columns
-   `Name | URL | Result | Checked on | By`. It has one row per name (the three primary, then the three fallback names).
+   `Name | URL | Result | Checked on | By`. It has one row per name (the two primary, then the two fallback
+   names; a deferred variant such as `stir-cuda13` gets its rows when Robert adds it).
    Result is `unchecked` initially. Explain:
    - a 404 page means unregistered, but PyPI can still refuse a name (similar to an existing name, or prohibited);
    - a pending publisher does **not** reserve a name;
    - only the first real upload does.
 
-   If a primary name is taken, use all three fallbacks together. That change goes through `prepare_build.py`'s
+   If a primary name is taken, use both fallbacks together. That change goes through `prepare_build.py`'s
    variant→name mapping and needs Robert's approval (see Contract concerns).
 5. **Trusted publishing setup (not done).** Steps for Robert, all marked "do not do until releasing":
    - On pypi.org, go to Account → Publishing → Add a new pending publisher → GitHub. Fill in: Owner `robbietuk`,
-     Repository `STIR`, Workflow `wheels.yml`, Environment `pypi`, Project name `stir`. Repeat for `stir-cuda12` and
-     `stir-cuda13`.
+     Repository `STIR`, Workflow `wheels.yml`, Environment `pypi`, Project name `stir`. Repeat for `stir-cuda12`.
    - On GitHub, go to robbietuk/STIR → Settings → Environments → New environment `pypi`. Set required reviewer
      Robert and deployment branches limited to `pip-packaging`.
    - No API tokens or secrets.
@@ -673,7 +677,8 @@ Resolved in the overview's "Cross-plan review (2026-11-12)"; the overview wins w
    VERSION.txt into a scratch clone.
 4. **`local-index.sh` CLI is not in the contract.** This plan assumes `local-index.sh WHEEL_DIR`, serving
    `http://localhost:8080/simple/` (spec §5.6 port).
-5. **Fallback names.** The contract fixes `cpu→stir`, `cuda12→stir-cuda12` and `cuda13→stir-cuda13`. Switching to
+5. **Fallback names.** The contract fixes `cpu→stir` and `cuda12→stir-cuda12` (`cuda13→stir-cuda13` is reserved
+   for the deferred variant). Switching to
    `stir-recon*` would change `prepare_build.py`, its tests and the README. This plan only documents the switch.
 6. **Wider protected set than the brief.** `release_check.py` also protects `*.c`, `*.txx`, `*.i`, `*.h.in`,
    `*.cmake.in` and the two submodule pointers. These are STIR code or build inputs too. Remove them if Robert wants

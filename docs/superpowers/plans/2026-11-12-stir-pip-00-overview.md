@@ -13,15 +13,31 @@ path, flag, key or exit code, this file wins.
 | # | Plan file | Delivers |
 |---|---|---|
 | 1 | `2026-11-12-stir-pip-01-skeleton.md` | CPU wheel, Linux x86_64, Py 3.11–3.15, core STIR + OpenMP; config dirs; CI; rehearsal |
-| 2 | `2026-11-12-stir-pip-02-cpu-all-platforms.md` | Native deps prefix (HDF5, PETSIRD, ITK, libparallelproj CPU); all 5 platforms |
-| 3 | `2026-11-12-stir-pip-03-cuda-variants.md` | `stir-cuda12`, `stir-cuda13` on Linux x86_64/aarch64 + Windows; manual GPU test |
+| 2 | `2026-11-12-stir-pip-02-cpu-all-platforms.md` | Native deps prefix (HDF5, PETSIRD, ITK, libparallelproj CPU); Linux x86_64, then macOS arm64, then Windows x86_64 |
+| 3 | `2026-11-12-stir-pip-03-cuda-variants.md` | `stir-cuda12` on Linux x86_64, then Windows x86_64; manual GPU test |
 | 4 | `2026-11-12-stir-pip-04-release-readiness.md` | Release-merge procedure, user docs, PyPI name check, publish job hardened |
-| 5 | `2026-11-12-stir-pip-05-root.md` | ROOT/GATE on Linux + macOS via the official `root` wheel, gated on its stability |
+| 5 | `2026-11-12-stir-pip-05-root.md` | ROOT/GATE on Linux x86_64 + macOS arm64 via the official `root` wheel, gated on its stability |
+
+## First-version scope (spec revision 4, §5.2 and §7)
+
+| Package | Linux x86_64 | macOS arm64 | Windows x86_64 |
+|---|---|---|---|
+| `stir` (CPU) | ✓ | ✓ | ✓ |
+| `stir-cuda12` | ✓ | — | ✓ |
+
+Python 3.11–3.15: 3 × 5 = 15 CPU wheels plus 2 × 5 = 10 CUDA wheels, **25 wheels per build**. Order inside each
+phase: Linux x86_64 first, then macOS arm64 (CPU only), then Windows x86_64.
+
+**Deferred ("Later, if needed"; not part of the first version):** Linux aarch64 (`stir` and CUDA sbsa), macOS
+x86_64, `stir-cuda13`. Their researched details are kept in an appendix at the end of the Phase 2 and Phase 3 plans,
+marked "do not execute unless Robert asks". Adding one is additive: matrix rows, one `versions.toml` table or
+pyproject override, and the matching test entries.
 
 ## Where the work happens
 
 - Repo: `robbietuk/STIR` (Robert's public fork). Branch: `pip-packaging`, created from upstream tag `rel_6.5.0`.
-- Python 3.11 through 3.15. Packages `stir`, `stir-cuda12`, `stir-cuda13`; all provide `import stir`.
+- Python 3.11 through 3.15. Packages `stir` and `stir-cuda12`; both provide `import stir`. (`stir-cuda13` is a
+  reserved name for the deferred variant; nothing builds it.)
 - Never push to `UCL/STIR`. Never publish to PyPI or TestPyPI. `publish` stays `if: false`.
 - **Git remotes (all phases):** `origin` = `https://github.com/UCL/STIR.git` with its push URL set to
   `DISABLED-never-push-to-UCL` (Phase 1 Task 9); `fork` = `https://github.com/robbietuk/STIR.git`. Every push is
@@ -133,6 +149,9 @@ an `expect` value has an entry in `CHECKS` (`test_expected_feature` fails otherw
 python packaging/pip/prepare_build.py --variant {cpu,cuda12,cuda13} [--dev-number N] [--pyproject PATH]
 ```
 - `cpu` → `stir`; `cuda12` → `stir-cuda12`; `cuda13` → `stir-cuda13` (`VARIANT_PACKAGE_NAMES`).
+- **`cuda13` stays an accepted, reserved value** (decision for the narrowed scope: the smaller change, since Phases 1
+  and 2 already reject it). It is deferred, so from Phase 3 on it exits 1 because `pyproject.toml` has no `cuda13`
+  override; the deferred appendix of Phase 3 adds that override and the `[cuda.cuda13]` table.
 - `--pyproject` defaults to `<repo>/pyproject.toml`. `VERSION.txt` is read from the **directory that holds the
   pyproject file**, and must be `X.Y.Z`. `--dev-number N` gives a static version `X.Y.Z.devN`; CI passes
   `--dev-number ${{ github.run_number }}`.
@@ -142,8 +161,8 @@ python packaging/pip/prepare_build.py --variant {cpu,cuda12,cuda13} [--dev-numbe
   (located as `Path(__file__).parent / "deps" / "versions.toml"`, read only for CUDA variants). CUDA cmake defines
   live in `pyproject.toml` `[[tool.scikit-build.overrides]]` keyed on `if.env.STIR_WHEEL_VARIANT`, so a CUDA build
   needs **both** `--variant cudaXX` and `STIR_WHEEL_VARIANT=cudaXX`.
-- Exit 0 success; 1 missing file/marker, bad `VERSION.txt`, or (Phase 3) no override for the variant; 2 bad
-  arguments (and, in Phases 1–2 only, `cuda12`/`cuda13`).
+- Exit 0 success; 1 missing file/marker, bad `VERSION.txt`, or (Phase 3) no override for the variant (in the first
+  version: `cuda13`); 2 bad arguments (and, in Phases 1–2 only, `cuda12`/`cuda13`).
 
 ### `build_deps.py` CLI (Phase 2; Phase 3 adds CUDA)
 
@@ -152,6 +171,9 @@ python packaging/pip/deps/build_deps.py --prefix DIR --variant {cpu,cuda12,cuda1
 python packaging/pip/deps/build_deps.py --cache-key --variant V      # 16 hex chars; hashes deps/ + variant
 python packaging/pip/deps/build_deps.py --cuda-version --variant V   # Phase 3: toolkit version; exit 2 for cpu
 ```
+- `--variant` accepts `cpu`, `cuda12` and the reserved `cuda13` (same decision as `prepare_build.py`). From Phase 3,
+  a CUDA variant with no `[cuda.<variant>]` table in `versions.toml` (in the first version: `cuda13`) exits 1 with
+  `build_deps: no [cuda.cuda13] table in versions.toml (deferred variant)`. `--cache-key` works for every value.
 - Names, in build order: `openmp` (macOS only), `boost`, `nlohmann_json`, `xtensor`, `date`, `hdf5`, `petsird`,
   `itk`, `parallelproj`. `--prefix` is not needed with `--cache-key` or `--cuda-version`.
 - A dep is complete when `<prefix>/.stamps/<name>` holds the current cache key; re-runs skip it. No other marker.
@@ -180,7 +202,7 @@ errors exit 2.
 | Variable | Meaning |
 |---|---|
 | `STIR_DEPS_PREFIX` | deps prefix; `pyproject.toml` passes it to CMake as `CMAKE_PREFIX_PATH`; hook reads it |
-| `STIR_WHEEL_VARIANT` | `cpu`, `cuda12` or `cuda13`; selects scikit-build-core overrides |
+| `STIR_WHEEL_VARIANT` | `cpu` or `cuda12` (`cuda13` reserved, deferred); selects scikit-build-core overrides |
 | `STIR_WHEEL_EXPECT` | comma list from "Feature names"; read by the hook at configure time and by the smoke test |
 | `STIR_CONFIG_DIR`, `STIR_DOC_DIR` | read by STIR's C++; `_paths.py` sets each only if unset **or empty** |
 
@@ -206,17 +228,21 @@ the repository check).
 |---|---|---|
 | `checks` | 4 | `ubuntu-latest` |
 | `sdist` | 1 | `ubuntu-latest` |
-| `build_cpu` (matrix) | 1 (2) | linux/x86_64 `ubuntu-24.04`; linux/aarch64 `ubuntu-24.04-arm`; macos/arm64 `macos-15`; macos/x86_64 `macos-15-intel` (native); windows/AMD64 `windows-2025` |
-| `build_cuda` (matrix) | 3 | linux/x86_64 `ubuntu-24.04`; linux/aarch64 `ubuntu-24.04-arm`; windows/AMD64 **`windows-2022`** (exception: VS 2022 for CUDA 12.9) |
+| `build_cpu` (matrix) | 1 (2) | linux/x86_64 `ubuntu-24.04`; macos/arm64 `macos-15`; windows/AMD64 `windows-2025` |
+| `build_cuda` (matrix) | 3 | variant `cuda12` only: linux/x86_64 `ubuntu-24.04`; windows/AMD64 **`windows-2022`** (exception: VS 2022 for CUDA 12.9) |
 | `rehearse_publish` (matrix) | 1 (2, 3, 5) | the build row's runner; CUDA Windows row `windows-2022` |
 | `publish` | 1 (4) | `ubuntu-latest`; needs `checks`, `rehearse_publish` |
 
 - Matrix keys: `build_cpu`: `os, arch, runner, wheel_tag, expect, only`; `build_cuda`: the same plus `variant`;
   `rehearse_publish`: `variant, os, arch, runner, expect, pythons, coexist`. `os` ∈ `linux|macos|windows`; `arch`
-  is cibuildwheel's name (`x86_64|aarch64|arm64|AMD64`) and feeds `CIBW_ARCHS`.
-- Artifacts: `sdist`, and `wheels-<variant>-<os>-<arch>`, e.g. `wheels-cpu-linux-x86_64`,
-  `wheels-cpu-windows-AMD64`, `wheels-cuda12-linux-aarch64`, `wheels-cuda13-windows-AMD64`. Downloads use
-  `pattern: wheels-*`.
+  is cibuildwheel's name (`x86_64|arm64|AMD64`) and feeds `CIBW_ARCHS`.
+- Matrix rows (first version): `build_cpu` 3 (linux/x86_64, macos/arm64, windows/AMD64); `build_cuda` 2 (cuda12
+  linux/x86_64, cuda12 windows/AMD64); `rehearse_publish` 3 `cpu` rows plus 2 `cuda12` rows.
+- Artifacts: `sdist`, and `wheels-<variant>-<os>-<arch>`. The complete first-version list (5 artifacts, 25 wheels):
+  `wheels-cpu-linux-x86_64`, `wheels-cpu-macos-arm64`, `wheels-cpu-windows-AMD64`, `wheels-cuda12-linux-x86_64`,
+  `wheels-cuda12-windows-AMD64`. Downloads use `pattern: wheels-*`.
+- Deferred rows (appendices only): linux/aarch64 `ubuntu-24.04-arm` (cpu, cuda12 sbsa), macos/x86_64
+  `macos-15-intel`, and `cuda13` on every CUDA platform.
 - Action pins: `actions/checkout@v6`, `actions/setup-python@v6`, `actions/upload-artifact@v4`,
   `actions/download-artifact@v5`, `actions/cache/{restore,save}@v4`, `pypa/cibuildwheel@v4.3.5`,
   `ilammy/msvc-dev-cmd@v1`.
@@ -238,7 +264,7 @@ the repository check).
 
 1. libparallelproj is built shared and bundled, not static (§3, §5.2, §5.4).
 2. `build-test.yml` does not run on the branch (§5.5).
-3. Runners are pinned per the CI table (§5.5 says `-latest`, `macos-14`, cross-built macOS x86_64).
+3. Runners are pinned per the CI table (spec revision 4 §5.5 now matches; deferred runners live in the appendices).
 4. The rehearsal pypiserver is a background Python process, not a container (§5.6).
 5. `STIR_CONFIG_DIR`/`STIR_DOC_DIR`: an empty value is treated as unset (§5.3 says `setdefault`).
 6. `__init__.py` gains lines in Phases 1, 3 and 5 (§5.1 says one two-line edit).
@@ -271,3 +297,17 @@ edited them to this contract. Main changes:
   Phases 2, 3, 4).
 - **Installs pin the exact dev version** (Phase 3 Task 11, Phase 4 README/RELEASING, Phase 5 slim container).
 - **pre-commit-check:** Phase 1 Task 9 now runs it locally and asks Robert how to handle the docs failure.
+
+## Scope narrowing (2026-11-12)
+
+Spec revision 4 narrowed the first version; all six plans were edited to match:
+- `stir` on Linux x86_64, macOS arm64, Windows x86_64; `stir-cuda12` on Linux x86_64 and Windows x86_64; Python
+  3.11–3.15; 25 wheels per build. Order: Linux x86_64, then macOS arm64, then Windows x86_64 (Phases 2 and 3).
+- Linux aarch64 (CPU and CUDA sbsa), macOS x86_64 and `stir-cuda13` moved, condensed, to "Appendix: Later, if
+  needed" at the end of Phases 2 and 3 (not executed unless Robert asks).
+- CLI decision: `cuda13` stays an accepted, reserved `--variant` value in `prepare_build.py` and `build_deps.py`
+  (no Phase 1/2 changes); from Phase 3 it exits 1 because no override/`[cuda.cuda13]` table exists. `stir._cuda`
+  knows only `cpu` and `cuda12`.
+- Phase 3 is split: Tasks 1–11 deliver Linux x86_64 `stir-cuda12`; Tasks 12–13 add Windows x86_64.
+- Phase 4 docs and tests name `stir` and `stir-cuda12` only. Phase 5's ROOT gate requires Linux x86_64 and macOS
+  arm64 wheels only (G2: 10 pairs).

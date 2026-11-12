@@ -3,7 +3,7 @@
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or
 > superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Let the Linux and macOS wheels read GATE/ROOT listmode data (`.hroot` + `.root`). They do this by
+**Goal:** Let the Linux x86_64 and macOS arm64 wheels read GATE/ROOT listmode data (`.hroot` + `.root`). They do this by
 compiling against the official `root` wheel from PyPI and depending on it at runtime, without bundling it. This only
 happens if that wheel passes an explicit go/no-go gate. Otherwise the documented outcome is "ROOT stays off", and the
 gate is re-checked on every STIR release.
@@ -43,8 +43,9 @@ pytest.
   only. Windows wheels have no ROOT (conda has none on Windows either) and must say so at the point of use.
 - ROOT's C++ standard decides STIR's (`UseCXX(${CERN_ROOT_CXX_STANDARD})`). STIR has been tested with 17 and 20.
 - STIR needs ROOT ≥ 6.28.00 (`CMakeLists.txt:146`).
-- Platforms and Python versions are as in §5.2: Linux x86_64/aarch64 (`manylinux_2_28`), macOS arm64/x86_64,
-  Python 3.11–3.15. Windows x86_64 has no ROOT.
+- Platforms and Python versions are the first version's (§5.2): ROOT on Linux x86_64 (`manylinux_2_28`) and macOS
+  arm64, Python 3.11–3.15. Windows x86_64 has no ROOT. The gate requires `root` wheels only for those two
+  platforms; Linux aarch64 and macOS x86_64 are deferred (overview) and are not gate criteria.
 - Feature name in `STIR_WHEEL_EXPECT`: `root` (contract). It gets a `CHECKS["root"]` entry in the smoke test.
 - The only `__init__.py` change is the overview's two Phase 5 lines (already on Phase 4's allow-list).
 - One CMake hook (`wheel_hook.cmake`) and one build-features record (`build_features.json`); no new hook file.
@@ -63,7 +64,7 @@ pytest.
 4. **A `.hroot` file read on a build without ROOT.** This covers Windows, and any platform where the gate fails.
    STIR's own error ("no file format found that can read file") does not tell the user why. (Task 5:
    `test_root_absent_gives_clear_message`.)
-5. **CUDA variants losing the `root` dependency** when `prepare_build.py` rewrites dependencies for `cuda12`/`cuda13`.
+5. **CUDA variants losing the `root` dependency** when `prepare_build.py` rewrites dependencies for `cuda12`.
    (Task 3: `test_cuda_variants_keep_root_dependency`.)
 
 ---
@@ -71,7 +72,8 @@ pytest.
 ## Findings from the investigation (2026-11-12)
 
 - `root` on PyPI: latest is **0.1a12** (pre-release, 2026-05-20). Its only wheels are
-  `manylinux_2_28_x86_64` for cp310–cp314. There are no macOS, aarch64 or cp315 wheels. ROOT's release notes call
+  `manylinux_2_28_x86_64` for cp310–cp314. There are no macOS or cp315 wheels (and no aarch64 wheels, which the
+  deferred Linux aarch64 build would need). ROOT's release notes call
   pip installs "alpha mode … on Linux". CERN staff on the ROOT forum: "I wouldn't suggest using it for production just
   yet." A PyHEP.dev talk (8 Sep 2026) reports that the wheels are still under development. No source documents
   headers or `ROOTConfig.cmake` in the wheel. The wheel's version scheme (`0.1aN`) is not ROOT's (`6.xx`).
@@ -108,7 +110,7 @@ pytest.
 | *(GO only)* `packaging/pip/tests/test_root_packaging.py` | Create | Pins, markers, overrides, `find_root_cmake_dir` |
 | *(GO only)* `packaging/pip/tests/test_root_support.py` | Create | Hint logic with fake classes |
 | *(GO only)* `packaging/pip/tests/test_wheel_smoke.py` | Modify | `root` feature tests |
-| *(GO only)* `.github/workflows/wheels.yml` | Modify | `root` in `STIR_WHEEL_EXPECT`, macOS x86_64 runner, no-compiler check |
+| *(GO only)* `.github/workflows/wheels.yml` | Modify | `root` in `STIR_WHEEL_EXPECT`, no-compiler check |
 
 ---
 
@@ -121,11 +123,12 @@ pytest.
 **Interfaces:**
 - Produces:
   - `REQUIRED_PYTHONS = ("cp311", "cp312", "cp313", "cp314", "cp315")`
-  - `REQUIRED_TARGETS = ("manylinux_x86_64", "manylinux_aarch64", "macosx_arm64", "macosx_x86_64")`
+  - `REQUIRED_TARGETS = ("manylinux_x86_64", "macosx_arm64")` (first-version platforms only; add
+    `manylinux_aarch64` / `macosx_x86_64` if a deferred platform is added)
   - `MAX_GLIBC = (2, 28)`, `MIN_ROOT = Version("6.28")`, `OK_CXX = {17, 20}`
   - `@dataclass class Criterion: id: str; status: Literal["PASS","FAIL","SKIP","MANUAL"]; detail: str`
   - `wheel_targets(filename: str) -> set[tuple[str, str]]`: `{(python_tag, target)}`. Uses
-    `packaging.utils.parse_wheel_filename`. `universal2` counts as both macOS targets, and `manylinux_2_N` counts
+    `packaging.utils.parse_wheel_filename`. `universal2` counts as `macosx_arm64`, and `manylinux_2_N` counts
     only if `(2, N) <= MAX_GLIBC`.
   - `inspect_wheel(path: Path) -> dict`: keys `cmake_dir`, `headers` (set of found basenames), `libs` (set of found
     library stems), `cxx_standard: int | None`, `root_release: str | None`. It reads zip member names, plus the
@@ -162,13 +165,13 @@ TODAY = {"info": {"version": "0.1a12"},
          "urls": [{"filename": f"root-0.1a12-{p}-{p}-manylinux_2_28_x86_64.whl"} for p in
                   ("cp310", "cp311", "cp312", "cp313", "cp314")]}
 
-def _full(version="6.40.2", plat_override=None):    # one wheel per REQUIRED_PYTHONS x 4 platform tags
+def _full(version="6.40.2", plat_override=None):    # one wheel per REQUIRED_PYTHONS x 2 platform tags
     ...
 
 def test_today_is_no_go():
     crit = {c.id: c for c in evaluate(TODAY, None)}
     assert crit["G1"].status == "FAIL" and "pre-release" in crit["G1"].detail
-    assert crit["G2"].status == "FAIL" and "missing 16 of 20" in crit["G2"].detail
+    assert crit["G2"].status == "FAIL" and "missing 6 of 10" in crit["G2"].detail
     assert crit["G3"].status == crit["G4"].status == "SKIP"
 
 def test_complete_final_release_passes_g1_g2():
@@ -178,9 +181,8 @@ def test_complete_final_release_passes_g1_g2():
 def test_too_new_glibc_does_not_count():
     assert wheel_targets("root-6.40.2-cp312-cp312-manylinux_2_34_x86_64.whl") == set()
 
-def test_universal2_counts_for_both_macos():
-    assert wheel_targets("root-6.40.2-cp312-cp312-macosx_11_0_universal2.whl") == {
-        ("cp312", "macosx_arm64"), ("cp312", "macosx_x86_64")}
+def test_universal2_counts_for_macos_arm64():
+    assert wheel_targets("root-6.40.2-cp312-cp312-macosx_11_0_universal2.whl") == {("cp312", "macosx_arm64")}
 
 def test_old_root_fails_g1():
     assert {c.id: c for c in evaluate(_full("6.26.0"), None)}["G1"].status == "FAIL"
@@ -303,7 +305,8 @@ later gate run prints `RESULT: GO` *and* M1 and M2 pass *and* Robert confirms.
 - Test: `packaging/pip/tests/test_root_packaging.py`
 
 **Interfaces:**
-- Consumes: `prepare_build.py --variant {cpu,cuda12,cuda13}` (contract; the `# prepare_build: dependencies` line);
+- Consumes: `prepare_build.py --variant {cpu,cuda12}` (contract; `cuda13` is reserved and exits 1; the
+  `# prepare_build: dependencies` line);
   versions.toml (contract); `wheel_hook.cmake` and `build_features.json` (Phases 1–2).
 - Produces:
   - `@dataclass RootLayout: site_dir: Path; cmake_dir: Path; lib_dir: Path`
@@ -331,7 +334,7 @@ def test_root_pin_matches_versions_toml():
         assert r.marker.evaluate({"sys_platform": "linux"}) and r.marker.evaluate({"sys_platform": "darwin"})
         assert not r.marker.evaluate({"sys_platform": "win32"})
 
-@pytest.mark.parametrize("variant", ["cuda12", "cuda13"])
+@pytest.mark.parametrize("variant", ["cuda12"])
 def test_cuda_variants_keep_root_dependency(tmp_path, variant):
     # copy pyproject.toml + VERSION.txt to tmp_path; run prepare_build.py --variant V --pyproject tmp/pyproject.toml
     deps = tomllib.loads((tmp_path / "pyproject.toml").read_text())["project"]["dependencies"]
@@ -632,8 +635,7 @@ git commit -m "Explain missing ROOT support when reading .hroot files"
 ### Task 6 (GO only): CI, no-compiler check, docs
 
 **Files:**
-- Modify: `.github/workflows/wheels.yml`: the `build_cpu`/`build_cuda` matrices, the macOS x86_64 runner and
-  `rehearse_publish`
+- Modify: `.github/workflows/wheels.yml`: the `build_cpu`/`build_cuda` matrices and `rehearse_publish`
 - Modify: `packaging/pip/README.md`, `packaging/pip/RELEASING.md`
 - Test: `packaging/pip/tests/test_workflow_guards.py`
 
@@ -664,18 +666,19 @@ Expected: both FAIL.
 
 - [ ] **Step 3: Edit the CI and the docs**
 
-- Add `,root` to the `expect` value of every Linux and macOS matrix entry (`build_cpu`, `build_cuda` and the matching
-  `rehearse_publish` rows, which must stay equal). Windows is unchanged.
-- macOS x86_64 must build on a **native Intel runner**, because cross-building would resolve an arm64 `root` wheel
-  in the build env. Phase 2 already uses the native `macos-15-intel`; if Phase 2 Task 11 fell back to cross-building
-  on `macos-15`, that entry omits `root`, and the README says so.
+- Add `,root` to the `expect` value of every Linux and macOS matrix entry (`build_cpu` linux/x86_64 and
+  macos/arm64, `build_cuda` cuda12 linux/x86_64, and the matching `rehearse_publish` rows, which must stay equal).
+  Windows is unchanged.
+- (Deferred platforms only: a future macOS x86_64 build must use a **native Intel runner**, because cross-building
+  would resolve an arm64 `root` wheel in the build env.)
 - `rehearse_publish`: add a step with `if: matrix.variant == 'cpu' && matrix.os == 'linux' && matrix.arch == 'x86_64'`
   running
   `docker run --rm --network host -v "$PWD/packaging/pip/tests:/t:ro" -v "$PWD/recon_test_pack:/recon_test_pack:ro" python:3.12-slim sh -c "pip install --index-url http://localhost:8080/simple/ --extra-index-url https://pypi.org/simple 'stir==$version' uproot pytest && STIR_WHEEL_EXPECT=config,root python -m pytest /t/test_wheel_smoke.py -k root -v"`
   (`version` as in the install step; the exact pin matters because `--extra-index-url` also searches PyPI).
   Adjust the `recon_test_pack` path to match how `write_gate_file` locates the template.
 - README:
-  - ROOT row: `stir`/`stir-cudaXX` on Linux, `stir` on macOS, and "— (not available; see conda)" on Windows.
+  - ROOT row: `stir`/`stir-cuda12` on Linux x86_64, `stir` on macOS arm64, and "— (not available; see conda)" on
+    Windows.
   - Note that installing on Linux/macOS also installs the `root` package (size as shown on PyPI).
   - Note that an existing different `root` version in the env will be changed by pip to match `X.Y.*`.
 - RELEASING:
@@ -711,8 +714,8 @@ git commit -m "Enable ROOT feature in Linux and macOS wheel CI"
 2. **Ship the Task 5 `.hroot` hint even on NO-GO?** It would help every platform today. It costs one more Python file
    plus the two `__init__.py` lines; it reads Phase 2's `build_features.json`, so it does not need Task 3. Default:
    no, GO only.
-3. **macOS x86_64 without a native Intel runner.** Ship it without ROOT (documented), or drop ROOT from macOS
-   x86_64 entirely.
+3. *(Deferred; only if macOS x86_64 is added later.)* **macOS x86_64 without a native Intel runner.** Ship it
+   without ROOT (documented), or drop ROOT from macOS x86_64 entirely.
 4. **`import stir` now loads ROOT's libraries** on Linux/macOS (startup time and memory). This is acceptable per the
    spec. Measure it in Task 4 if it looks large.
 

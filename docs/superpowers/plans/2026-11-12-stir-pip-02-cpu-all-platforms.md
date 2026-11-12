@@ -1,10 +1,11 @@
-# STIR pip Phase 2: CPU wheels on all platforms with full CPU features. Implementation Plan
+# STIR pip Phase 2: CPU wheels (Linux x86_64, macOS arm64, Windows x86_64), full CPU features. Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or
 > superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Produce `stir` CPU wheels for Linux x86_64/aarch64, macOS arm64/x86_64 and Windows x86_64 (Python
-3.11–3.15). They include HDF5, PETSIRD, nlohmann_json, ITK image IO and libparallelproj (CPU). Every feature is
+**Goal:** Produce `stir` CPU wheels for the three first-version platforms, Linux x86_64, macOS arm64 and Windows
+x86_64 (Python 3.11–3.15; 15 wheels).
+They include HDF5, PETSIRD, nlohmann_json, ITK image IO and libparallelproj (CPU). Every feature is
 proven by a runtime check. Any feature left out on a platform is documented.
 
 **Architecture:** `packaging/pip/deps/build_deps.py` builds every native dependency from pinned sources into a
@@ -13,7 +14,8 @@ under `build_deps.py --cache-key`. `pyproject.toml` passes `STIR_DEPS_PREFIX` to
 and turns the features on. Phase 1's `wheel_hook.cmake` gains the prefix-specific settings and a
 configure-time feature report. That report (`stir/_data/build_features.json`) makes the configure fail when a
 feature named in `STIR_WHEEL_EXPECT` was not found. The smoke test then proves each feature at runtime. The
-work starts with one platform (Linux x86_64) and widens one platform per task.
+work starts with one platform (Linux x86_64) and widens one platform per task: macOS arm64 (Task 8), then
+Windows x86_64 (Task 9). Linux aarch64 and macOS x86_64 are deferred to the appendix at the end of this plan.
 
 **Tech Stack:** Python 3.11+ (`tomllib`, `argparse`, `hashlib`, `urllib`), CMake ≥ 3.31 + Ninja (pip),
 scikit-build-core, cibuildwheel v4.3.5, manylinux_2_28 images pinned by digest, auditwheel / delocate /
@@ -26,8 +28,10 @@ delvewheel, GitHub Actions (`actions/cache/restore|save`), yardl 0.6.7 (PETSIRD 
 
 ## Global Constraints
 
-- Wheels for Linux (x86_64, aarch64), macOS (arm64, x86_64) and Windows (x86_64). Python 3.11 through 3.15. Linux
-  uses `manylinux_2_28`.
+- Wheels for Linux x86_64, macOS arm64 and Windows x86_64, in that order. Python 3.11 through 3.15 (3 × 5 = 15
+  wheels). Linux uses `manylinux_2_28`.
+- Linux aarch64 and macOS x86_64 are **not part of the first version** (spec §7 "Later, if needed"). Their tasks
+  sit in "Appendix: Later, if needed" at the end; do not execute them unless Robert asks.
 - Feature parity with conda-forge wherever the platform allows: core STIR, OpenMP, HDF5 (GE data), PETSIRD,
   nlohmann_json, ITK image IO, parallelproj (CPU everywhere).
 - **No changes to STIR's C++ code**, and no edits to any protected file (the overview's list; `packaging/` is
@@ -86,14 +90,14 @@ delvewheel, GitHub Actions (`actions/cache/restore|save`), yardl 0.6.7 (PETSIRD 
   `ITKGroup_Core` defaults to ON and must be switched off.
 - **conda-forge's STIR 6.5.0 feedstock** leaves HDF5 out on Windows and on osx-arm64, and ITK out on osx-arm64
   (its build.sh cites UCL/STIR#1165, which could not be fetched here). It leaves libpetsird out on win,
-  linux-aarch64 and osx-x86_64, but only because libpetsird isn't packaged there. We try every feature
-  everywhere and let the checks decide (Known-gap procedure below).
+  linux-aarch64 and osx-x86_64 (both deferred here), but only because libpetsird isn't packaged there. We try
+  every feature everywhere and let the checks decide (Known-gap procedure below).
 - **macOS has no OpenMP runtime.** LLVM `libomp` 21.1.8 is built from source with deployment target 11.0. A
   Homebrew `libomp` targets the runner's macOS and would make delocate bump or reject the wheel tag.
 - Windows: `delvewheel` vendors `vcomp140.dll` (its VC-redist regex is not on the ignore list). cibuildwheel 4.x
   already uses delvewheel by default. It runs repair commands through `cmd` (`shell=True`), so use `%VAR%`.
-- `macos-15-intel` is GitHub's last x86_64 macOS image (until it retires in fall 2027), so macOS x86_64 builds
-  natively.
+- (Deferred platform, appendix A2.) `macos-15-intel` is GitHub's last x86_64 macOS image (until it retires in
+  fall 2027), so macOS x86_64 would build natively.
 - GitHub tag tarballs are not fetchable from every network and their checksums are not guaranteed. Release assets
   are pinned by sha256, and tag-only projects by git commit.
 
@@ -117,7 +121,7 @@ delvewheel, GitHub Actions (`actions/cache/restore|save`), yardl 0.6.7 (PETSIRD 
 | `packaging/pip/tests/test_wheel_smoke.py` | Modify (Phase 1) | new `CHECKS`; build-features test |
 | `packaging/pip/tests/test_coexistence.py` | Create | h5py / itk / scikit-learn in one process (CI only) |
 | `packaging/pip/tests/test_ci_config.py`, `test_cmake_hooks.py` | Modify (Phase 1) | new config and hook assertions |
-| `.github/workflows/wheels.yml` | Modify (Phase 1) | `build_cpu` ×5 with deps cache; `rehearse_publish` ×5 |
+| `.github/workflows/wheels.yml` | Modify (Phase 1) | `build_cpu` ×3 with deps cache; `rehearse_publish` ×3 |
 | `packaging/pip/README.md` | Modify (Phase 1) | deps prefix how-to, per-platform feature status, known gaps |
 
 ## Known-gap procedure (used by the platform tasks' fallback steps)
@@ -161,7 +165,8 @@ fallbacks. Never drop a feature silently:
     "parallelproj": ("openmp",)}`. A prerequisite that is not built on the platform is ignored.
   - `class UsageError(Exception)`
   - `parse_args(argv: Sequence[str]) -> argparse.Namespace`. Flags: `--prefix DIR`, `--variant {cpu,cuda12,cuda13}`
-    (required), `--only NAME[,NAME...]`, `--jobs N` (default `os.cpu_count()`), `--cache-key`. `--prefix` is
+    (required; `cuda13` is the overview's reserved, deferred value), `--only NAME[,NAME...]`, `--jobs N` (default
+    `os.cpu_count()`), `--cache-key`. `--prefix` is
     required unless `--cache-key` is given. Bad input → `SystemExit(2)`.
   - `select_deps(only: str | None, platform: str) -> list[str]`: `platform` is a `sys.platform` value. Returns the
     deps in `DEP_ORDER` order, drops the ones that are not built on `platform`, and raises `UsageError` for
@@ -197,6 +202,7 @@ macos_deployment_target = "11.0"
 # Same digests as cibuildwheel v4.3.5's pinned manylinux_2_28 images (tag 2026.11.01-2). Deps and STIR are built
 # in the same image, so static libraries match the toolchain that links them.
 manylinux_x86_64_image = "quay.io/pypa/manylinux_2_28_x86_64@sha256:7e41b1c7fd64dfc69703a1124b43c404382973ee06ec5d764b85c34d2221fded"
+# Deferred platform (Linux aarch64, appendix A1): pinned now so adding it later is CI-only.
 manylinux_aarch64_image = "quay.io/pypa/manylinux_2_28_aarch64@sha256:54b271d9562a3686298880df05367909e949ed317e7b1b79b59c696d75f78676"
 
 [deps.boost]  # headers only: boost-1.90.0/boost/ is copied to <prefix>/include/boost
@@ -247,6 +253,7 @@ commit = "4b4931306df60786b4e470179db46ebabaaa8a38"
 [deps.petsird.yardl]  # code generator binary, chosen by platform_key()
 version = "0.6.7"
 linux-x86_64 = { url = "https://github.com/microsoft/yardl/releases/download/v0.6.7/yardl_0.6.7_linux_x86_64.tar.gz", sha256 = "4bfb815fce1302595f5d5d87e3c88e020422c2be331fdf10071040370ccd3012" }
+# linux-aarch64 and darwin-x86_64: deferred platforms (appendix A1/A2), pinned now so adding them is CI-only.
 linux-aarch64 = { url = "https://github.com/microsoft/yardl/releases/download/v0.6.7/yardl_0.6.7_linux_arm64.tar.gz", sha256 = "55fdfc29fd85792ad4d5826e81a99b49719226c2c5b08b1b905810c49f59deec" }
 darwin-x86_64 = { url = "https://github.com/microsoft/yardl/releases/download/v0.6.7/yardl_0.6.7_darwin_x86_64.tar.gz", sha256 = "7b82cc90a4f6294995045fe006c9de1a112501c0d5bcc485a195ec0b9e86dbcb" }
 darwin-arm64 = { url = "https://github.com/microsoft/yardl/releases/download/v0.6.7/yardl_0.6.7_darwin_arm64.tar.gz", sha256 = "213d96d2c0214cf51006cbe2d6bf294ab1f545fad34bb3be93bf1119c5d82e4b" }
@@ -310,7 +317,7 @@ def test_cache_key_is_stable_and_ignores_prefix_and_jobs():
 
 def test_cache_key_differs_per_variant():
     bd = load_build_deps()
-    assert len({bd.cache_key(v) for v in ("cpu", "cuda12", "cuda13")}) == 3
+    assert len({bd.cache_key(v) for v in ("cpu", "cuda12", "cuda13")}) == 3   # cuda13: reserved (deferred)
 
 def test_cache_key_tracks_every_deps_file(tmp_path):
     bd = load_build_deps(); copy = tmp_path / "deps"; shutil.copytree(bd.DEPS_DIR, copy)
@@ -418,8 +425,9 @@ git commit -m "Add dependency manifest and build_deps.py CLI for the pip deps pr
   - `class ChecksumError(Exception)`
   - `@dataclass(frozen=True) class BuildContext: prefix: Path; work: Path; platform: str; machine: str;
     versions: dict; variant: str; jobs: int`. `work` is `Path(str(prefix) + ".work")`, deleted after a
-    successful run. `machine` is normalised to `x86_64 | aarch64 | arm64` (Windows `AMD64` → `x86_64`).
-  - `platform_key(platform: str, machine: str) -> str` → e.g. `"linux-aarch64"`, `"win32-x86_64"`.
+    successful run. `machine` is normalised to `x86_64 | arm64` (Windows `AMD64` → `x86_64`; `aarch64` passes
+    through unchanged for the deferred Linux aarch64 build).
+  - `platform_key(platform: str, machine: str) -> str` → e.g. `"darwin-arm64"`, `"win32-x86_64"`.
   - `fetch_source(src: Mapping[str, str], dest: Path, downloads: Path) -> Path`: `url`+`sha256` → download into
     `downloads/` (reused if the hash matches), verify, extract (`tar.gz`/`tar.xz`/`zip`) into `dest`, stripping a
     single top-level folder. `git`+`commit` → `git init`, `git fetch --depth 1 <git> <commit>`,
@@ -494,10 +502,9 @@ def test_hdf5_args():
 
 def test_platform_key():
     bd = load_build_deps()
-    assert bd.platform_key("win32", "x86_64") == "win32-x86_64" and bd.platform_key("linux", "aarch64") == "linux-aarch64"
+    assert bd.platform_key("win32", "x86_64") == "win32-x86_64" and bd.platform_key("darwin", "arm64") == "darwin-arm64"
     assert all(bd.platform_key(p, m) in bd.load_versions()["deps"]["petsird"]["yardl"]
-               for p, m in [("linux", "x86_64"), ("linux", "aarch64"), ("darwin", "arm64"),
-                            ("darwin", "x86_64"), ("win32", "x86_64")])
+               for p, m in [("linux", "x86_64"), ("darwin", "arm64"), ("win32", "x86_64")])
 ```
 
 - [ ] **Step 2: Run them to verify they fail**
@@ -1058,7 +1065,7 @@ git commit -m "Prove json, HDF5, PETSIRD, ITK and parallelproj at runtime in the
 **Interfaces:**
 - Consumes: `build_in_manylinux.sh`, `build_deps.py --cache-key`, Phase 1 jobs.
 - Produces: matrix keys used by both `build_cpu` and `rehearse_publish`: `os`, `arch` (cibuildwheel arch:
-  `x86_64 | aarch64 | arm64 | AMD64`), `runner`, `wheel_tag`, `expect`, `only`. `rehearse_publish` rows have
+  `x86_64 | arm64 | AMD64`), `runner`, `wheel_tag`, `expect`, `only`. `rehearse_publish` rows have
   `variant` (always `cpu` in this phase; Phase 3 adds CUDA rows), `os`, `arch`, `runner`, `expect`, `pythons` and
   `coexist`. Artifact names are unchanged: `wheels-cpu-${{ matrix.os }}-${{ matrix.arch }}`. Cache
   key: `stir-deps-cpu-${{ matrix.os }}-${{ matrix.arch }}-<build_deps --cache-key>`. Env inside the wheel build:
@@ -1073,7 +1080,7 @@ git commit -m "Prove json, HDF5, PETSIRD, ITK and parallelproj at runtime in the
 
 ```python
 VERSIONS = tomllib.loads((REPO / "packaging/pip/deps/versions.toml").read_text())
-EXPECTED_PLATFORMS = {("linux", "x86_64")}          # each platform task (8-11) adds its entry here
+EXPECTED_PLATFORMS = {("linux", "x86_64")}          # each platform task (8, 9) adds its entry here
 MATRIX_KEYS = {"os", "arch", "runner", "wheel_tag", "expect", "only"}
 
 def matrix(job): return JOBS[job]["strategy"]["matrix"]["include"]
@@ -1100,7 +1107,6 @@ def test_deps_cache_uses_cache_key():
 
 def test_manylinux_images_match_versions_toml():
     assert CIBW["linux"]["manylinux-x86_64-image"] == VERSIONS["toolchain"]["manylinux_x86_64_image"]
-    assert CIBW["linux"]["manylinux-aarch64-image"] == VERSIONS["toolchain"]["manylinux_aarch64_image"]
 ```
 
 Adapt Phase 1's `test_rehearsal_installs_exact_dev_version` to the new install line (Step 3). Keep its
@@ -1115,8 +1121,8 @@ Expected: the new tests FAIL (`KeyError: 'wheel_tag'`, missing cache steps, imag
 
 - [ ] **Step 3: Rewrite `build_cpu`, generalise `rehearse_publish`, and pin the images**
 
-`pyproject.toml` `[tool.cibuildwheel.linux]`: set `manylinux-x86_64-image` and `manylinux-aarch64-image` to the
-two digests from `versions.toml` (same strings).
+`pyproject.toml` `[tool.cibuildwheel.linux]`: set `manylinux-x86_64-image` to the x86_64 digest from
+`versions.toml` (same string).
 
 `build_cpu` (full job; the YAML is the decision):
 
@@ -1252,7 +1258,8 @@ lazy imports inside the tests:
 `packaging/pip/README.md`: replace Phase 1's "Phase 1 limits" with three sections. (1) "Native dependencies":
 what the deps prefix is, `versions.toml`, the local command (`build_in_manylinux.sh x86_64 --variant cpu`), and
 `STIR_DEPS_PREFIX=/project/.deps/cpu` for local cibuildwheel. (2) "Feature status by platform": a table with rows
-for the 5 platforms and columns config, OpenMP, json, HDF5, PETSIRD, ITK, parallelproj. The Linux x86_64 row is
+for the 3 first-version platforms and columns config, OpenMP, json, HDF5, PETSIRD, ITK,
+parallelproj. The Linux x86_64 row is
 ✓ everywhere; the other rows say "pending (Phase 2 Task N)". (3) "Known gaps": empty list plus a pointer to the
 Known-gap procedure in this plan.
 
@@ -1468,14 +1475,64 @@ repaired into `stir.libs`, and there are five `...win_amd64.whl`. `rehearse_publ
 
 ---
 
-### Task 10: Linux aarch64
+### Task 10: First-version acceptance (three platforms)
+
+**Files:**
+- Modify: `packaging/pip/README.md` (final table and run record)
+
+- [ ] **Step 1: Unit tests**
+
+Run: `python -m pytest packaging/pip/tests --ignore=packaging/pip/tests/test_wheel_smoke.py -v`
+Expected: all PASS. `EXPECTED_PLATFORMS` is exactly `{("linux", "x86_64"), ("macos", "arm64"), ("windows", "AMD64")}`.
+
+- [ ] **Step 2: A clean full run**
+
+Trigger: `gh workflow run wheels.yml --repo robbietuk/STIR --ref pip-packaging`, then watch it.
+Expected: 3 `build_cpu` and 3 `rehearse_publish` jobs green, and `publish` skipped. `gh run download <id> --repo
+robbietuk/STIR --dir /tmp/a && ls /tmp/a/wheels-cpu-*/ | grep -c whl` prints `15`. All restore steps report a
+cache hit (the deps were built in Tasks 7–9 with the same key).
+
+- [ ] **Step 3: Cache key invalidation works**
+
+On a scratch commit, add a comment line to `versions.toml` and push. Expected: every platform logs
+`Cache not found for input keys: stir-deps-cpu-...` and rebuilds the prefix. Revert the scratch commit (`git
+revert`) and push. Expected: the old cache entries hit again.
+
+- [ ] **Step 4: README final state**
+
+Every cell in "Feature status by platform" is ✓, or ✗ with a footnote from the Known-gap procedure. Record the
+run URL, the wheel size range per platform and the cold and warm `build_cpu` durations. Run
+`pre-commit run --files packaging/pip/README.md`. Expected: Passed.
+
+- [ ] **Step 5: Commit and push**
+
+```bash
+git add packaging/pip/README.md
+git commit -m "Record Phase 2 three-platform CPU wheel run and feature status"
+git push fork pip-packaging
+```
+
+---
+
+## Appendix: Later, if needed
+
+**Not part of the first version; do not execute unless Robert asks.** These are the researched tasks for the two
+deferred CPU platforms (spec §7). Each is additive: matrix rows in `build_cpu` and `rehearse_publish`
+(`pythons: "3.11 3.15"`, `coexist: false`), an `EXPECTED_PLATFORMS` entry, and a README row. When one is added,
+Task 10's counts grow by one job pair and 5 wheels, and the README "Feature status by platform" gains its row.
+
+### A1: Linux aarch64 (deferred)
 
 **Files:**
 - Modify: `.github/workflows/wheels.yml`, `packaging/pip/tests/test_ci_config.py`, `packaging/pip/README.md`
 
 **Interfaces:**
 - Consumes: `build_in_manylinux.sh aarch64` (it reads `manylinux_aarch64_image`), and the yardl `linux-aarch64`
-  asset.
+  asset (both already pinned in `versions.toml` by Task 1).
+- Also: set `[tool.cibuildwheel.linux] manylinux-aarch64-image` to the aarch64 digest, add
+  `assert CIBW["linux"]["manylinux-aarch64-image"] == VERSIONS["toolchain"]["manylinux_aarch64_image"]` to
+  `test_manylinux_images_match_versions_toml`, and add `("linux", "aarch64")` to `test_platform_key`'s list.
+  Phase 3's appendix B2 (CUDA sbsa) depends on this.
 
 - [ ] **Step 1: Failing test:** `EXPECTED_PLATFORMS |= {("linux", "aarch64")}`. Run `pytest
   packaging/pip/tests/test_ci_config.py -v` → FAIL.
@@ -1506,12 +1563,17 @@ match Task 4's. `rehearse_publish (linux-aarch64)` passes. README row filled.
 
 ---
 
-### Task 11: macOS x86_64
+### A2: macOS x86_64 (deferred)
 
 **Files:**
 - Modify: `.github/workflows/wheels.yml`, `packaging/pip/tests/test_ci_config.py`, `packaging/pip/README.md`
 
-- [ ] **Step 1: Failing test:** `EXPECTED_PLATFORMS |= {("macos", "x86_64")}` → FAIL.
+**Interfaces:**
+- Consumes: Task 8's macOS settings (`openmp` dep, deployment target 11.0, delocate) and the yardl `darwin-x86_64`
+  asset already pinned in `versions.toml`.
+
+- [ ] **Step 1: Failing test:** `EXPECTED_PLATFORMS |= {("macos", "x86_64")}` → FAIL. Add `("darwin", "x86_64")`
+  to `test_platform_key`'s list (the yardl `darwin-x86_64` asset is already pinned).
 
 - [ ] **Step 2: Add the entries** (`rehearse_publish`: `pythons: "3.11 3.15"`, `coexist: false`):
 
@@ -1538,53 +1600,15 @@ Expected CI: five `...macosx_11_0_x86_64.whl`; rehearsal passes; README row fill
 
 ---
 
-### Task 12: Full-matrix acceptance
-
-**Files:**
-- Modify: `packaging/pip/README.md` (final table and run record)
-
-- [ ] **Step 1: Unit tests**
-
-Run: `python -m pytest packaging/pip/tests --ignore=packaging/pip/tests/test_wheel_smoke.py -v`
-Expected: all PASS. `EXPECTED_PLATFORMS` has all five platforms.
-
-- [ ] **Step 2: A clean full run**
-
-Trigger: `gh workflow run wheels.yml --repo robbietuk/STIR --ref pip-packaging`, then watch it.
-Expected: 5 `build_cpu` and 5 `rehearse_publish` jobs green, and `publish` skipped. `gh run download <id> --repo
-robbietuk/STIR --dir /tmp/a && ls /tmp/a/wheels-cpu-*/ | grep -c whl` prints `25`. All restore steps report a
-cache hit (the deps were built in Tasks 7–11 with the same key).
-
-- [ ] **Step 3: Cache key invalidation works**
-
-On a scratch commit, add a comment line to `versions.toml` and push. Expected: every platform logs
-`Cache not found for input keys: stir-deps-cpu-...` and rebuilds the prefix. Revert the scratch commit (`git
-revert`) and push. Expected: the old cache entries hit again.
-
-- [ ] **Step 4: README final state**
-
-Every cell in "Feature status by platform" is ✓, or ✗ with a footnote from the Known-gap procedure. Record the
-run URL, the wheel size range per platform and the cold and warm `build_cpu` durations. Run
-`pre-commit run --files packaging/pip/README.md`. Expected: Passed.
-
-- [ ] **Step 5: Commit and push**
-
-```bash
-git add packaging/pip/README.md
-git commit -m "Record Phase 2 full-matrix CPU wheel run and feature status"
-git push fork pip-packaging
-```
-
----
-
 ## Self-review notes
 
-- Spec §5.2 (5 CPU platforms × 5 Pythons, feature table rows HDF5/PETSIRD/nlohmann_json/ITK/parallelproj CPU,
-  OpenMP runtimes per OS) → Tasks 4–11. §5.4 (deps prefix, static where possible, cached by hash, repair tools)
+- Spec §5.2 (3 CPU platforms × 5 Pythons, feature table rows HDF5/PETSIRD/nlohmann_json/ITK/parallelproj CPU,
+  OpenMP runtimes per OS) → Tasks 4–9. §5.4 (deps prefix, static where possible, cached by hash, repair tools)
   → Tasks 1–4 and 7. §5.5 (runners; smoke test proves ITK read, HDF5 read, parallelproj projector)
-  → Tasks 6–11.
+  → Tasks 6–9. §7 "Later, if needed" (Linux aarch64, macOS x86_64) → appendix A1, A2.
   §5.6 (rehearsal on each platform) → Task 7 plus the platform tasks. §9 (ITK module list, HDF5/ITK pins, macOS
-  targets, x86_64 runner) → Task 1, versions.toml, Tasks 8 and 11. Anti-goal (no silent feature loss) →
+  targets, x86_64 runner) → Task 1, versions.toml, Task 8 (the x86_64 runner strategy: appendix
+  A2). Anti-goal (no silent feature loss) →
   configure guard (Task 5), `test_build_features_match_expect` (Task 6) and the Known-gap procedure.
 - Names checked against the contract and Phase 1/3: `STIR_DEPS_PREFIX`, `STIR_WHEEL_EXPECT`,
   `STIR_WHEEL_VARIANT`, the `build_deps.py` flags, `wheels-<variant>-<os>-<arch>`, `CHECKS`, `run_stir`,
@@ -1616,9 +1640,9 @@ Resolved in the overview's "Cross-plan review (2026-11-12)"; the overview wins w
 6. **Rehearsal on macOS/Windows can't use a Docker pypiserver** (spec §5.6 says "container"). Every platform's
    `rehearse_publish` runs `pypiserver` 2.4 as a background Python process with the same arguments. Phase 3's
    Task 9 assumed either shape. This plan keeps one job name, `rehearse_publish`, as a matrix.
-7. **Runners differ from spec §5.5:** `macos-15` (arm64) instead of `macos-14`, `macos-15-intel` (native)
-   instead of cross-build + Rosetta (kept as the Task 11 fallback), and `windows-2025` / `ubuntu-24.04` instead
-   of `-latest`, for reproducibility.
+7. **Runners differ from the original spec §5.5:** `macos-15` (arm64) instead of `macos-14`, and
+   `windows-2025` / `ubuntu-24.04` instead of `-latest`, for reproducibility. (Deferred: `macos-15-intel` native
+   instead of cross-build + Rosetta, kept as the appendix A2 fallback.)
 8. **Matrix `arch` uses cibuildwheel's names** (Phase 1 passes `CIBW_ARCHS: ${{ matrix.arch }}`), so artifacts
    are `wheels-cpu-windows-AMD64` and `wheels-cpu-macos-arm64`. Phase 4's docs should use these names.
 9. **Phase 4's "Features by platform" user table** must take its ✗ cells from this phase's README "Feature status
@@ -1649,7 +1673,8 @@ Resolved in the overview's "Cross-plan review (2026-11-12)"; the overview wins w
   https://newreleases.io/project/github/pypa/cibuildwheel/release/v4.2.0
 - delvewheel README and `_dll_list.py` (`--add-path`; VC-redist DLLs such as `vcomp140.dll` are vendored):
   https://github.com/adang1345/delvewheel
-- GitHub changelog, macOS 13 closing down and `macos-15-intel` (x86_64 until the macOS 15 image retires in fall
+- (Appendix A2) GitHub changelog, macOS 13 closing down and `macos-15-intel` (x86_64 until the macOS 15 image
+  retires in fall
   2027): https://github.blog/changelog/2025-09-19-github-actions-macos-13-runner-image-is-closing-down/
 - Not verifiable from here: the text of UCL/STIR#1165 (GitHub issue pages and the API were not reachable for that
   repo in this session).

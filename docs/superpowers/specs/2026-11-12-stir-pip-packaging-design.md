@@ -1,7 +1,7 @@
 # STIR pip packages: design
 
 Date: 2026-11-12
-Status: approved by Robert (revision 3: factual corrections from planning, 2026-11-12)
+Status: approved by Robert (revision 4: scope narrowed to a first version, 2026-11-12)
 
 ## 1. Intent and why
 
@@ -14,10 +14,10 @@ The goal is that researchers can run `pip install` and get STIR, with no conda a
 ## 2. Goals, non-goals, anti-goals
 
 **Goals**
-- Wheels for Linux (x86_64, aarch64), macOS (arm64, x86_64) and Windows (x86_64).
+- First version: wheels for Linux x86_64, macOS arm64 and Windows x86_64. Linux aarch64 and macOS x86_64 are deferred (§7, "Later, if needed").
 - Python 3.11 through 3.15.
 - Feature parity with conda-forge wherever the platform allows: core STIR, OpenMP, HDF5 (GE data), PETSIRD, nlohmann_json, ITK image IO, parallelproj (CPU everywhere, CUDA where available), and STIR's own CUDA code.
-- GPU (CUDA) builds for Linux x86_64, Linux aarch64 and Windows x86_64.
+- GPU builds with CUDA 12 for Linux x86_64 and Windows x86_64. CUDA 13 and Linux aarch64 GPU builds are deferred.
 - An sdist, so `pip install` can still build from source on a platform with no wheel.
 - A complete, tested build-and-publish pipeline, exercised against a private throwaway package server (§5.6).
 - Released in phases. Every phase is a complete, tested result (§7).
@@ -55,7 +55,7 @@ The goal is that researchers can run `pip install` and get STIR, with no conda a
 
 How the different builds (CPU, CUDA 12, CUDA 13) reach users:
 
-- **A. A separate package name per configuration (the CuPy model). CHOSEN.** `stir` = CPU build on all platforms. `stir-cuda12` and `stir-cuda13` = same features plus GPU, on Linux and Windows. All provide `import stir`.
+- **A. A separate package name per configuration (the CuPy model). CHOSEN.** `stir` = CPU build on all platforms. `stir-cuda12` = same features plus GPU, on Linux and Windows (`stir-cuda13` later, same pattern). All provide `import stir`.
   *Pro:* proven pattern researchers know, and no STIR C++ changes.
   *Con:* installing two variants in one environment makes them overwrite each other, so the docs must warn about it.
 - **B. One `stir` package plus a GPU plugin wheel (`stir[cuda12]`).** Cleanest for users and no conflicts, but STIR's parallelproj projector would have to become a runtime-loaded plugin, a C++ change. Rejected for now; possible later.
@@ -80,13 +80,18 @@ Python edits: `src/swig/python/stir/__init__.py` gains a few lines in Phase 1 (c
 
 ### 5.2 Packages and platform matrix
 
-| Package | Linux x86_64 | Linux aarch64 | macOS arm64 | macOS x86_64 | Windows x86_64 |
-|---|---|---|---|---|---|
-| `stir` (CPU) | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `stir-cuda12` | ✓ | ✓ (sbsa) | — | — | ✓ |
-| `stir-cuda13` | ✓ | ✓ (sbsa) | — | — | ✓ |
+First version:
 
-Python 3.11, 3.12, 3.13, 3.14 and 3.15 for each. Linux uses `manylinux_2_28`. That's 5 CPU platforms × 5 Pythons = 25 wheels, plus 3 CUDA platforms × 2 CUDA versions × 5 Pythons = 30 wheels: 55 wheels per release.
+| Package | Linux x86_64 | macOS arm64 | Windows x86_64 |
+|---|---|---|---|
+| `stir` (CPU) | ✓ | ✓ | ✓ |
+| `stir-cuda12` | ✓ | — | ✓ |
+
+Python 3.11, 3.12, 3.13, 3.14 and 3.15 for each. Linux uses `manylinux_2_28`. That's 3 CPU platforms × 5 Pythons = 15 wheels, plus 2 CUDA platforms × 5 Pythons = 10 wheels: 25 wheels per build.
+
+CUDA 12 was chosen over 13 *(my call; Robert did not object)*: CUDA 13 drops GPUs before Turing (sm_75) and needs NVIDIA driver 580+, which shared university clusters often lack.
+
+Deferred, same design, mostly CI configuration when added: Linux aarch64 (`stir` and CUDA sbsa), macOS x86_64, `stir-cuda13`.
 
 Feature contents per package:
 
@@ -101,7 +106,7 @@ Feature contents per package:
 | ROOT / GATE input | Phase 5 | Phase 5 | Linux and macOS only |
 | NiftyPET | — | — | Non-goal |
 
-Package names: *my call* is `stir`, `stir-cuda12` and `stir-cuda13`. Because nothing is published during development, the names only matter later. Checking whether they're free on PyPI is a task before any eventual real release.
+Package names: *my call* is `stir` and `stir-cuda12` (and `stir-cuda13` if added later). Because nothing is published during development, the names only matter later. Checking whether they're free on PyPI is a task before any eventual real release.
 
 ### 5.3 Making the wheel self-contained (no environment variables)
 - scikit-build-core sets `PYTHON_DEST=${SKBUILD_PLATLIB_DIR}` so `stir/` lands at the top level of the wheel.
@@ -131,7 +136,7 @@ CUDA architecture list: *my call* is the main architectures from Volta (sm_70) t
 - `.github/workflows/wheels.yml` runs on the fork only: on push to `pip-packaging` and on manual trigger. *(My call: it also checks `github.repository == 'robbietuk/STIR'` so it can never run on UCL/STIR if the branch is ever proposed upstream.)*
 - Upstream's `build-test.yml` does **not** run on pushes to `pip-packaging` (its push trigger lists other branches). Upstream's `pre-commit-check.yml` does run on every push; how to handle its markdown line-length rule on our docs is an open question for Robert (see plans overview).
 - Runners are pinned per job (see plans overview); CUDA builds on Windows use `windows-2022` for CUDA 12.9 / Visual Studio compatibility.
-- cibuildwheel runners: `ubuntu-24.04` (x86_64), `ubuntu-24.04-arm` (aarch64), `macos-15` (arm64), `macos-15-intel` (x86_64; cross-building on arm64 kept as fallback) and `windows-2025`. CUDA variants install the toolkit in the build container (Linux) or via the NVIDIA installer (Windows).
+- cibuildwheel runners: `ubuntu-24.04` (x86_64), `macos-15` (arm64) and `windows-2025` (CPU); CUDA Windows builds use `windows-2022` (see plans overview). Deferred platforms would add `ubuntu-24.04-arm` and `macos-15-intel`. CUDA variants install the toolkit in the build container (Linux) or via the NVIDIA installer (Windows).
 - Tests: cibuildwheel runs STIR's own `src/swig/test/python` pytest suite against each installed wheel. A smoke test checks that config files are found and that each enabled feature is available (ITK read, HDF5 read, parallelproj projector constructs). GPU wheels run CPU-side tests in CI. GPU execution is tested by hand on a real GPU at the end of Phase 3, since GitHub's free runners have no GPU.
 - An sdist is also built (including git submodules).
 
@@ -146,14 +151,16 @@ During development, nothing goes to UCL/STIR and nobody upstream is involved. Wh
 
 ## 7. Phases (each one a complete, tested result)
 1. **Skeleton:** CPU, Linux x86_64 only, Python 3.11–3.15, core STIR + OpenMP. Proves scikit-build-core, the self-contained config fix (§5.3), tests, CI artifacts and the throwaway-server publish rehearsal (§5.6).
-2. **CPU on all platforms + full CPU features:** deps prefix with HDF5, PETSIRD, ITK and libparallelproj CPU. All five platforms.
-3. **CUDA variants:** `stir-cuda12` and `stir-cuda13` on Linux x86_64/aarch64 and Windows. Manual GPU test.
+2. **CPU on the three first-version platforms + full CPU features:** deps prefix with HDF5, PETSIRD, ITK and libparallelproj CPU. Linux x86_64 first, then macOS arm64, then Windows x86_64.
+3. **CUDA 12 variant:** `stir-cuda12` on Linux x86_64, then Windows x86_64. Manual GPU test.
 4. **Release readiness:** merge-a-new-STIR-release procedure, README/docs (which package, features by platform, the "don't install two variants" warning, when to use conda instead), PyPI name check, and the switched-off real publish job reviewed and ready.
 5. **ROOT (Linux and macOS):** when the official `root` wheel is stable, build against it and declare it as a dependency. Until then, GATE users are pointed to conda.
 
+**Later, if needed** (not part of the first version; each is an additive change): Linux aarch64 (CPU and CUDA sbsa), macOS x86_64, `stir-cuda13`.
+
 ## 8. Decided by Robert
 - Audience: researchers who want pip instead of conda.
-- Scope: full support across all platforms, as close to the conda build as possible, including ITK and GPU parallelproj.
+- Scope: as close to the conda build as possible, including ITK and GPU parallelproj. The full five-platform, two-CUDA scope was judged too large for one person, so the first version is Linux x86_64, macOS arm64 and Windows x86_64 for `stir`, plus CUDA support (`stir-cuda12`) on Linux x86_64 and Windows x86_64.
 - ROOT: include if feasible, with its impact understood. Planned as Phase 5, depending on the official wheel rather than bundling.
 - Approach A: separate packages per configuration, and no changes to STIR's C++ code.
 - All work on a branch of his fork `robbietuk/STIR`, not on UCL/STIR.
