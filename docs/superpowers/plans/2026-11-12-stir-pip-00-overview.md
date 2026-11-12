@@ -10,6 +10,7 @@ path, flag, key or exit code, this file wins.
 
 ## Phase plans (execute in order; each ends in a complete, tested result)
 
+<!-- pyml disable md013-->
 | # | Plan file | Delivers |
 |---|---|---|
 | 1 | `2026-11-12-stir-pip-01-skeleton.md` | CPU wheel, Linux x86_64, Py 3.11–3.15, core STIR + OpenMP; config dirs; CI; rehearsal |
@@ -17,6 +18,7 @@ path, flag, key or exit code, this file wins.
 | 3 | `2026-11-12-stir-pip-03-cuda-variants.md` | `stir-cuda12` on Linux x86_64, then Windows x86_64; manual GPU test |
 | 4 | `2026-11-12-stir-pip-04-release-readiness.md` | Release-merge procedure, user docs, PyPI name check, publish job hardened |
 | 5 | `2026-11-12-stir-pip-05-root.md` | ROOT/GATE on Linux x86_64 + macOS arm64 via the official `root` wheel, gated on its stability |
+<!-- pyml enable md013-->
 
 ## First-version scope (spec revision 4, §5.2 and §7)
 
@@ -49,6 +51,7 @@ pyproject override, and the matching test entries.
 ### Protected files (no edits; checked by Phase 4's `release_check.py check`)
 
 Everything below is protected **except** paths under `packaging/`, `docs/superpowers/` and `.github/`:
+
 - any `CMakeLists.txt`; any file ending `.cxx`, `.h`, `.inl`, `.cu`, `.c`, `.txx`, `.i`, `.cmake`, `.h.in`,
   `.cmake.in`;
 - the submodule pointers `external_helpers/CuVec` and `external_helpers/fmt`.
@@ -80,6 +83,7 @@ exactly these eight added lines, from Phase 4 onwards (Phase 5 lines are allowed
 
 ### Files
 
+<!-- pyml disable md013-->
 | Path | Owner (extended by) | Responsibility |
 |---|---|---|
 | `pyproject.toml` | 1 (2, 3, 5) | scikit-build-core backend, metadata, `[tool.scikit-build]`, `[tool.cibuildwheel]` |
@@ -113,6 +117,7 @@ exactly these eight added lines, from Phase 4 onwards (Phase 5 lines are allowed
 | `packaging/pip/tests/{test_cuda_loader.py,test_check_wheel_size.py}`, `tests/gpu_check.py` | 3 | CUDA tests; manual GPU |
 | `packaging/pip/tests/{test_release_check.py,test_workflow_guards.py,test_docs.py,requirements-checks.txt}` | 4 (5) | |
 | `packaging/pip/tests/{test_root_gate.py,test_root_packaging.py,test_root_support.py}` | 5 | ROOT |
+<!-- pyml enable md013-->
 
 Unit tests (no compiled STIR) run with
 `python -m pytest packaging/pip/tests --ignore=packaging/pip/tests/test_wheel_smoke.py`. There is no pytest marker.
@@ -121,6 +126,7 @@ Unit tests (no compiled STIR) run with
 
 Injected by `pyproject.toml` `cmake.define.CMAKE_PROJECT_STIR_INCLUDE = "packaging/pip/cmake/wheel_hook.cmake"`
 (runs right after STIR's `project(STIR)`). No other hook file and no `CMAKE_PROJECT_INCLUDE_BEFORE`.
+
 - Phase 1: refuses non-scikit-build use; `PYTHON_DEST=${SKBUILD_PLATLIB_DIR}`; adds its own dir to
   `CMAKE_MODULE_PATH` for `FindPython.cmake`.
 - Phase 2: deps-prefix block (static HDF5, `XTENSOR_USE_FLENS_BLAS`, `CMAKE_INSTALL_RPATH`, macOS OpenMP hints),
@@ -145,9 +151,10 @@ an `expect` value has an entry in `CHECKS` (`test_expected_feature` fails otherw
 
 ### `prepare_build.py` CLI (Phase 1; Phase 3 adds CUDA)
 
-```
+```text
 python packaging/pip/prepare_build.py --variant {cpu,cuda12,cuda13} [--dev-number N] [--pyproject PATH]
 ```
+
 - `cpu` → `stir`; `cuda12` → `stir-cuda12`; `cuda13` → `stir-cuda13` (`VARIANT_PACKAGE_NAMES`).
 - **`cuda13` stays an accepted, reserved value** (decision for the narrowed scope: the smaller change, since Phases 1
   and 2 already reject it). It is deferred, so from Phase 3 on it exits 1 because `pyproject.toml` has no `cuda13`
@@ -166,11 +173,12 @@ python packaging/pip/prepare_build.py --variant {cpu,cuda12,cuda13} [--dev-numbe
 
 ### `build_deps.py` CLI (Phase 2; Phase 3 adds CUDA)
 
-```
+```text
 python packaging/pip/deps/build_deps.py --prefix DIR --variant {cpu,cuda12,cuda13} [--only NAME[,NAME...]] [--jobs N]
 python packaging/pip/deps/build_deps.py --cache-key --variant V      # 16 hex chars; hashes deps/ + variant
 python packaging/pip/deps/build_deps.py --cuda-version --variant V   # Phase 3: toolkit version; exit 2 for cpu
 ```
+
 - `--variant` accepts `cpu`, `cuda12` and the reserved `cuda13` (same decision as `prepare_build.py`). From Phase 3,
   a CUDA variant with no `[cuda.<variant>]` table in `versions.toml` (in the first version: `cuda13`) exits 1 with
   `build_deps: no [cuda.cuda13] table in versions.toml (deferred variant)`. `--cache-key` works for every value.
@@ -188,12 +196,13 @@ python packaging/pip/deps/build_deps.py --cuda-version --variant V   # Phase 3: 
 
 ### `local-index.sh` CLI (Phase 1)
 
-```
+```text
 packaging/pip/local-index.sh up DIR   # start pypiserver on http://localhost:8080/, twine-upload every *.whl and
                                       # *.tar.gz under DIR (recursive), print pinned install commands
 packaging/pip/local-index.sh down     # stop it and delete its packages; exit 0 even if not running
 packaging/pip/local-index.sh status   # exit 0 if running, 1 if not
 ```
+
 Needs `pip install "pypiserver==2.4.*" twine`; runs `python3 -m pypiserver` in the background (no Docker). Usage
 errors exit 2.
 
@@ -208,13 +217,14 @@ errors exit 2.
 
 ### Wheel layout
 
-```
+```text
 stir/__init__.py  stir/_paths.py  stir/_cuda.py  stir/swigstir.py  stir/_stir.<ext>  stir/extra.py
 stir/projdata_profiles.py  stir/LBFGSBPC.py  stir/Vision_files_preprocess.py  stir/projdata_visualisation/
 stir/_root_support.py (Phase 5 GO)
 stir/_data/config/*.json   stir/_data/doc/examples/...   stir/_data/build_features.json (Phase 2)
 stirextra.py   stir.libs/ or stir/.dylibs/ (repair tools: libparallelproj, libgomp/libomp/vcomp, ...)
 ```
+
 No headers, static libraries, CMake files or executables. Never bundled: `libcudart` (from NVIDIA pip packages),
 `libcuda`/`nvcuda.dll`, ROOT libraries.
 
@@ -224,6 +234,7 @@ Triggers: `push` to `pip-packaging`, `workflow_dispatch` (input `target`: `none`
 has `if: github.repository == 'robbietuk/STIR'`; `publish` is `if: false` (its documented enabling guard includes
 the repository check).
 
+<!-- pyml disable md013-->
 | Job | Phase | Runner(s) |
 |---|---|---|
 | `checks` | 4 | `ubuntu-latest` |
@@ -232,6 +243,7 @@ the repository check).
 | `build_cuda` (matrix) | 3 | variant `cuda12` only: linux/x86_64 `ubuntu-24.04`; windows/AMD64 **`windows-2022`** (exception: VS 2022 for CUDA 12.9) |
 | `rehearse_publish` (matrix) | 1 (2, 3, 5) | the build row's runner; CUDA Windows row `windows-2022` |
 | `publish` | 1 (4) | `ubuntu-latest`; needs `checks`, `rehearse_publish` |
+<!-- pyml enable md013-->
 
 - Matrix keys: `build_cpu`: `os, arch, runner, wheel_tag, expect, only`; `build_cuda`: the same plus `variant`;
   `rehearse_publish`: `variant, os, arch, runner, expect, pythons, coexist`. `os` ∈ `linux|macos|windows`; `arch`
@@ -273,6 +285,7 @@ the repository check).
 
 A reviewer who wrote none of the plans checked all five against each other, the spec and STIR `rel_6.5.0`, and
 edited them to this contract. Main changes:
+
 - **One hook, one record:** Phase 5 now extends `wheel_hook.cmake` and reads `build_features.json`;
   `stir_wheel_hooks.cmake`, `CMAKE_PROJECT_INCLUDE_BEFORE` and `stir/_build_info.py` are gone. Phase 5 sets base
   `DISABLE_CERN_ROOT=OFF` (it was never switched on).
@@ -301,6 +314,7 @@ edited them to this contract. Main changes:
 ## Scope narrowing (2026-11-12)
 
 Spec revision 4 narrowed the first version; all six plans were edited to match:
+
 - `stir` on Linux x86_64, macOS arm64, Windows x86_64; `stir-cuda12` on Linux x86_64 and Windows x86_64; Python
   3.11–3.15; 25 wheels per build. Order: Linux x86_64, then macOS arm64, then Windows x86_64 (Phases 2 and 3).
 - Linux aarch64 (CPU and CUDA sbsa), macOS x86_64 and `stir-cuda13` moved, condensed, to "Appendix: Later, if

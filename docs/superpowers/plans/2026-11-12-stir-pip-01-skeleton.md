@@ -92,9 +92,11 @@ root as `REPO = Path(__file__).resolve().parents[3]`. Unit tests run with
 ### Task 1: Check Python 3.15 support in the toolchain
 
 **Files:**
+
 - Create: `packaging/pip/README.md` (only the `## Python 3.15 status` section for now)
 
 **Interfaces:**
+
 - Produces: a decision, recorded in the README, that Tasks 3 and 7 apply. Either **KEEP-315** (the default config
   in this plan) or **SKIP-315**, plus **MPL-315** (whether matplotlib has cp315 wheels).
 
@@ -147,11 +149,13 @@ git commit -m "Record Python 3.15 toolchain support for pip wheels"
 ### Task 2: Self-contained config and doc directories
 
 **Files:**
+
 - Create: `src/swig/python/stir/_paths.py`
 - Modify: `src/swig/python/stir/__init__.py:9` (the line `from .swigstir import * # noqa: F401`)
 - Test: `packaging/pip/tests/test_paths.py`
 
 **Interfaces:**
+
 - Produces: `configure_data_dirs(package_dir: pathlib.Path, environ: MutableMapping[str, str]) -> None`, in module
   `stir._paths`. For each pair (`STIR_CONFIG_DIR`, `_data/config`) and (`STIR_DOC_DIR`, `_data/doc`): if
   `package_dir.absolute() / sub` is a directory **and** `environ.get(var)` is missing or `""`, set
@@ -250,14 +254,17 @@ git commit -m "Point STIR at config files shipped inside the pip wheel"
 ### Task 3: Build configuration (pyproject.toml and CMake hook files)
 
 **Files:**
+
 - Create: `pyproject.toml`, `packaging/pip/cmake/wheel_hook.cmake`, `packaging/pip/cmake/FindPython.cmake`
 - Test: `packaging/pip/tests/test_ci_config.py` (pyproject part), `packaging/pip/tests/test_cmake_hooks.py`
 
 **Interfaces:**
+
 - Consumes: Task 1 decision (KEEP-315 / SKIP-315, MPL-315).
 - Produces: marker comments that Task 4 edits: `# prepare_build: name`, `# prepare_build: version`,
   `# prepare_build: version-provider begin` / `end`; plus `# prepare_build: dependencies` on the single-line
-  `dependencies` array, reserved for Phase 3 (CUDA runtime) and Phase 5 (`root`). Also `STIR_WHEEL_EXPECT = "config,openmp"` as the
+  `dependencies` array, reserved for Phase 3 (CUDA runtime) and Phase 5 (`root`). Also
+  `STIR_WHEEL_EXPECT = "config,openmp"` as the
   cibuildwheel test environment. The wheel layout is the contract's, plus the extra Python files STIR's own
   install rules put into `stir/` (`projdata_profiles.py`, `LBFGSBPC.py`, `Vision_files_preprocess.py`,
   `projdata_visualisation/`).
@@ -506,6 +513,7 @@ before-all = "dnf install -y boost-devel"
 
 Only if **MPL-315 = no**, append:
 
+<!-- pyml disable md013-->
 ```toml
 [[tool.cibuildwheel.overrides]]
 select = "cp315-*"
@@ -515,6 +523,7 @@ test-command = [
     "python -m pytest -v {project}/src/swig/test/python --ignore={project}/src/swig/test/python/test_projdata_profiles.py",
 ]
 ```
+<!-- pyml enable md013-->
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
@@ -533,10 +542,12 @@ git commit -m "Add scikit-build-core configuration for STIR pip wheels"
 ### Task 4: `prepare_build.py` (cpu variant and dev number)
 
 **Files:**
+
 - Create: `packaging/pip/prepare_build.py`
 - Test: `packaging/pip/tests/test_prepare_build.py`
 
 **Interfaces:**
+
 - Consumes: the marker comments from Task 3.
 - Produces (CLI as in the contract):
   `python packaging/pip/prepare_build.py --variant {cpu,cuda12,cuda13} [--dev-number N] [--pyproject PATH]`.
@@ -563,6 +574,7 @@ git commit -m "Add scikit-build-core configuration for STIR pip wheels"
 Load the module by path as in Task 2. Use the real repository file as the fixture:
 `TEXT = (REPO / "pyproject.toml").read_text()`. Add a helper `parse = tomllib.loads`.
 
+<!-- pyml disable md013-->
 ```python
 def test_cpu_without_dev_number_changes_nothing():
     assert pb.rewrite_pyproject(TEXT, variant="cpu", version=None) == TEXT
@@ -603,6 +615,7 @@ def test_cli_bad_arguments_exit_2(tmp_path, args):
 def test_cli_missing_file_exits_1(tmp_path):
     assert pb.main(["--variant", "cpu", "--pyproject", str(tmp_path / "missing.toml")]) == 1
 ```
+<!-- pyml enable md013-->
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
@@ -632,9 +645,11 @@ git commit -m "Add prepare_build.py to set the wheel name and dev version"
 ### Task 5: Installed-wheel smoke test
 
 **Files:**
+
 - Create: `packaging/pip/tests/test_wheel_smoke.py`
 
 **Interfaces:**
+
 - Consumes: `STIR_WHEEL_EXPECT` (contract), the wheel layout from Task 3, and `stir.get_STIR_config_dir`,
   `stir.find_STIR_config_file`, `stir.get_STIR_examples_dir`, `stir.set_num_threads` and
   `stir.get_max_num_threads`. All are SWIG-exposed via `stir.i` lines 1086–1087.
@@ -708,7 +723,8 @@ def test_relocated_copy_finds_its_own_data(tmp_path):
 
 - [ ] **Step 2: Run it without a wheel to verify it fails**
 
-Run: `cd /tmp && STIR_WHEEL_EXPECT=config,openmp python3 -m pytest -v /home/claude/src/STIR/packaging/pip/tests/test_wheel_smoke.py`
+Run:
+`cd /tmp && STIR_WHEEL_EXPECT=config,openmp python3 -m pytest -v /home/claude/src/STIR/packaging/pip/tests/test_wheel_smoke.py`
 Expected: collection error `ModuleNotFoundError: No module named 'stir'`. It passes in Task 6.
 
 - [ ] **Step 3: Commit**
@@ -727,9 +743,11 @@ with OpenMP, and Boost headers. The `local-index.sh` check needs importable `pyp
 prerequisite cannot be met on this machine, stop and report which one. Do not mark the step done.
 
 **Files:**
+
 - Create: `packaging/pip/local-index.sh` (executable)
 
 **Interfaces:**
+
 - Consumes: everything from Tasks 2–5.
 - Produces (`local-index.sh` CLI, also documented in Task 8):
   - `packaging/pip/local-index.sh up DIR`: starts a throwaway pypiserver on `http://localhost:8080/` with
@@ -742,14 +760,17 @@ prerequisite cannot be met on this machine, stop and report which one. Do not ma
   - `packaging/pip/local-index.sh status`: exit 0 if running, 1 if not.
   - Backend (the same as CI, no Docker): `python3 -m pypiserver` in the background, with PID file
     `${TMPDIR:-/tmp}/stir-local-index.pid` and packages dir `${TMPDIR:-/tmp}/stir-local-index-packages`. If
-    `python3 -c "import pypiserver"` fails: exit 1 with `needs 'pip install "pypiserver==2.4.*"'`. If twine is missing: exit 1 with
+    `python3 -c "import pypiserver"` fails: exit 1 with `needs 'pip install "pypiserver==2.4.*"'`. If twine is missing:
+    exit 1 with
     `needs 'pip install twine'`. Usage errors (no command, unknown command, `up` without an existing DIR): print
     usage, exit 2. `set -euo pipefail`. Wait for `http://localhost:8080/health` with
     `curl --retry 30 --retry-delay 1 --retry-connrefused`.
 
 - [ ] **Step 1: Write `packaging/pip/local-index.sh` and check its usage errors**
 
-Run: `bash -n packaging/pip/local-index.sh; packaging/pip/local-index.sh; echo $?; packaging/pip/local-index.sh up /nonexistent; echo $?`
+Run:
+<!-- pyml disable-next-line md013-->
+`bash -n packaging/pip/local-index.sh; packaging/pip/local-index.sh; echo $?; packaging/pip/local-index.sh up /nonexistent; echo $?`
 Expected: no syntax errors, the usage text twice, and `2` twice. If `shellcheck` is installed, it reports
 nothing.
 
@@ -767,15 +788,18 @@ headers are required: if `/usr/include/boost/version.hpp` is missing, run `apt-g
 
 - [ ] **Step 3: Build the wheel in a scratch venv**
 
+<!-- pyml disable md013-->
 ```bash
 python3.13 -m venv /tmp/stir-build-venv && /tmp/stir-build-venv/bin/python -m pip install -U pip
 cd /tmp/stir-scratch && time /tmp/stir-build-venv/bin/python -m pip wheel . --no-deps -w /tmp/stir-wheels -v 2>&1 | tee /tmp/stir-build.log
 ```
+<!-- pyml enable md013-->
 
 Expected: `Successfully built stir` and `/tmp/stir-wheels/stir-6.5.0.dev0-cp313-cp313-linux_x86_64.whl`. The log
 contains `PYTHON_DEST` under the scikit-build platlib dir (check with
 `grep -n "Installing.*stir/_stir" /tmp/stir-build.log`, which shows no `/python/stir/` path) and no
 `Could NOT find`. Record the wall time; it sets expectations for CI.
+
 - If FindBoost fails under a CMake 4.x from PyPI, add `"cmake>=3.24,<4"` to both `requires` and `cmake.version`,
   update `test_build_backend_and_requirements`, and rebuild.
 - If SWIG wrapping fails with the newest `swig` from PyPI (4.5.x), pin `"swig>=4.2,<4.5"` the same way.
@@ -807,6 +831,7 @@ ends with `Successfully built stir`.
 
 - [ ] **Step 6: Rehearse locally with `local-index.sh`**
 
+<!-- pyml disable md013-->
 ```bash
 /tmp/stir-build-venv/bin/python -m pip install twine "pypiserver==2.4.*"
 PATH=/tmp/stir-build-venv/bin:$PATH packaging/pip/local-index.sh up /tmp/stir-wheels
@@ -815,6 +840,7 @@ python3.13 -m venv /tmp/stir-index-venv
 cd /tmp && STIR_WHEEL_EXPECT=config,openmp /tmp/stir-index-venv/bin/python -m pytest -v /tmp/stir-scratch/packaging/pip/tests/test_wheel_smoke.py
 packaging/pip/local-index.sh down; packaging/pip/local-index.sh status; echo $?
 ```
+<!-- pyml enable md013-->
 
 Expected: the upload succeeds, the install shows `Looking in indexes: http://localhost:8080/simple/`, the smoke
 test passes, and the final `status` prints exit code `1`.
@@ -832,10 +858,12 @@ git commit -m "Add local throwaway package index script for wheel testing"
 ### Task 7: CI workflow `.github/workflows/wheels.yml`
 
 **Files:**
+
 - Create: `.github/workflows/wheels.yml`
 - Modify: `packaging/pip/tests/test_ci_config.py` (add workflow tests)
 
 **Interfaces:**
+
 - Consumes: `prepare_build.py` CLI (Task 4), cibuildwheel config (Task 3), smoke test (Task 5), Task 1 decision.
 - Produces: jobs `sdist`, `build_cpu`, `rehearse_publish` and `publish`; artifacts `sdist` and
   `wheels-cpu-linux-x86_64`. Phase 2 adds matrix rows to `build_cpu`. Phase 3 adds `build_cuda`, and
@@ -847,6 +875,7 @@ git commit -m "Add local throwaway package index script for wheel testing"
 PyYAML reads the key `on` as `True`. Add `JOBS = WF["jobs"]` and
 `def runs(job): return [s.get("run", "") for s in JOBS[job]["steps"]]`.
 
+<!-- pyml disable md013-->
 ```python
 GUARD = "github.repository == 'robbietuk/STIR'"
 
@@ -887,6 +916,7 @@ def test_rehearsal_installs_exact_dev_version():
 def test_rehearsal_covers_numpy1():
     assert any('"numpy==1.26.4"' in r and "python3.11" in r for r in runs("rehearse_publish"))
 ```
+<!-- pyml enable md013-->
 
 - [ ] **Step 2: Run them to verify they fail**
 
@@ -895,6 +925,7 @@ Expected: collection error `FileNotFoundError: .../.github/workflows/wheels.yml`
 
 - [ ] **Step 3: Write `.github/workflows/wheels.yml` (full content; under SKIP-315 apply the Task 1 edits)**
 
+<!-- pyml disable md013-->
 ```yaml
 # pip wheels for STIR. Runs only on Robert's fork (robbietuk/STIR), never on UCL/STIR.
 # Developer notes: packaging/pip/README.md
@@ -1102,6 +1133,7 @@ jobs:
           path: dist
       - uses: pypa/gh-action-pypi-publish@release/v1
 ```
+<!-- pyml enable md013-->
 
 Note that the package resolves only from the local index, because pypiserver falls back to PyPI only for
 packages it doesn't have. The exact `==$version` pin is needed because `.devN` is a pre-release.
@@ -1123,14 +1155,17 @@ git commit -m "Add wheel CI with sdist, build, publish rehearsal and disabled pu
 ### Task 8: Developer notes `packaging/pip/README.md`
 
 **Files:**
+
 - Modify: `packaging/pip/README.md` (keep the Task 1 section)
 
 **Interfaces:**
+
 - Consumes: CLIs and names from Tasks 3–7, and the build time and any pins from Task 6.
 
 - [ ] **Step 1: Write the sections**
 
 Write these sections, in this order:
+
 1. What this is (the spec and the contract, by path).
 2. Files, as a table of the File Structure above.
 3. Build a wheel locally (Task 6 Steps 2–3 commands, prerequisites, measured build time).
@@ -1149,7 +1184,8 @@ Every line must be ≤ 120 characters.
 
 - [ ] **Step 2: Check markdown with STIR's pre-commit hooks**
 
-Run: `python3 -m pip install pre-commit && pre-commit run --files packaging/pip/README.md pyproject.toml .github/workflows/wheels.yml`
+Run:
+`python3 -m pip install pre-commit && pre-commit run --files packaging/pip/README.md pyproject.toml .github/workflows/wheels.yml`
 Expected: all hooks `Passed` or `Skipped`.
 
 - [ ] **Step 3: Commit**
@@ -1244,7 +1280,8 @@ push to `fork` only (Robert's go-ahead from Step 1 covers this follow-up push).
   `vX.Y`: https://github.com/pypiserver/pypiserver
 - SWIG 4.5.1 is current (RELEASENOTES), with no explicit Python 3.15 statement found; CI proves it:
   https://swig.org/Release/RELEASENOTES
-- cibuildwheel example deploy workflow (action versions): https://github.com/pypa/cibuildwheel/blob/main/examples/github-deploy.yml
+- cibuildwheel example deploy workflow (action versions):
+  https://github.com/pypa/cibuildwheel/blob/main/examples/github-deploy.yml
 
 ## Contract concerns
 

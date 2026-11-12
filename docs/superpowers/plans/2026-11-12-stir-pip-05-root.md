@@ -12,12 +12,14 @@ gate is re-checked on every STIR release.
 `find_package(CERN_ROOT 6.28.00)`, which uses `src/cmake/FindCERN_ROOT.cmake`. That module runs
 `find_package(ROOT CONFIG)` via `ROOT_DIR` and then calls `UseCXX(${CERN_ROOT_CXX_STANDARD})`, which raises STIR's
 C++ standard to ROOT's. When ROOT is found, `HAVE_CERN_ROOT` adds five sources:
+
 - `src/IO/InputStreamFromROOTFile{,ForCylindricalPET,ForECATPET}.cxx`;
 - `src/listmode_buildblock/CListModeDataROOT.cxx` and `CListRecordROOT.cxx`.
 
 Those sources link `ROOT::Tree` (`src/IO/CMakeLists.txt:102-109`) and register the `.hroot` format in
 `src/IO/IO_registries.cxx:108-112`. No STIR file changes. Phase 1's project hook
 `packaging/pip/cmake/wheel_hook.cmake` (injected via `CMAKE_PROJECT_STIR_INCLUDE`) gains a ROOT block that:
+
 - sets `ROOT_DIR` from the `root` distribution installed in the isolated build environment;
 - adds a relative install RPATH to ROOT's library directory.
 
@@ -95,6 +97,7 @@ pytest.
 
 ## File Structure
 
+<!-- pyml disable md013-->
 | Path | Action | Responsibility |
 |---|---|---|
 | `packaging/pip/root_gate.py` | Create | Evaluate the go/no-go criteria against PyPI metadata and, optionally, one wheel |
@@ -111,16 +114,19 @@ pytest.
 | *(GO only)* `packaging/pip/tests/test_root_support.py` | Create | Hint logic with fake classes |
 | *(GO only)* `packaging/pip/tests/test_wheel_smoke.py` | Modify | `root` feature tests |
 | *(GO only)* `.github/workflows/wheels.yml` | Modify | `root` in `STIR_WHEEL_EXPECT`, no-compiler check |
+<!-- pyml enable md013-->
 
 ---
 
 ### Task 1: The go/no-go gate (`root_gate.py`)
 
 **Files:**
+
 - Create: `packaging/pip/root_gate.py`
 - Test: `packaging/pip/tests/test_root_gate.py`
 
 **Interfaces:**
+
 - Produces:
   - `REQUIRED_PYTHONS = ("cp311", "cp312", "cp313", "cp314", "cp315")`
   - `REQUIRED_TARGETS = ("manylinux_x86_64", "macosx_arm64")` (first-version platforms only; add
@@ -142,6 +148,7 @@ pytest.
 
 Criteria:
 
+<!-- pyml disable md013-->
 | Id | Check | How |
 |---|---|---|
 | G1 | Latest `root` is a final release, numbered as ROOT itself (`major >= 6`) and `>= 6.28` | `Version(info.version)`: not `is_prerelease`, not `is_devrelease` |
@@ -150,6 +157,7 @@ Criteria:
 | G4 | `set(ROOT_CXX_STANDARD N)` in `ROOTConfig.cmake` with `N in OK_CXX` | regex `set\(ROOT_CXX_STANDARD\s+(\d+)\)` |
 | M1 | `import ROOT` works with no C++ compiler | MANUAL; print the command below |
 | M2 | The PyPI page and ROOT release notes no longer call it alpha or "not for production" | MANUAL; print both URLs |
+<!-- pyml enable md013-->
 
 `--inspect-wheel` downloads the `cp312` `manylinux_2_28_x86_64` file from `urls` into a new empty temp dir. It only
 reads the zip; nothing is extracted or executed.
@@ -160,6 +168,7 @@ Expected output: the ROOT version and no compiler error.
 
 - [ ] **Step 1: Write the failing tests**
 
+<!-- pyml disable md013-->
 ```python
 TODAY = {"info": {"version": "0.1a12"},
          "urls": [{"filename": f"root-0.1a12-{p}-{p}-manylinux_2_28_x86_64.whl"} for p in
@@ -206,6 +215,7 @@ def test_cli_today_exit_1(tmp_path, capsys):
     assert main(["--json-file", str(f)]) == 1
     assert capsys.readouterr().out.strip().splitlines()[-1] == "RESULT: NO-GO (G1, G2)"
 ```
+<!-- pyml enable md013-->
 
 - [ ] **Step 2: Run the tests and check they fail**
 
@@ -241,11 +251,13 @@ git commit -m "Add ROOT wheel go/no-go gate script"
 ### Task 2: Record the decision (always done; ends the phase on NO-GO)
 
 **Files:**
+
 - Modify: `packaging/pip/RELEASING.md`: add to `## Re-check on every STIR release`, and add a `## ROOT gate log` section
 - Modify: `packaging/pip/README.md`: the ROOT row and the conda section
 - Test: `packaging/pip/tests/test_docs.py` (Phase 4)
 
 **Interfaces:**
+
 - Consumes: the `root_gate.py` CLI (Task 1); the Phase 4 RELEASING/README headings.
 - Produces: the gate log table `| Date | root version | Result | Failing criteria | M1 | M2 |`.
 
@@ -281,7 +293,8 @@ Expected: `test_root_gate_in_release_checklist` FAILS.
 
 - [ ] **Step 4: Run the tests and the linter**
 
-Run: `python -m pytest packaging/pip/tests/test_docs.py -v && pre-commit run pymarkdown --files packaging/pip/README.md packaging/pip/RELEASING.md`
+Run:
+`python -m pytest packaging/pip/tests/test_docs.py -v && pre-commit run pymarkdown --files packaging/pip/README.md packaging/pip/RELEASING.md`
 Expected: all PASS.
 
 - [ ] **Step 5: Commit, then stop on NO-GO**
@@ -299,12 +312,14 @@ later gate run prints `RESULT: GO` *and* M1 and M2 pass *and* Robert confirms.
 ### Task 3 (GO only): Find ROOT at build time
 
 **Files:**
+
 - Create: `packaging/pip/find_root_cmake_dir.py`
 - Modify: `packaging/pip/cmake/wheel_hook.cmake`, `pyproject.toml`, `packaging/pip/deps/versions.toml`,
   `packaging/pip/tests/test_ci_config.py` (Phase 2's `test_disable_switches`)
 - Test: `packaging/pip/tests/test_root_packaging.py`
 
 **Interfaces:**
+
 - Consumes: `prepare_build.py --variant {cpu,cuda12}` (contract; `cuda13` is reserved and exits 1; the
   `# prepare_build: dependencies` line);
   versions.toml (contract); `wheel_hook.cmake` and `build_features.json` (Phases 1–2).
@@ -312,7 +327,8 @@ later gate run prints `RESULT: GO` *and* M1 and M2 pass *and* Robert confirms.
   - `@dataclass RootLayout: site_dir: Path; cmake_dir: Path; lib_dir: Path`
   - `find_root_layout(search_path: list[str] | None = None) -> RootLayout`. It uses
     `importlib.metadata.distributions(name="root", path=search_path)` and the dist's `files`. It never imports ROOT.
-    It raises `LookupError("root distribution not installed")` or `LookupError("ROOTConfig.cmake not found in root distribution")`.
+    It raises `LookupError("root distribution not installed")` or
+    `LookupError("ROOTConfig.cmake not found in root distribution")`.
   - CLI: `find_root_cmake_dir.py {--cmake-dir | --lib-dir | --lib-dir-relative | --auditwheel-excludes}`.
     - `--lib-dir-relative` is the lib dir relative to `site_dir`.
     - `--auditwheel-excludes` prints `--exclude <soname>` for every `lib*.so*` in `lib_dir`, space-separated.
@@ -394,6 +410,7 @@ If scikit-build-core does not pass
 `Python_EXECUTABLE`, fall back to `Python3_EXECUTABLE`.
 
 In `pyproject.toml`:
+
 - add `ROOT_REQ` to both requirement lists, and update Phase 1's `test_build_backend_and_requirements` and
   `test_project_metadata` to include it;
 - set the base `DISABLE_CERN_ROOT = "OFF"` (Phase 1 set it `"ON"`), and change Phase 2's `test_disable_switches` to
@@ -406,8 +423,10 @@ In `pyproject.toml`:
 Run: `python -m pytest packaging/pip/tests/test_root_packaging.py -v`
 Expected: all PASS.
 
-Run: `STIR_WHEEL_VARIANT=cpu STIR_DEPS_PREFIX=<prefix> pip wheel . --no-deps -w /tmp/rootpoc -v 2>&1 | tee /tmp/rootpoc.log`
+Run:
+`STIR_WHEEL_VARIANT=cpu STIR_DEPS_PREFIX=<prefix> pip wheel . --no-deps -w /tmp/rootpoc -v 2>&1 | tee /tmp/rootpoc.log`
 Expected in the log:
+
 - `CERN ROOT support enabled.`
 - `ROOT Version: X.Y.Z. CXX version: NN.`, with NN equal to the gate's G4 value
 
@@ -417,22 +436,26 @@ If the hook path does not resolve relative to the source dir, stop and ask. Do n
 
 - [ ] **Step 5: Commit**
 
+<!-- pyml disable md013-->
 ```bash
 git add packaging/pip/find_root_cmake_dir.py packaging/pip/cmake/wheel_hook.cmake pyproject.toml \
         packaging/pip/deps/versions.toml packaging/pip/tests/test_root_packaging.py packaging/pip/tests/test_ci_config.py
 git commit -m "Build against the root wheel on Linux and macOS"
 ```
+<!-- pyml enable md013-->
 
 ---
 
 ### Task 4 (GO only): Repair without bundling ROOT; `root` feature smoke test
 
 **Files:**
+
 - Modify: `pyproject.toml`: `[tool.cibuildwheel.linux]` and `[tool.cibuildwheel.macos]` gain `before-build` and
   `repair-wheel-command`; `test-requires` gains `uproot`
 - Test: `packaging/pip/tests/test_wheel_smoke.py`
 
 **Interfaces:**
+
 - Consumes: `find_root_cmake_dir.py --auditwheel-excludes | --lib-dir` (Task 3); `STIR_WHEEL_EXPECT` (contract).
 - Produces: `write_gate_file(dir: Path, n_events: int = 3) -> Path`, a smoke-test helper that returns the `.hroot`
   path. Task 5 and Task 6 reuse it. `CHECKS["root"] = check_root` (Phase 1's `test_expected_feature[root]` fails
@@ -441,12 +464,14 @@ git commit -m "Build against the root wheel on Linux and macOS"
 - [ ] **Step 1: Write the failing tests**
 
 `write_gate_file` uses `uproot.recreate`. It writes tree `Coincidences` with 3 entries:
+
 - `time1 = time2 = [0.002, 0.003, 0.004]` (float64);
 - `eventID1 = eventID2 = [1, 2, 3]`, `comptonPhantom1/2 = 0`, `crystalID1 = [0, 1, 2]`, `crystalID2 = [3, 2, 1]`,
   `submoduleID1/2 = moduleID1/2 = 0`, `rsectorID1 = [0, 10, 20]`, `rsectorID2 = [252, 262, 272]` (int32);
 - `energy1 = energy2 = 511` (float32).
 
 It writes the `.hroot` from `recon_test_pack/root_header.hroot` with:
+
 - the three TOF lines removed;
 - `name of data file := <abs path>`;
 - `exclude scattered events := 0` and `exclude random events := 0`.
@@ -489,12 +514,15 @@ def test_root_libs_not_bundled():
 
 - [ ] **Step 2: Run the tests against the Task 3 PoC wheel and check they fail**
 
-Run: `pip install /tmp/rootpoc/stir-*.whl uproot && STIR_WHEEL_EXPECT=config,openmp,root python -m pytest packaging/pip/tests/test_wheel_smoke.py -v -k root`
+Run:
+<!-- pyml disable-next-line md013-->
+`pip install /tmp/rootpoc/stir-*.whl uproot && STIR_WHEEL_EXPECT=config,openmp,root python -m pytest packaging/pip/tests/test_wheel_smoke.py -v -k root`
 Expected: FAIL, because the unrepaired wheel's `_stir` points into a deleted isolated build env
 (`ImportError: libCore.so…`). If it passes, the RPATH from Task 3 already works; carry on.
 
 - [ ] **Step 3: Configure repair and before-build**
 
+<!-- pyml disable-num-lines 2 md013-->
 - Linux: `before-build = "pip install 'root==X.Y.*'"` (the same pin), and
   `repair-wheel-command = "auditwheel repair -w {dest_dir} $(python packaging/pip/find_root_cmake_dir.py --auditwheel-excludes) {wheel}"`.
   Keep any existing Phase 1–3 auditwheel flags.
@@ -507,7 +535,9 @@ Expected: FAIL, because the unrepaired wheel's `_stir` points into a deleted iso
 
 - [ ] **Step 4: Rebuild with cibuildwheel locally and run the tests**
 
-Run: `CIBW_BUILD=cp312-manylinux_x86_64 STIR_DEPS_PREFIX=/project/.deps/cpu STIR_WHEEL_VARIANT=cpu STIR_WHEEL_EXPECT=config,openmp,json,hdf5,petsird,itk,parallelproj,root cibuildwheel --platform linux` (Phase 2's `environment-pass` forwards all three)
+Run:
+<!-- pyml disable-next-line md013-->
+`CIBW_BUILD=cp312-manylinux_x86_64 STIR_DEPS_PREFIX=/project/.deps/cpu STIR_WHEEL_VARIANT=cpu STIR_WHEEL_EXPECT=config,openmp,json,hdf5,petsird,itk,parallelproj,root cibuildwheel --platform linux` (Phase 2's `environment-pass` forwards all three)
 Expected: repair succeeds and all `test_wheel_smoke.py` tests PASS, including `test_expected_feature[root]` and the
 two `root` tests.
 Also run `unzip -l wheelhouse/stir-*.whl | grep -c libCore`. Expected: `0`.
@@ -524,11 +554,13 @@ git commit -m "Link ROOT from the root wheel without bundling and smoke-test GAT
 ### Task 5 (GO only): Clear error where ROOT is absent
 
 **Files:**
+
 - Create: `src/swig/python/stir/_root_support.py`
 - Modify: `src/swig/python/stir/__init__.py` (add after `from .swigstir import * # noqa: F401`)
 - Test: `packaging/pip/tests/test_root_support.py`, `packaging/pip/tests/test_wheel_smoke.py`
 
 **Interfaces:**
+
 - Consumes: `stir/_data/build_features.json` (Phase 2); `write_gate_file` (Task 4); Phase 4's
   `INIT_PY_ALLOWED_LINES`, which already lists the two lines below (no `release_check.py` change).
 - Produces:
@@ -540,9 +572,10 @@ git commit -m "Link ROOT from the root wheel without bundling and smoke-test GAT
     `namespace["CListModeData"].read_from_file`. The wrapper carries the attribute `__stir_root_hint__ = True`.
 
 The exact copy, with the `{note}` for `win32` being
+<!-- pyml disable-next-line md038-->
 `ROOT support is not available in the pip packages on Windows (or in conda on Windows). `, and otherwise empty:
 
-```
+```text
 STIR cannot read '{filename}': this STIR package was built without ROOT, so GATE/ROOT listmode files (.hroot) are
 not supported. {note}Use the conda-forge STIR package (conda install -c conda-forge stir) on Linux or macOS, or
 build STIR from source with ROOT.
@@ -615,7 +648,9 @@ There is no C++ fallback.
 
 - [ ] **Step 4: Run the tests and check they pass**
 
-Run: `python -m pytest packaging/pip/tests/test_root_support.py packaging/pip/tests/test_release_check.py packaging/pip/tests/test_paths.py -v`
+Run:
+<!-- pyml disable-next-line md013-->
+`python -m pytest packaging/pip/tests/test_root_support.py packaging/pip/tests/test_release_check.py packaging/pip/tests/test_paths.py -v`
 Expected: all PASS (Phase 4's allow-list and Phase 1's `__init__` tests accept the two lines).
 
 Then build a Windows wheel (or a Linux wheel with `-C cmake.define.DISABLE_CERN_ROOT=ON`) and run
@@ -635,11 +670,13 @@ git commit -m "Explain missing ROOT support when reading .hroot files"
 ### Task 6 (GO only): CI, no-compiler check, docs
 
 **Files:**
+
 - Modify: `.github/workflows/wheels.yml`: the `build_cpu`/`build_cuda` matrices and `rehearse_publish`
 - Modify: `packaging/pip/README.md`, `packaging/pip/RELEASING.md`
 - Test: `packaging/pip/tests/test_workflow_guards.py`
 
 **Interfaces:**
+
 - Consumes: matrix and artifact names (contract); `write_gate_file` (Task 4).
 
 - [ ] **Step 1: Write the failing tests**
@@ -666,6 +703,7 @@ Expected: both FAIL.
 
 - [ ] **Step 3: Edit the CI and the docs**
 
+<!-- pyml disable-num-lines 8 md013-->
 - Add `,root` to the `expect` value of every Linux and macOS matrix entry (`build_cpu` linux/x86_64 and
   macos/arm64, `build_cuda` cuda12 linux/x86_64, and the matching `rehearse_publish` rows, which must stay equal).
   Windows is unchanged.
@@ -693,6 +731,7 @@ Run: `python -m pytest packaging/pip/tests -v --ignore=packaging/pip/tests/test_
 Expected: PASS and no output.
 
 With Robert's go-ahead for Phase 5 pushes (ask once), run `git push fork pip-packaging`. Expected:
+
 - every build job is green;
 - Linux/macOS smoke logs show `test_expected_feature[root] PASSED`;
 - Windows logs show `test_root_absent_gives_clear_message PASSED`;
@@ -700,10 +739,12 @@ With Robert's go-ahead for Phase 5 pushes (ask once), run `git push fork pip-pac
 
 - [ ] **Step 5: Commit**
 
+<!-- pyml disable md013-->
 ```bash
 git add .github/workflows/wheels.yml packaging/pip/README.md packaging/pip/RELEASING.md packaging/pip/tests/test_workflow_guards.py
 git commit -m "Enable ROOT feature in Linux and macOS wheel CI"
 ```
+<!-- pyml enable md013-->
 
 ---
 
@@ -747,7 +788,8 @@ particular there is no `stir_wheel_hooks.cmake`, no `CMAKE_PROJECT_INCLUDE_BEFOR
   https://root-forum.cern.ch/t/is-this-a-legitimate-release-of-root/64429
 - CHEP 2024 "pip install ROOT" slides (manylinux_2_28, cibuildwheel, `import ROOT` needs a compiler, planned split):
   https://indico.cern.ch/event/1447163/contributions/6093235/attachments/2948966/5183088/pip_install_ROOT.pdf
-- PyHEP.dev 2026 talk on ROOT PyPI wheels (ongoing development): https://indico.nikhef.nl/event/7873/contributions/31390/
+- PyHEP.dev 2026 talk on ROOT PyPI wheels (ongoing development):
+  https://indico.nikhef.nl/event/7873/contributions/31390/
 - STIR sources: `src/cmake/FindCERN_ROOT.cmake`, `CMakeLists.txt:106,145-151`, `src/CMakeLists.txt:47-52`,
   `src/IO/CMakeLists.txt:61-67,102-109`, `src/listmode_buildblock/CMakeLists.txt:48-53`,
   `src/IO/IO_registries.cxx:64-68,108-112`, `src/swig/stir_listmode.i`, `src/swig/test/python/test_listmode.py`,

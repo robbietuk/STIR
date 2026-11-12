@@ -1,4 +1,6 @@
-# STIR pip Phase 2: CPU wheels (Linux x86_64, macOS arm64, Windows x86_64), full CPU features. Implementation Plan
+# STIR pip Phase 2: full-feature CPU wheels, implementation plan
+
+Platforms: Linux x86_64, macOS arm64, then Windows x86_64.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or
 > superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
@@ -133,12 +135,14 @@ fallbacks. Never drop a feature silently:
    the feature from that platform's `expect:` in `build_cpu` **and** `rehearse_publish`. HDF5 out also means
    PETSIRD out (PETSIRD's generated code needs HDF5).
 2. In `pyproject.toml`, add an override so CMake doesn't half-find the dependency:
+
    ```toml
    [[tool.scikit-build.overrides]]
    if.platform-system = "darwin"      # sys.platform value: "linux" | "darwin" | "win32"
    if.platform-machine = "arm64"      # platform.machine(): "x86_64" | "aarch64" | "arm64" | "AMD64"
    cmake.define.DISABLE_ITK = "ON"
    ```
+
 3. In `packaging/pip/README.md`, mark the cell ✗ in "Feature status by platform", with a footnote: what fails
    (error excerpt), the upstream issue if any, and "use `conda install -c conda-forge stir`" if conda has it.
 4. Commit: `git commit -m "Document known gap: <feature> on <platform>"`.
@@ -151,11 +155,13 @@ fallbacks. Never drop a feature silently:
 ### Task 1: Dependency manifest and `build_deps.py` CLI core
 
 **Files:**
+
 - Create: `packaging/pip/deps/versions.toml`, `packaging/pip/deps/itk_modules.txt`,
   `packaging/pip/deps/requirements.txt`, `packaging/pip/deps/build_deps.py`
 - Test: `packaging/pip/tests/test_build_deps.py`
 
 **Interfaces:**
+
 - Consumes: nothing from this phase.
 - Produces (module `build_deps`, importable with `importlib.util.spec_from_file_location`; Phase 3 does this):
   - `DEPS_DIR: Path` (the script's folder), `DEP_ORDER: tuple[str, ...] = ("openmp", "boost", "nlohmann_json",
@@ -191,6 +197,7 @@ fallbacks. Never drop a feature silently:
 
 `packaging/pip/deps/versions.toml`:
 
+<!-- pyml disable md013-->
 ```toml
 # Native dependency pins for the STIR pip wheels. Single source of truth (contract).
 # Every byte of this directory feeds `build_deps.py --cache-key`: editing it rebuilds the CI deps cache.
@@ -279,6 +286,7 @@ sha256 = "856b023748b41ac7b2c83fd8e9f765ff48a4df2fe6777d2811ef7c7ed8f2f977"
 url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-21.1.8/cmake-21.1.8.src.tar.xz"
 sha256 = "85735f20fd8c81ecb0a09abb0c267018475420e93b65050cc5b7634eab744de9"
 ```
+<!-- pyml enable md013-->
 
 `packaging/pip/deps/itk_modules.txt`:
 
@@ -414,12 +422,14 @@ git commit -m "Add dependency manifest and build_deps.py CLI for the pip deps pr
 ### Task 2: Fetching sources; header-only deps, `date` and static HDF5
 
 **Files:**
+
 - Modify: `packaging/pip/deps/build_deps.py`
 - Create: `packaging/pip/deps/build_in_manylinux.sh`, `packaging/pip/deps/probe/CMakeLists.txt`,
   `packaging/pip/deps/probe/probe.cxx`
 - Test: `packaging/pip/tests/test_build_deps.py`
 
 **Interfaces:**
+
 - Consumes: Task 1.
 - Produces:
   - `class ChecksumError(Exception)`
@@ -515,6 +525,7 @@ Expected: the new tests FAIL with `AttributeError` (`fetch_source`, `BuildContex
 - [ ] **Step 3: Implement fetching and the first recipes**
 
 Recipes (each is a function `build_<name>(ctx) -> None`):
+
 - `boost`: fetch, then copy `s/boost` to `<prefix>/include/boost` (no CMake). STIR's `find_package(Boost)` (FindBoost,
   CMP0167 OLD under STIR's `cmake_minimum_required(3.14)`) finds it through `CMAKE_PREFIX_PATH`.
 - `nlohmann_json`: `cmake_build` with `-DJSON_BuildTests=OFF -DJSON_Install=ON`.
@@ -526,6 +537,7 @@ Recipes (each is a function `build_<name>(ctx) -> None`):
 Probe (`probe/CMakeLists.txt`, CMake ≥ 3.24, `project(stir_deps_probe CXX)`, C++17): for each name in
 `PROBE_DEPS` it does the `find_package` exactly as STIR's `CMakeLists.txt` does. Then `probe.cxx`, with
 `#ifdef PROBE_<DEP>` blocks, prints `probe: <dep> ok`:
+
 - `boost`: `find_package(Boost 1.36.0 REQUIRED)`; uses `boost::format`.
 - `nlohmann_json`: `find_package(nlohmann_json 3.2.0 CONFIG REQUIRED)`; parses `{"a":1}`.
 - `hdf5`: `set(HDF5_USE_STATIC_LIBRARIES ON)`; `find_package(HDF5 COMPONENTS CXX REQUIRED)`; links
@@ -544,10 +556,12 @@ Expected: all PASS.
 - [ ] **Step 5: Build the first deps in the pinned manylinux image**
 
 Run (repo root, Docker on a Linux x86_64 machine):
+
 ```bash
 bash packaging/pip/deps/build_in_manylinux.sh x86_64 --variant cpu --jobs 8 \
   --only boost,nlohmann_json,xtensor,date,hdf5
 ```
+
 Expected: ends with `probe: boost ok`, `probe: nlohmann_json ok`, `probe: hdf5 ok`, exit 0. Then
 `ls .deps/cpu/lib/libhdf5*.a .deps/cpu/include/boost/version.hpp .deps/cpu/.stamps` lists the static HDF5 C and C++
 libraries, the Boost header and five stamps. A second identical run prints `... up to date` for all five in
@@ -570,10 +584,12 @@ git commit -m "Build header-only deps, date and static HDF5 into the deps prefix
 ### Task 3: PETSIRD (yardl code generation)
 
 **Files:**
+
 - Modify: `packaging/pip/deps/build_deps.py`, `packaging/pip/deps/probe/CMakeLists.txt`, `probe.cxx`
 - Test: `packaging/pip/tests/test_build_deps.py`
 
 **Interfaces:**
+
 - Consumes: Task 2 (`fetch_source`, `cmake_build`, `platform_key`, `BuildContext`).
 - Produces: `petsird_cmake_args(ctx: BuildContext) -> list[str]` and `petsird_env(ctx: BuildContext) -> dict[str,
   str]`. After this task, `<prefix>/lib/cmake/PETSIRD-0.11/PETSIRDConfig.cmake` exists (upstream's directory
@@ -632,10 +648,12 @@ git commit -m "Build PETSIRD (yardl-generated) into the deps prefix"
 ### Task 4: ITK (static, selected modules) and libparallelproj (CPU)
 
 **Files:**
+
 - Modify: `packaging/pip/deps/build_deps.py`, `packaging/pip/deps/probe/CMakeLists.txt`, `probe.cxx`
 - Test: `packaging/pip/tests/test_build_deps.py`
 
 **Interfaces:**
+
 - Consumes: Tasks 1–3; `read_itk_modules()`.
 - Produces:
   - `itk_cmake_args(ctx: BuildContext) -> list[str]`
@@ -675,6 +693,7 @@ Expected: FAIL with `AttributeError`.
   ctx.versions) + openmp_cmake_args(ctx)`. Upstream ignores `BUILD_SHARED_LIBS` and installs a shared library.
 
 Probe blocks:
+
 - `itk`: `find_package(ITK 4.9 CONFIG REQUIRED)`, `include(${ITK_USE_FILE})` (generates the IO factory
   registration, as STIR does), link `${ITK_LIBRARIES}`. For each of `x.nii`, `x.nhdr`, `x.mhd`, print
   `probe: itk <ext> <ImageIO class>` from `itk::ImageIOFactory::CreateImageIO(name, WriteMode)`. Print
@@ -700,13 +719,17 @@ git commit -m "Build static ITK IO modules and libparallelproj into the deps pre
 
 ---
 
-### Task 5: Wire the deps prefix into the STIR build, with a configure-time feature guard
+### Task 5: Wire the deps prefix into the STIR build
+
+This task also adds a configure-time feature guard.
 
 **Files:**
+
 - Modify: `packaging/pip/cmake/wheel_hook.cmake`, `pyproject.toml`
 - Test: `packaging/pip/tests/test_cmake_hooks.py`, `packaging/pip/tests/test_ci_config.py`
 
 **Interfaces:**
+
 - Consumes: Phase 1 `wheel_hook.cmake` (runs right after `project(STIR)` via `CMAKE_PROJECT_STIR_INCLUDE`), and
   the deps prefix from Task 4.
 - Produces:
@@ -818,6 +841,7 @@ The function body is yours to write. The table, the file names, the messages and
 above. Write the JSON with `file(WRITE)` and keys in the table's order.
 
 In `pyproject.toml`:
+
 - `[tool.scikit-build.cmake.define]`: add `CMAKE_PREFIX_PATH = {env = "STIR_DEPS_PREFIX", default = ""}`. Set
   `DISABLE_HDF5`, `DISABLE_ITK`, `DISABLE_NLOHMANN_JSON`, `DISABLE_PETSIRD` and `DISABLE_Parallelproj_PROJECTOR`
   to `"OFF"`, and leave the rest as in Phase 1. Replace the "Phase 1: core STIR + OpenMP only" comment with
@@ -838,22 +862,29 @@ Expected: all PASS.
 - [ ] **Step 5: Build one wheel against the prefix (local, Linux x86_64)**
 
 Run (repo root, after Task 4's prefix exists):
+
+<!-- pyml disable md013-->
 ```bash
 STIR_DEPS_PREFIX=/project/.deps/cpu STIR_WHEEL_EXPECT=config,openmp,json,hdf5,petsird,itk,parallelproj \
   pipx run cibuildwheel==4.3.5 --platform linux --only cp312-manylinux_x86_64 2>&1 | tee /tmp/cibw.log
 grep -E "HDF5 support enabled|ITK libraries added|PETSIRD support enabled|Parallelproj projector support enabled|nlohmann JSON library 3.12.0 found|stir-wheel: build features" /tmp/cibw.log
 ```
+<!-- pyml enable md013-->
+
 Expected: six matching lines. The last one is `stir-wheel: build features: openmp=ON json=ON hdf5=ON petsird=ON
 itk=ON parallelproj=ON cuda=OFF root=OFF`. The run ends with `1 wheels produced` (Phase 1's smoke test passes;
 the feature checks come in Task 6), and `wheelhouse/` holds `stir-6.5.0-cp312-cp312-manylinux_2_28_x86_64.whl`.
 
 - [ ] **Step 6: Check the wheel's contents and symbols**
 
+<!-- pyml disable md013-->
 ```bash
 unzip -l wheelhouse/stir-*-cp312-*.whl | grep -E "build_features.json|stir.libs/libparallelproj"
 unzip -o -q wheelhouse/stir-*-cp312-*.whl -d /tmp/w && cd /tmp/w
 nm -D --defined-only stir/_stir*.so | grep -c -E " (H5|_ZN3itk|_ZN2H5)" ; nm -D --undefined-only stir/_stir*.so | grep -E "sgemm|cblas" ; cd -
 ```
+<!-- pyml enable md013-->
+
 Expected: both files are listed. The first `nm` prints `0` (static symbols are not exported). The second prints
 nothing (no external BLAS needed).
 
@@ -868,21 +899,25 @@ true` and `"hdf5": false`, unless the host has system HDF5, in which case it sho
 
 - [ ] **Step 8: Commit**
 
+<!-- pyml disable md013-->
 ```bash
 git add packaging/pip/cmake/wheel_hook.cmake pyproject.toml packaging/pip/tests/test_cmake_hooks.py packaging/pip/tests/test_ci_config.py
 git commit -m "Enable HDF5, PETSIRD, nlohmann_json, ITK and parallelproj from the deps prefix"
 ```
+<!-- pyml enable md013-->
 
 ---
 
 ### Task 6: Smoke checks that prove each feature at runtime
 
 **Files:**
+
 - Create: `packaging/pip/tests/_feature_probes.py`, `packaging/pip/tests/test_feature_probes.py`,
   `packaging/pip/tests/data/ge_signature.h5`
 - Modify: `packaging/pip/tests/test_wheel_smoke.py` (Phase 1)
 
 **Interfaces:**
+
 - Consumes: Phase 1 `test_wheel_smoke.py`: `expected_features`, `run_stir`, `CHECKS`. Also Task 5's
   `build_features.json`.
 - Produces (`_feature_probes.py`, no `import stir`; Phase 3 and 5 add to `KNOWN_FEATURES`'s users):
@@ -917,6 +952,7 @@ compiled-in reader accept the file?". The abort answers it too.
 
 - [ ] **Step 1: Write the failing unit tests** (`test_feature_probes.py`)
 
+<!-- pyml disable md013-->
 ```python
 from _feature_probes import (BUILD_FEATURES, GE_FIXTURE, classify_probe, compare_build_features,
                              write_petsird_signature_file)
@@ -949,6 +985,7 @@ def test_fixtures(tmp_path):
     assert p.read_bytes()[:5] == b"yardl"
     assert GE_FIXTURE.read_bytes()[:8] == b"\x89HDF\r\n\x1a\n" and GE_FIXTURE.stat().st_size < 20_000
 ```
+<!-- pyml enable md013-->
 
 - [ ] **Step 2: Run to verify they fail**
 
@@ -1037,6 +1074,7 @@ python3.12 -m venv /tmp/v && /tmp/v/bin/pip install wheelhouse/stir-*-cp312-*.wh
 cd /tmp && STIR_WHEEL_EXPECT=config,openmp,json,hdf5,petsird,itk,parallelproj \
   /tmp/v/bin/python -m pytest -v -rs /home/claude/src/STIR/packaging/pip/tests/test_wheel_smoke.py
 ```
+
 Expected: `test_expected_feature[<f>]` PASSES for all seven features, and `test_build_features_match_expect` and
 Phase 1's tests PASS. Negative check: `STIR_WHEEL_EXPECT=config,openmp` fails
 `test_build_features_match_expect` with five `built but not in STIR_WHEEL_EXPECT` lines. That proves the check
@@ -1058,11 +1096,13 @@ git commit -m "Prove json, HDF5, PETSIRD, ITK and parallelproj at runtime in the
 ### Task 7: CI for Linux x86_64 with the cached deps prefix
 
 **Files:**
+
 - Modify: `.github/workflows/wheels.yml`, `packaging/pip/tests/test_ci_config.py`, `packaging/pip/README.md`,
   `pyproject.toml`
 - Create: `packaging/pip/tests/test_coexistence.py`
 
 **Interfaces:**
+
 - Consumes: `build_in_manylinux.sh`, `build_deps.py --cache-key`, Phase 1 jobs.
 - Produces: matrix keys used by both `build_cpu` and `rehearse_publish`: `os`, `arch` (cibuildwheel arch:
   `x86_64 | arm64 | AMD64`), `runner`, `wheel_tag`, `expect`, `only`. `rehearse_publish` rows have
@@ -1126,6 +1166,7 @@ Expected: the new tests FAIL (`KeyError: 'wheel_tag'`, missing cache steps, imag
 
 `build_cpu` (full job; the YAML is the decision):
 
+<!-- pyml disable md013-->
 ```yaml
   build_cpu:
     name: build_cpu (${{ matrix.os }}-${{ matrix.arch }})
@@ -1221,9 +1262,11 @@ Expected: the new tests FAIL (`KeyError: 'wheel_tag'`, missing cache steps, imag
           path: wheelhouse/*.whl
           if-no-files-found: error
 ```
+<!-- pyml enable md013-->
 
 `rehearse_publish` becomes a matrix with the same `os/arch/runner/expect`, plus `variant: cpu`, `pythons` and
 `coexist`. For Linux x86_64: `pythons: "3.11 3.12 3.13 3.14 3.15"`, `coexist: true`.
+
 - Keep Phase 1's steps unchanged: checkout, setup-python (all five versions, multi-line), downloads, the
   background-process pypiserver step (it already works on macOS and Windows, which have no Linux containers), twine
   upload, index check. Give the server step `shell: bash` on every platform.
@@ -1239,11 +1282,13 @@ Expected: the new tests FAIL (`KeyError: 'wheel_tag'`, missing cache steps, imag
 `sdist` job (Review Focus 5): add a step after `Check sdist contents` that builds a wheel from the sdist without
 a prefix and checks the guard stays quiet. The runner has no Boost headers (Boost now comes from the prefix), so
 install them first: `sudo apt-get install -y libboost-dev && python -m pip wheel dist/stir-*.tar.gz --no-deps -w
-/tmp/noprefix && unzip -p /tmp/noprefix/*.whl stir/_data/build_features.json`. Expected: `"openmp": true`, and no failure.
+/tmp/noprefix && unzip -p /tmp/noprefix/*.whl stir/_data/build_features.json`. Expected: `"openmp":
+true`, and no failure.
 
 `packaging/pip/tests/test_coexistence.py`. At module top:
 `pytestmark = pytest.mark.skipif(os.environ.get("STIR_TEST_COEXIST") != "1", reason="CI rehearsal only")`, then
 lazy imports inside the tests:
+
 - `test_h5py_then_stir_hdf5(tmp_path)`: `write_ge_signature_h5` (h5py) into `tmp_path`, then
   `probe_reader`-style child that does `import h5py, stir` and reads it. Assert `recognised`, with a message
   naming Review Focus 2.
@@ -1270,12 +1315,15 @@ Expected: all PASS, and `test_coexistence.py` is SKIPPED ("CI rehearsal only").
 
 - [ ] **Step 5: Commit, push to the fork, watch CI**
 
+<!-- pyml disable md013-->
 ```bash
 git add .github/workflows/wheels.yml pyproject.toml packaging/pip/tests packaging/pip/README.md
 git commit -m "Build Linux x86_64 wheels with the full CPU feature set and a cached deps prefix"
 git push fork pip-packaging
 gh run watch "$(gh run list --repo robbietuk/STIR --workflow wheels.yml --branch pip-packaging -L 1 --json databaseId -q '.[0].databaseId')" --repo robbietuk/STIR --exit-status
 ```
+<!-- pyml enable md013-->
+
 Expected: `build_cpu (linux-x86_64)` passes. Its log shows `probe: parallelproj ok 2.0.7 cuda=0`, the
 `stir-wheel: build features: ... parallelproj=ON ...` line and five wheels `...manylinux_2_28_x86_64.whl`.
 `rehearse_publish (linux-x86_64)` passes, including the coexistence step (2 passed, 1 skipped). `publish` is
@@ -1300,11 +1348,13 @@ Fallback: if `test_h5py_then_stir_hdf5` or `test_itk_then_stir_itk_roundtrip` cr
 ### Task 8: macOS arm64 (libomp from LLVM, delocate)
 
 **Files:**
+
 - Modify: `packaging/pip/deps/build_deps.py`, `packaging/pip/cmake/wheel_hook.cmake`, `pyproject.toml`,
   `.github/workflows/wheels.yml`, `packaging/pip/tests/test_build_deps.py`, `test_ci_config.py`, `test_cmake_hooks.py`,
   `packaging/pip/README.md`
 
 **Interfaces:**
+
 - Consumes: `openmp_cmake_args` stub (Task 4), `BuildContext`.
 - Produces: `build_openmp(ctx)`. `openmp_cmake_args(ctx)` on darwin returns
   `-DOpenMP_C_FLAGS=-Xclang -fopenmp -I<prefix>/include`, the same for `CXX`, `-DOpenMP_C_LIB_NAMES=omp`,
@@ -1346,6 +1396,7 @@ by CI.
 python -m pytest packaging/pip/tests -k "openmp or macos or apple" \
   --ignore=packaging/pip/tests/test_wheel_smoke.py -v
 ```
+
 Expected: FAIL (`openmp_cmake_args` returns `[]` on darwin; no `macos` key; no `openmp_build_cmake_args`).
 
 - [ ] **Step 3: Implement**
@@ -1369,17 +1420,20 @@ Expected: FAIL (`openmp_cmake_args` returns `[]` on darwin; no `macos` key; no `
             expect: config,openmp,json,hdf5,petsird,itk,parallelproj
             only: ""
   ```
+
   `rehearse_publish` entry: `pythons: "3.11 3.15"`, `coexist: true`.
 - README: fill the macOS arm64 row.
 
 - [ ] **Step 4: Unit tests, commit, push, watch**
 
 Run: `python -m pytest packaging/pip/tests --ignore=packaging/pip/tests/test_wheel_smoke.py -v` → all PASS.
+
 ```bash
 git add -A packaging/pip pyproject.toml .github/workflows/wheels.yml
 git commit -m "Build macOS arm64 wheels with LLVM libomp and the full CPU feature set"
 git push fork pip-packaging
 ```
+
 Expected CI: `build_cpu (macos-arm64)` passes with five `...macosx_11_0_arm64.whl`. delocate's log lists
 `libomp.dylib` and `libparallelproj.2.dylib` copied into `stir/.dylibs/`. `rehearse_publish (macos-arm64)` passes,
 including `test_sklearn_openmp_then_stir_parallelproj`.
@@ -1405,11 +1459,13 @@ including `test_sklearn_openmp_then_stir_parallelproj`.
 ### Task 9: Windows x86_64 (MSVC, delvewheel, vcomp)
 
 **Files:**
+
 - Modify: `pyproject.toml`, `.github/workflows/wheels.yml`, `packaging/pip/tests/test_ci_config.py`,
   `packaging/pip/README.md`. Only if a fallback needs it: `packaging/pip/deps/build_deps.py`,
   `packaging/pip/deps/patches/`, `packaging/pip/deps/versions.toml`.
 
 **Interfaces:**
+
 - Consumes: the MSVC step and pwsh deps step already in `build_cpu` (Task 7).
 - Produces: `[tool.cibuildwheel.windows] repair-wheel-command`. If the PETSIRD fallback is used:
   `versions.toml` `[deps.petsird] patches_win32 = ["petsird-0.12.2-msvc-no-werror.patch"]`, and
@@ -1445,6 +1501,7 @@ Run: `python -m pytest packaging/pip/tests/test_ci_config.py -v` → the two new
             expect: config,openmp,json,hdf5,petsird,itk,parallelproj
             only: ""
   ```
+
 - README: fill the Windows row.
 
 - [ ] **Step 4: Unit tests, commit, push, watch**
@@ -1458,7 +1515,7 @@ repaired into `stir.libs`, and there are five `...win_amd64.whl`. `rehearse_publ
 
 - PETSIRD fails to compile with `error C2220: the following warning is treated as an error`. Upstream adds
   `/W3 /WX` with `add_compile_options`, which comes after `CMAKE_CXX_FLAGS`, so no flag can undo it. Create
-  `packaging/pip/deps/patches/petsird-0.12.2-msvc-no-werror.patch`, removing ` /WX` from `cpp/CMakeLists.txt`'s
+  `packaging/pip/deps/patches/petsird-0.12.2-msvc-no-werror.patch`, removing `/WX` from `cpp/CMakeLists.txt`'s
   `add_compile_options(/W3 /WX)`. Then add `patches_win32` and `apply_patches` (Interfaces), with the test
   `test_apply_patches_only_on_matching_platform(tmp_path)` (a git repo fixture; the patch applies on `win32`, not
   on `linux`).
@@ -1478,6 +1535,7 @@ repaired into `stir.libs`, and there are five `...win_amd64.whl`. `rehearse_publ
 ### Task 10: First-version acceptance (three platforms)
 
 **Files:**
+
 - Modify: `packaging/pip/README.md` (final table and run record)
 
 - [ ] **Step 1: Unit tests**
@@ -1524,9 +1582,11 @@ Task 10's counts grow by one job pair and 5 wheels, and the README "Feature stat
 ### A1: Linux aarch64 (deferred)
 
 **Files:**
+
 - Modify: `.github/workflows/wheels.yml`, `packaging/pip/tests/test_ci_config.py`, `packaging/pip/README.md`
 
 **Interfaces:**
+
 - Consumes: `build_in_manylinux.sh aarch64` (it reads `manylinux_aarch64_image`), and the yardl `linux-aarch64`
   asset (both already pinned in `versions.toml` by Task 1).
 - Also: set `[tool.cibuildwheel.linux] manylinux-aarch64-image` to the aarch64 digest, add
@@ -1566,9 +1626,11 @@ match Task 4's. `rehearse_publish (linux-aarch64)` passes. README row filled.
 ### A2: macOS x86_64 (deferred)
 
 **Files:**
+
 - Modify: `.github/workflows/wheels.yml`, `packaging/pip/tests/test_ci_config.py`, `packaging/pip/README.md`
 
 **Interfaces:**
+
 - Consumes: Task 8's macOS settings (`openmp` dep, deployment target 11.0, delocate) and the yardl `darwin-x86_64`
   asset already pinned in `versions.toml`.
 
@@ -1585,6 +1647,7 @@ match Task 4's. `rehearse_publish (linux-aarch64)` passes. README row filled.
             expect: config,openmp,json,hdf5,petsird,itk,parallelproj
             only: ""
   ```
+
   `macos-15-intel` is native x86_64 (GitHub's last Intel image; it retires in fall 2027).
 
 - [ ] **Step 3: Tests pass, commit, push, watch**

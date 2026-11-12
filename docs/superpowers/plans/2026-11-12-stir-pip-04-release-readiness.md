@@ -63,6 +63,7 @@ Phase 4). The shared names come from `docs/superpowers/plans/2026-11-12-stir-pip
 
 ## File Structure
 
+<!-- pyml disable md013-->
 | Path | Action | Responsibility |
 |---|---|---|
 | `packaging/pip/release_check.py` | Create | Version and dev-version check, VERSION.txt change detection, protected-file diff against the upstream tag |
@@ -73,16 +74,19 @@ Phase 4). The shared names come from `docs/superpowers/plans/2026-11-12-stir-pip
 | `.github/workflows/wheels.yml` | Modify | Add the `target` dispatch input, harden `publish`, add the `checks` job |
 | `packaging/pip/README.md` | Modify | Add the user section above the existing developer notes |
 | `packaging/pip/RELEASING.md` | Create | Merge procedure, PyPI name check, trusted-publishing setup, enabling publish |
+<!-- pyml enable md013-->
 
 ---
 
 ### Task 1: `release_check.py`: version, change detection and protected-file diff
 
 **Files:**
+
 - Create: `packaging/pip/release_check.py`
 - Test: `packaging/pip/tests/test_release_check.py`
 
 **Interfaces:**
+
 - Consumes: `python packaging/pip/prepare_build.py --variant cpu --dev-number N --pyproject PATH` (Phase 1
   Task 4). It reads `VERSION.txt` from the directory that contains `--pyproject`, and exits 1 if `VERSION.txt` is
   not `X.Y.Z`.
@@ -187,6 +191,7 @@ Expected: collection error `ModuleNotFoundError: No module named 'release_check'
 
 - [ ] **Step 3: Implement `packaging/pip/release_check.py`**
 
+<!-- pyml disable-num-lines 22 md011-->
 - `is_protected(path)`: return False for paths under `packaging/`, `docs/superpowers/` or `.github/`. Otherwise return
   True if:
   - the basename is `CMakeLists.txt`,
@@ -242,10 +247,12 @@ git commit -m "Add release_check.py to verify upstream merges and dev versions"
 ### Task 2: Harden and pin down the `publish` job
 
 **Files:**
+
 - Modify: `.github/workflows/wheels.yml`: the `on.workflow_dispatch` block and the `publish` job
 - Test: `packaging/pip/tests/test_workflow_guards.py`
 
 **Interfaces:**
+
 - Consumes: job names `sdist`, `build_cpu`, `build_cuda`, `rehearse_publish`, `publish` and artifact names
   `wheels-<variant>-<os>-<arch>` and `sdist` (contract). Also `checks` from Task 3, which `publish` must `need`.
 - Produces: `load_workflow() -> dict`. It uses `yaml.safe_load` and normalises the YAML-1.1 key `True` back to `"on"`.
@@ -310,7 +317,8 @@ implementer joins the `\`-continued lines before applying the regex in `test_twi
 - [ ] **Step 2: Run the tests and check they fail**
 
 Run: `python -m pytest packaging/pip/tests/test_workflow_guards.py -v`
-Expected: `test_publish_job_guard_is_false` FAILS (Phase 1 has `if: false && github.repository == ...`, a string). The refuse-step, shape,
+Expected: `test_publish_job_guard_is_false` FAILS (Phase 1 has `if: false && github.repository == ...`, a string). The
+refuse-step, shape,
 dispatch-input and `needs: checks` tests FAIL. The others pass or fail depending on what Phase 1 wrote.
 
 - [ ] **Step 3: Edit `wheels.yml`**
@@ -338,7 +346,8 @@ dispatch-input and `needs: checks` tests FAIL. The others pass or fail depending
 
 - [ ] **Step 4: Run the tests and check they pass**
 
-Run: `python -m pytest packaging/pip/tests/test_workflow_guards.py packaging/pip/tests/test_ci_config.py -v -k "not actionlint"`
+Run:
+`python -m pytest packaging/pip/tests/test_workflow_guards.py packaging/pip/tests/test_ci_config.py -v -k "not actionlint"`
 Expected: all PASS. (`needs: checks` passes once the YAML names it. Task 3 adds the job itself.)
 
 - [ ] **Step 5: Commit**
@@ -353,11 +362,13 @@ git commit -m "Harden switched-off publish job and add workflow guard tests"
 ### Task 3: `checks` CI job with actionlint
 
 **Files:**
+
 - Modify: `.github/workflows/wheels.yml` (new job `checks`)
 - Create: `packaging/pip/tests/requirements-checks.txt`
 - Test: `packaging/pip/tests/test_workflow_guards.py` (add `test_actionlint_clean`, `test_checks_job_runs_guards`)
 
 **Interfaces:**
+
 - Consumes: `release_check.py` CLI (Task 1); `load_workflow()` (Task 2).
 - Produces: job `checks`, which `publish` already `needs`.
 
@@ -385,7 +396,9 @@ def test_checks_job_runs_guards():
 
 - [ ] **Step 2: Run the tests and check they fail**
 
-Run: `pip install -r packaging/pip/tests/requirements-checks.txt && python -m pytest packaging/pip/tests/test_workflow_guards.py -v`
+Run:
+<!-- pyml disable-next-line md013-->
+`pip install -r packaging/pip/tests/requirements-checks.txt && python -m pytest packaging/pip/tests/test_workflow_guards.py -v`
 Expected: `test_checks_job_runs_guards` FAILS with `KeyError: 'checks'`. `test_actionlint_clean` either passes or
 lists real findings in `wheels.yml`.
 
@@ -394,6 +407,8 @@ lists real findings in `wheels.yml`.
 `requirements-checks.txt` pins: `pytest`, `PyYAML`, `packaging`, `actionlint-py==1.7.12.*`.
 
 Job `checks`:
+
+<!-- pyml disable-num-lines 9 md013-->
 - `if: github.repository == 'robbietuk/STIR'`, `runs-on: ubuntu-latest`.
 - Steps:
   1. checkout with `fetch-depth: 0` (history back to `rel_6.5.0`);
@@ -421,21 +436,25 @@ Expected: `checks` is green. Its log shows `OK: no STIR C++/CMake changes since 
 
 - [ ] **Step 5: Commit**
 
+<!-- pyml disable md013-->
 ```bash
 git add .github/workflows/wheels.yml packaging/pip/tests/requirements-checks.txt packaging/pip/tests/test_workflow_guards.py packaging/pip/tests/test_ci_config.py
 git commit -m "Add checks CI job running actionlint and release guards"
 ```
+<!-- pyml enable md013-->
 
 ---
 
 ### Task 4: User documentation in `packaging/pip/README.md`
 
 **Files:**
+
 - Modify: `packaging/pip/README.md`. Insert the user section at the top. The Phase 1–3 developer notes move under a
   final `## Building and testing (developers)` heading.
 - Test: `packaging/pip/tests/test_docs.py`
 
 **Interfaces:**
+
 - Consumes: package and variant names (contract); the feature list from spec §5.2.
 - Produces: `README_REQUIRED_HEADINGS` and the `ROOT / GATE input` table row, whose cells Phase 5 edits. The test
   checks headings and key sentences, not table cells, so Phase 5 can edit the table freely.
@@ -477,6 +496,7 @@ Expected: `test_readme_has_user_sections` and `test_readme_warning_and_switch_co
 - [ ] **Step 3: Write the user section**
 
 The section contains:
+
 - **Installing.** Until a real release, wheels come from CI artifacts:
   `gh run download <run-id> --repo robbietuk/STIR -p 'wheels-*' -D wheels/`, then
   `pip install --find-links wheels/wheels-cpu-<os>-<arch> "stir==<version>"` (artifact names as in the overview:
@@ -534,10 +554,12 @@ git commit -m "Add user documentation to pip packaging README"
 ### Task 5: `packaging/pip/RELEASING.md`
 
 **Files:**
+
 - Create: `packaging/pip/RELEASING.md`
 - Test: `packaging/pip/tests/test_docs.py` (add RELEASING tests)
 
 **Interfaces:**
+
 - Consumes: the `release_check.py` CLI (Task 1); the `target` input and `publish` shape (Task 2); `local-index.sh`
   (Phase 1: `packaging/pip/local-index.sh up DIR | down | status`, serving `http://localhost:8080/simple/`).
 - Produces: the heading `## Re-check on every STIR release`, an ordered checklist that Phase 5 appends its ROOT gate
@@ -643,11 +665,13 @@ Sections, in order:
 
 - [ ] **Step 4: Run the tests, the linter and a dry run of the procedure**
 
-Run: `python -m pytest packaging/pip/tests/test_docs.py -v && pre-commit run pymarkdown --files packaging/pip/RELEASING.md`
+Run:
+`python -m pytest packaging/pip/tests/test_docs.py -v && pre-commit run pymarkdown --files packaging/pip/RELEASING.md`
 Expected: all PASS.
 
 Dry run, in a scratch worktree (`git worktree add /tmp/stir-merge-dryrun pip-packaging`), executing steps 2.1–2.6
 with `X.Y.Z = 6.5.0`:
+
 - the merge prints `Already up to date.`;
 - the check prints `OK: no STIR C++/CMake changes since rel_6.5.0`.
 
@@ -692,7 +716,9 @@ Resolved in the overview's "Cross-plan review (2026-11-12)"; the overview wins w
   (`id-token: write` at job level, `environment: pypi`, `pypa/gh-action-pypi-publish@release/v1`).
 - PyPI docs, "Creating a PyPI project with a Trusted Publisher":
   https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/ (pending publishers do not reserve names).
-- PyPA guide: https://packaging.python.org/en/latest/guides/publishing-package-distribution-releases-using-github-actions-ci-cd-workflows/
-- actionlint usage (exit codes 0/1/2/3, shellcheck integration): https://github.com/rhysd/actionlint/blob/main/docs/usage.md
+- PyPA guide:
+  https://packaging.python.org/en/latest/guides/publishing-package-distribution-releases-using-github-actions-ci-cd-workflows/
+- actionlint usage (exit codes 0/1/2/3, shellcheck integration):
+  https://github.com/rhysd/actionlint/blob/main/docs/usage.md
 - `actionlint-py` 1.7.12.x (pip-installable actionlint binary).
 - STIR `.pymarkdown` (MD013 at 120) and `.pre-commit-config.yaml` in this repo.
