@@ -1,7 +1,7 @@
 # STIR pip packages: design
 
 Date: 2026-11-12
-Status: draft for Robert's approval (revision 2)
+Status: approved by Robert (revision 3: factual corrections from planning, 2026-11-12)
 
 ## 1. Intent and why
 
@@ -44,7 +44,7 @@ The goal is that researchers can run `pip install` and get STIR, with no conda a
 | Python install | Goes to cache var `PYTHON_DEST` (default `${CMAKE_INSTALL_PREFIX}/python`). Module is `stir/` with `swigstir.py`, `_stir.*` and `extra.py`, plus top-level `stirextra.py`. | Set `PYTHON_DEST` from outside. No CMake edits needed. |
 | Config files | `STIR_CONFIG_DIR` and `STIR_DOC_DIR` are absolute paths fixed at compile time, but `get_STIR_config_dir()`/`get_STIR_doc_dir()` (`src/buildblock/find_STIR_config.cxx`) check environment variables of the same name first. | Set the variables at import time from the wheel's own location (§5.3). |
 | `-builtin` SWIG | Doesn't work with the Python stable ABI (abi3). | One wheel per Python version (3.11–3.15 means 5 per platform per package). |
-| parallelproj | libparallelproj (C++/CUDA) is only on conda-forge, and its docs say it can't be installed with pip. STIR finds it with `find_package(parallelproj CONFIG)`. | We build libparallelproj ourselves, statically, and bundle it. |
+| parallelproj | libparallelproj (C++/CUDA) is only on conda-forge, and its docs say it can't be installed with pip. STIR finds it with `find_package(parallelproj CONFIG)`. | We build libparallelproj ourselves. v2.0.7 only builds as a shared library, so it is bundled into the wheel by auditwheel/delocate/delvewheel. |
 | ITK | `pip install itk` provides Python wrappings, not C++ headers or CMake config. STIR uses `find_package(ITK CONFIG)`. | We build ITK ourselves, static, with only the modules STIR needs. |
 | CUDA on pip | pip can't detect the GPU or CUDA version. | Separate package per CUDA major version (§4). |
 | ROOT | Used only to read GATE output (4 source files). Official `root` wheel on PyPI is alpha (0.1a12). ROOT includes the Cling/LLVM interpreter (hundreds of MB). conda has no ROOT on Windows. | Deferred to the last phase; depend on official `root` wheel, don't bundle (§7, Phase 5). |
@@ -76,7 +76,7 @@ New files on the branch (none of them C++):
 - `.github/workflows/wheels.yml`
 - `docs/superpowers/specs/` and `docs/superpowers/plans/`: this design and the plan
 
-One small Python edit: `src/swig/python/stir/__init__.py` gets the two-line config-dir setup (§5.3). *(My call: editing it directly on the branch is simpler and safer than shipping an overlay copy. It's Python glue, not STIR's C++.)*
+Python edits: `src/swig/python/stir/__init__.py` gains a few lines in Phase 1 (config dirs, §5.3), Phase 3 (CUDA loader) and Phase 5 (ROOT support). The exact allowed lines are listed in the plans overview, and a Phase 4 check enforces them. Two CMake hook files under `packaging/pip/cmake/` are loaded through CMake's `CMAKE_PROJECT_STIR_INCLUDE`; no STIR CMake file is edited. *(My call: editing it directly on the branch is simpler and safer than shipping an overlay copy. It's Python glue, not STIR's C++.)*
 
 ### 5.2 Packages and platform matrix
 
@@ -96,7 +96,7 @@ Feature contents per package:
 | OpenMP | ✓ | ✓ | libgomp (Linux), libomp (macOS) and vcomp (Windows) bundled by the repair tools |
 | HDF5, PETSIRD, nlohmann_json | ✓ | ✓ | HDF5 and PETSIRD built static |
 | ITK image IO | ✓ | ✓ | ITK static, IO modules only |
-| parallelproj (CPU) | ✓ | ✓ | libparallelproj static |
+| parallelproj (CPU) | ✓ | ✓ | libparallelproj shared, bundled in the wheel |
 | parallelproj (CUDA) + STIR CUDA code | — | ✓ | |
 | ROOT / GATE input | Phase 5 | Phase 5 | Linux and macOS only |
 | NiftyPET | — | — | Non-goal |
@@ -106,7 +106,7 @@ Package names: *my call* is `stir`, `stir-cuda12` and `stir-cuda13`. Because not
 ### 5.3 Making the wheel self-contained (no environment variables)
 - scikit-build-core sets `PYTHON_DEST=${SKBUILD_PLATLIB_DIR}` so `stir/` lands at the top level of the wheel.
 - STIR's install rules put the config JSON files under `${CMAKE_INSTALL_PREFIX}/share/<STIR-version>/config`. The packaging puts them into `stir/_data/config` (and docs/examples into `stir/_data/doc`). *(Builder decides the exact mechanism: scikit-build-core install-dir settings, `wheel.exclude`, or a small install step.)*
-- `src/swig/python/stir/__init__.py` gains, before the existing import: `os.environ.setdefault("STIR_CONFIG_DIR", <package dir>/_data/config)`, and the same for `STIR_DOC_DIR`, guarded so it only applies when that `_data` folder exists. A conda or source install is then unchanged. `setdefault` means a user's own setting still takes priority.
+- `src/swig/python/stir/__init__.py` gains, before the existing import: `STIR_CONFIG_DIR` set to `<package dir>/_data/config` unless the user already set it to a non-empty value (an empty value counts as unset), and the same for `STIR_DOC_DIR`, guarded so it only applies when that `_data` folder exists. A conda or source install is then unchanged. A user's own non-empty setting still takes priority.
 - Headers, static libs, CMake config and executables are excluded from the wheel (`BUILD_EXECUTABLES=OFF`, `BUILD_TESTING=OFF`, `BUILD_SHARED_LIBS=OFF`, plus `wheel.exclude` patterns).
 
 ### 5.4 Native dependencies ("deps prefix")
@@ -118,7 +118,7 @@ Every compiled dependency is built from source, static where possible, into a pe
 | HDF5 | static, C and C++ libs | same major/minor as conda-forge's STIR build |
 | PETSIRD (+ howardhinnant date) | static | `0.12.2` (as in `build_environment.yml`) |
 | ITK | static, `ITK_BUILD_DEFAULT_MODULES=OFF`, only the IO and core modules STIR's ITK code uses | ≥ 5.4 |
-| libparallelproj | static. CPU build for `stir`; CUDA build for `stir-cudaXX` | `2.x` (as in `build_environment.yml`) |
+| libparallelproj | shared (v2.0.7 can't build static), bundled by the repair tools. CPU build for `stir`; CUDA build for `stir-cudaXX` | `2.x` (as in `build_environment.yml`) |
 | CUDA toolkit (variants only) | build-time only. At runtime the wheel depends on NVIDIA's pip packages (`nvidia-cuda-runtime-cu12` etc.) instead of bundling the runtime | 12.x, 13.x |
 
 The repair tools (auditwheel, delocate and delvewheel) bundle any remaining shared libraries and check manylinux compliance. The CUDA driver (`libcuda`) is never bundled.
@@ -129,14 +129,15 @@ CUDA architecture list: *my call* is the main architectures from Volta (sm_70) t
 - `pyproject.toml`: scikit-build-core backend. Build requirements: `scikit-build-core`, `swig>=4.2` (from PyPI), `numpy>=2` (wheels then work with NumPy ≥ 1.24 at runtime), `cmake`, `ninja`. Version is read from STIR's `VERSION.txt`, plus a `.devN` suffix for development builds so they can never be confused with a real release.
 - CUDA variants use the same `pyproject.toml`. The package name and CUDA flags are switched by a build-time setting (e.g. an environment variable read by a small templating step), so there's one source of truth.
 - `.github/workflows/wheels.yml` runs on the fork only: on push to `pip-packaging` and on manual trigger. *(My call: it also checks `github.repository == 'robbietuk/STIR'` so it can never run on UCL/STIR if the branch is ever proposed upstream.)*
-- Upstream's `build-test.yml` will also run on pushes to the branch. That's useful (it checks the `__init__.py` edit doesn't break a normal build), so it stays on. *(My call.)*
-- cibuildwheel runners: `ubuntu-latest` (x86_64), `ubuntu-24.04-arm` (aarch64), `macos-14` (arm64), x86_64 macOS (cross-built on arm64 and tested under Rosetta if no Intel runner is available) and `windows-latest`. CUDA variants install the toolkit in the build container (Linux) or via the NVIDIA installer (Windows).
+- Upstream's `build-test.yml` does **not** run on pushes to `pip-packaging` (its push trigger lists other branches). Upstream's `pre-commit-check.yml` does run on every push; how to handle its markdown line-length rule on our docs is an open question for Robert (see plans overview).
+- Runners are pinned per job (see plans overview); CUDA builds on Windows use `windows-2022` for CUDA 12.9 / Visual Studio compatibility.
+- cibuildwheel runners: `ubuntu-24.04` (x86_64), `ubuntu-24.04-arm` (aarch64), `macos-15` (arm64), `macos-15-intel` (x86_64; cross-building on arm64 kept as fallback) and `windows-2025`. CUDA variants install the toolkit in the build container (Linux) or via the NVIDIA installer (Windows).
 - Tests: cibuildwheel runs STIR's own `src/swig/test/python` pytest suite against each installed wheel. A smoke test checks that config files are found and that each enabled feature is available (ITK read, HDF5 read, parallelproj projector constructs). GPU wheels run CPU-side tests in CI. GPU execution is tested by hand on a real GPU at the end of Phase 3, since GitHub's free runners have no GPU.
 - An sdist is also built (including git submodules).
 
 ### 5.6 Publishing during development (no public pip)
 - **Wheels as CI artifacts.** Every run uploads its wheels and sdist as GitHub Actions artifacts. Robert can download them and install with `pip install --find-links <folder> stir`.
-- **Rehearsing the publish step against a throwaway private server.** A final CI job starts a `pypiserver` container inside the job, uploads every wheel with `twine` (exactly as a real publish would), then creates fresh venvs on each platform and runs `pip install --index-url http://localhost:8080/simple/ stir` and the smoke test. The server is destroyed when the job ends. This exercises upload, metadata, package names and dependency resolution with nothing going public.
+- **Rehearsing the publish step against a throwaway private server.** A final CI job starts `pypiserver` as a background process inside the job (macOS and Windows runners have no Docker), uploads every wheel with `twine` (exactly as a real publish would), then creates fresh venvs on each platform and runs `pip install --index-url http://localhost:8080/simple/ stir` and the smoke test. The server is destroyed when the job ends. This exercises upload, metadata, package names and dependency resolution with nothing going public.
 - **A local version of the same thing.** `packaging/pip/local-index.sh` runs the same `pypiserver` on Robert's machine, so he can test installs against downloaded artifacts.
 - **Real publishing exists but is off.** The workflow has a `publish` job targeting PyPI via trusted publishing, but it only runs on manual trigger with an explicit `target: pypi` input, and is disabled (`if: false`) until Robert decides to release. TestPyPI is not used.
 
